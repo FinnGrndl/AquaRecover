@@ -1,0 +1,91 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Flutter generated files
+GeneratedPluginRegistrant.*
+generated_plugin_registrant.*
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/key.properties
+android/**/GeneratedPluginRegistrant.java
+
+# Gradle
+.gradle/
+**/build/
+!**/src/**/build/
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Runner/GeneratedPluginRegistrant.*
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Xcode
+*.xcworkspace
+!ios/Runner.xcworkspace/
+!macos/Runner.xcworkspace/
+xcuserdata/
+DerivedData/
+*.xcuserstate
+
+# macOS Flutter target
+macos/Flutter/ephemeral/
+macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Swift Package Manager
+.swiftpm/
+.build/
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Firebase / Secrets
+google-services.json
+GoogleService-Info.plist
+
+# Keystores / signing
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+*.cer
+*.certSigningRequest
