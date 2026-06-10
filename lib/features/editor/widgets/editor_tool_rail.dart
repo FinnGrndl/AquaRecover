@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/cupertino.dart';
 
 import '../editor_tools.dart';
@@ -20,21 +22,42 @@ class EditorToolRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 76,
-      child: CupertinoScrollbar(
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          itemBuilder: (context, index) {
-            final group = groups[index];
-            return _ToolButton(
-              key: Key('editor_tool_${group.name}'),
-              group: group,
-              selected: group == selectedGroup && panelOpen,
-              onPressed: () => onSelected(group),
-            );
-          },
-          separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemCount: groups.length,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: CupertinoDynamicColor.resolve(
+                CupertinoColors.systemBackground,
+                context,
+              ).withValues(alpha: .70),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: CupertinoDynamicColor.resolve(
+                  CupertinoColors.separator,
+                  context,
+                ).withValues(alpha: .52),
+              ),
+            ),
+            child: CupertinoScrollbar(
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                itemBuilder: (context, index) {
+                  final group = groups[index];
+                  return _ToolButton(
+                    key: Key('editor_tool_${group.name}'),
+                    group: group,
+                    selected: group == selectedGroup && panelOpen,
+                    onPressed: () => onSelected(group),
+                  );
+                },
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemCount: groups.length,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -61,10 +84,7 @@ class _ToolButton extends StatelessWidget {
         : CupertinoDynamicColor.resolve(CupertinoColors.label, context);
     final background = selected
         ? primary.withValues(alpha: .14)
-        : CupertinoDynamicColor.resolve(
-            CupertinoColors.secondarySystemGroupedBackground,
-            context,
-          );
+        : CupertinoColors.transparent;
     return CupertinoButton(
       padding: EdgeInsets.zero,
       minimumSize: Size.zero,

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
@@ -70,14 +71,6 @@ class _EditorPageState extends State<EditorPage> {
     return _jobs[_selectedIndex.clamp(0, _jobs.length - 1).toInt()];
   }
 
-  EditorWorkflowState get _workflowState {
-    return EditorWorkflowState(
-      step: _step,
-      hasSelection: _selectedJob != null,
-      busy: _busy,
-    );
-  }
-
   @override
   void dispose() {
     _trimStartController.dispose();
@@ -87,6 +80,34 @@ class _EditorPageState extends State<EditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_step == EditorWorkflowStep.edit && _selectedJob != null) {
+      return CupertinoPageScaffold(
+        backgroundColor: CupertinoColors.black,
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 1040;
+              if (wide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: _editStep(wide: true)),
+                    SizedBox(
+                      width: 390,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 20, 20, 20),
+                        child: _sidePane(),
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return _editStep(wide: false);
+            },
+          ),
+        ),
+      );
+    }
     return CupertinoPageScaffold(
       backgroundColor: CupertinoDynamicColor.resolve(
         CupertinoColors.systemGroupedBackground,
@@ -135,8 +156,10 @@ class _EditorPageState extends State<EditorPage> {
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                       children: [
                         _workflowPane(wide: false),
-                        const SizedBox(height: 12),
-                        _statusPanel(),
+                        if (_shouldShowInlineStatus) ...[
+                          const SizedBox(height: 12),
+                          _statusPanel(),
+                        ],
                       ],
                     ),
                   );
@@ -150,22 +173,18 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _workflowPane({required bool wide}) {
-    final content = GlassPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _workflowTitle(),
-          const SizedBox(height: 14),
-          _workflowStepper(),
-          const SizedBox(height: 18),
-          _stepBody(wide: wide),
-        ],
-      ),
-    );
+    final content = GlassPanel(child: _stepBody(wide: wide));
     if (!wide) return content;
     return CupertinoScrollbar(
       child: ListView(padding: const EdgeInsets.all(20), children: [content]),
     );
+  }
+
+  bool get _shouldShowInlineStatus {
+    if (_step != EditorWorkflowStep.import) return true;
+    if (_busy || _jobs.isNotEmpty) return true;
+    final status = _status?.trim();
+    return status != null && status.isNotEmpty && status != 'Ready.';
   }
 
   Widget _sidePane() {
@@ -173,116 +192,6 @@ class _EditorPageState extends State<EditorPage> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(0, 20, 20, 24),
         children: [_statusPanel(), const SizedBox(height: 12), _queueSection()],
-      ),
-    );
-  }
-
-  Widget _workflowTitle() {
-    return Row(
-      children: [
-        const Icon(CupertinoIcons.drop_fill, color: CupertinoColors.activeBlue),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            'Import. Edit. Export.',
-            style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _workflowStepper() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 560;
-        final children = [
-          for (final step in EditorWorkflowStep.values)
-            _stepButton(step, compact: compact),
-        ];
-        return compact
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: children,
-              )
-            : Row(
-                children: children
-                    .map((child) => Expanded(child: child))
-                    .toList(),
-              );
-      },
-    );
-  }
-
-  Widget _stepButton(EditorWorkflowStep step, {required bool compact}) {
-    final state = _workflowState;
-    final selected = step == _step;
-    final enabled = state.canEnter(step);
-    final color = selected
-        ? CupertinoTheme.of(context).primaryColor.withValues(alpha: 0.16)
-        : CupertinoDynamicColor.resolve(
-            CupertinoColors.secondarySystemGroupedBackground,
-            context,
-          );
-    final borderColor = selected
-        ? CupertinoTheme.of(context).primaryColor.withValues(alpha: 0.50)
-        : CupertinoDynamicColor.resolve(CupertinoColors.separator, context);
-    final button = CupertinoButton(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      minimumSize: Size.zero,
-      borderRadius: BorderRadius.circular(14),
-      color: enabled ? color : color.withValues(alpha: 0.48),
-      onPressed: enabled ? () => setState(() => _step = step) : null,
-      child: Row(
-        mainAxisAlignment: compact
-            ? MainAxisAlignment.start
-            : MainAxisAlignment.center,
-        children: [
-          _stepBadge(step, selected),
-          const SizedBox(width: 8),
-          Flexible(child: Text(step.label, overflow: TextOverflow.ellipsis)),
-        ],
-      ),
-    );
-    return Container(
-      margin: EdgeInsets.only(right: compact ? 0 : 8, bottom: compact ? 8 : 0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
-      ),
-      child: button,
-    );
-  }
-
-  Widget _stepBadge(EditorWorkflowStep step, bool selected) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: selected
-            ? CupertinoTheme.of(context).primaryColor
-            : CupertinoDynamicColor.resolve(
-                CupertinoColors.systemGrey4,
-                context,
-              ),
-      ),
-      child: SizedBox(
-        width: 24,
-        height: 24,
-        child: Center(
-          child: Text(
-            step.shortLabel,
-            style: TextStyle(
-              color: selected
-                  ? CupertinoColors.white
-                  : CupertinoDynamicColor.resolve(
-                      CupertinoColors.label,
-                      context,
-                    ),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -300,31 +209,75 @@ class _EditorPageState extends State<EditorPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _sectionHeader('Import', 'Files or Photos'),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            CupertinoButton.filled(
-              onPressed: _busy ? null : _pickFiles,
-              child: const Text('Import Files'),
-            ),
-            CupertinoButton(
-              onPressed: _busy ? null : _importFromPhotos,
-              child: const Text('Import from Photos'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (job == null) _emptyImportState() else _importSummary(job),
+        _importHero(job),
+        if (job != null) ...[const SizedBox(height: 14), _importSummary(job)],
         if (showQueue && _jobs.isNotEmpty) ...[
           const SizedBox(height: 16),
           _queueSection(compact: true),
         ],
-        const SizedBox(height: 16),
-        _navigationRow(nextLabel: 'Edit selected'),
       ],
+    );
+  }
+
+  Widget _importHero(MediaJob? job) {
+    final hasBatch = _jobs.length > 1;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: CupertinoTheme.of(context).primaryColor.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: CupertinoTheme.of(context).primaryColor.withValues(alpha: .22),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            CupertinoIcons.photo_on_rectangle,
+            color: CupertinoColors.activeBlue,
+            size: 30,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Import media',
+            style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Choose photos or videos first. AquaRecover opens the editor as soon as readable media is imported.',
+            style: _secondaryText(context),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              CupertinoButton.filled(
+                onPressed: _busy ? null : _pickFiles,
+                child: const Text('Import Files'),
+              ),
+              CupertinoButton(
+                onPressed: _busy ? null : _importFromPhotos,
+                child: const Text('Import from Photos'),
+              ),
+              if (job != null)
+                CupertinoButton(
+                  onPressed: _busy
+                      ? null
+                      : () => setState(() => _step = EditorWorkflowStep.edit),
+                  child: const Text('Edit selected'),
+                ),
+              if (hasBatch)
+                CupertinoButton(
+                  onPressed: _busy ? null : _processQueue,
+                  child: const Text('Export batch'),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -343,8 +296,10 @@ class _EditorPageState extends State<EditorPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 720;
-        final reservedPreview = compact ? 220.0 : 280.0;
-        final reservedChrome = compact ? 168.0 : 176.0;
+        final horizontalPadding = wide ? 24.0 : 12.0;
+        final bottomPadding = compact ? 10.0 : 18.0;
+        final reservedPreview = compact ? 250.0 : 320.0;
+        final reservedChrome = compact ? 174.0 : 182.0;
         final availablePanelHeight =
             constraints.maxHeight - reservedPreview - reservedChrome;
         final panelHeight = availablePanelHeight <= 96
@@ -354,36 +309,79 @@ class _EditorPageState extends State<EditorPage> {
                 compact ? 270.0 : 340.0,
               );
         final panelOpen = _toolPanelOpen && panelHeight > 0;
-        return Padding(
-          padding: EdgeInsets.fromLTRB(wide ? 20 : 12, 8, wide ? 20 : 12, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _editorTopBar(job),
-              const SizedBox(height: 10),
-              Expanded(
-                child: EditorPreviewStage(
-                  job: job,
-                  settings: _settings,
-                  compareMode: _compareMode,
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            EditorPreviewStage(
+              job: job,
+              settings: _settings,
+              compareMode: _compareMode,
+              immersive: true,
+              showHeader: false,
+              borderRadius: 0,
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      CupertinoColors.black.withValues(alpha: .46),
+                      CupertinoColors.black.withValues(alpha: .05),
+                      CupertinoColors.black.withValues(alpha: .42),
+                    ],
+                    stops: const [0, .45, 1],
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
-              EditorToolRail(
-                groups: groups,
-                selectedGroup: activeGroup,
-                panelOpen: panelOpen,
-                onSelected: _selectToolGroup,
+            ),
+            Positioned(
+              top: 8,
+              left: horizontalPadding,
+              right: horizontalPadding,
+              child: _editorTopBar(job),
+            ),
+            if (_jobs.length > 1)
+              Positioned(
+                top: compact ? 66 : 70,
+                left: horizontalPadding,
+                right: horizontalPadding,
+                child: _editorBatchStrip(job, compact: compact),
               ),
-              EditorBottomPanel(
-                group: activeGroup,
-                open: panelOpen,
-                height: panelHeight,
-                onClose: () => setState(() => _toolPanelOpen = false),
-                child: _toolPanelContent(job, activeGroup),
+            Positioned(
+              left: horizontalPadding,
+              right: horizontalPadding,
+              bottom: bottomPadding,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_jobs.length <= 1) _editorSingleStatusStrip(job),
+                  if (_jobs.length <= 1) const SizedBox(height: 8),
+                  EditorBottomPanel(
+                    group: activeGroup,
+                    open: panelOpen,
+                    height: panelHeight,
+                    onClose: () => setState(() => _toolPanelOpen = false),
+                    child: _toolPanelContent(job, activeGroup),
+                  ),
+                  if (panelOpen) const SizedBox(height: 2),
+                  if (!panelOpen)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _collapsedPanelHint(activeGroup),
+                    ),
+                  if (!panelOpen) const SizedBox(height: 2),
+                  EditorToolRail(
+                    groups: groups,
+                    selectedGroup: activeGroup,
+                    panelOpen: panelOpen,
+                    onSelected: _selectToolGroup,
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
@@ -391,64 +389,241 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _editorTopBar(MediaJob job) {
     final title = job.displayName ?? p.basename(job.inputPath);
-    return Row(
-      children: [
-        CupertinoButton(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          minimumSize: Size.zero,
-          onPressed: _busy
-              ? null
-              : () => setState(() => _step = EditorWorkflowStep.import),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(CupertinoIcons.chevron_left, size: 18),
-              SizedBox(width: 4),
-              Text('Import'),
-            ],
+    return _floatingGlass(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      borderRadius: 22,
+      child: Row(
+        children: [
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            minimumSize: Size.zero,
+            onPressed: _busy
+                ? null
+                : () => setState(() => _step = EditorWorkflowStep.import),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  CupertinoIcons.chevron_left,
+                  size: 18,
+                  color: CupertinoColors.white,
+                ),
+                SizedBox(width: 4),
+                Text('Import', style: TextStyle(color: CupertinoColors.white)),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: CupertinoTheme.of(
-                  context,
-                ).textTheme.textStyle.copyWith(fontWeight: FontWeight.w700),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(
+                        color: CupertinoColors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                Text(
+                  '${job.kind.label} - ${job.status.label}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(
+                        color: CupertinoColors.white.withValues(alpha: .72),
+                        fontSize: 12,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          CupertinoButton.filled(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            minimumSize: Size.zero,
+            onPressed: _busy
+                ? null
+                : () => setState(() => _step = EditorWorkflowStep.export),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Export'),
+                SizedBox(width: 4),
+                Icon(CupertinoIcons.chevron_right, size: 18),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _editorBatchStrip(MediaJob job, {required bool compact}) {
+    final total = _jobs.length;
+    final current = _selectedIndex.clamp(0, total - 1).toInt() + 1;
+    final complete = _jobs
+        .where((item) => item.status == JobStatus.complete)
+        .length;
+    final failed = _jobs
+        .where((item) => item.status == JobStatus.failed)
+        .length;
+    final pending = total - complete - failed;
+    return _floatingGlass(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      borderRadius: 20,
+      child: Row(
+        children: [
+          _editorIconButton(
+            icon: CupertinoIcons.chevron_left,
+            onPressed: _busy || _selectedIndex <= 0
+                ? null
+                : () => setState(() => _selectedIndex--),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  compact
+                      ? 'Batch $current/$total'
+                      : 'Batch $current of $total - ${job.displayName ?? p.basename(job.inputPath)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(
+                        color: CupertinoColors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$pending pending - $complete complete${failed == 0 ? '' : ' - $failed failed'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(
+                        color: CupertinoColors.white.withValues(alpha: .72),
+                        fontSize: 12,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          _editorIconButton(
+            icon: CupertinoIcons.chevron_right,
+            onPressed: _busy || _selectedIndex >= total - 1
+                ? null
+                : () => setState(() => _selectedIndex++),
+          ),
+          const SizedBox(width: 8),
+          CupertinoButton.filled(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            minimumSize: Size.zero,
+            onPressed: _busy ? null : _processQueue,
+            child: Text(compact ? 'All' : 'Export all'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _editorSingleStatusStrip(MediaJob job) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: _floatingGlass(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        borderRadius: 99,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              CupertinoIcons.wand_stars,
+              color: CupertinoColors.white,
+              size: 16,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              _settings.preset.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                color: CupertinoColors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
-              Text(
-                '${job.kind.label} - ${job.status.label}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: _secondaryText(context),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              job.kind == MediaKind.video
+                  ? '${_compareMode.label} frame'
+                  : _compareMode.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                color: CupertinoColors.white.withValues(alpha: .74),
+                fontSize: 12,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        CupertinoButton.filled(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          minimumSize: Size.zero,
-          onPressed: _busy
-              ? null
-              : () => setState(() => _step = EditorWorkflowStep.export),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Export'),
-              SizedBox(width: 4),
-              Icon(CupertinoIcons.chevron_right, size: 18),
-            ],
+      ),
+    );
+  }
+
+  Widget _collapsedPanelHint(EditorToolGroup group) {
+    return _floatingGlass(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      borderRadius: 99,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            group.label,
+            style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+              color: CupertinoColors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
           ),
+          const SizedBox(width: 6),
+          const Icon(
+            CupertinoIcons.chevron_up,
+            color: CupertinoColors.white,
+            size: 14,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _editorIconButton({
+    required IconData icon,
+    required VoidCallback? onPressed,
+  }) {
+    return CupertinoButton(
+      padding: const EdgeInsets.all(7),
+      minimumSize: Size.zero,
+      borderRadius: BorderRadius.circular(99),
+      color: CupertinoColors.white.withValues(
+        alpha: onPressed == null ? .08 : .16,
+      ),
+      onPressed: onPressed,
+      child: Icon(
+        icon,
+        color: CupertinoColors.white.withValues(
+          alpha: onPressed == null ? .34 : 1,
         ),
-      ],
+        size: 17,
+      ),
     );
   }
 
@@ -582,6 +757,10 @@ class _EditorPageState extends State<EditorPage> {
           _resultPanel(job),
         ],
         const SizedBox(height: 14),
+        if (_jobs.length > 1) ...[
+          _batchExportReviewPanel(),
+          const SizedBox(height: 12),
+        ],
         _exportOptionsSection(),
         if (videoUnavailable) ...[
           const SizedBox(height: 12),
@@ -951,6 +1130,50 @@ class _EditorPageState extends State<EditorPage> {
   Widget _resultPanel(MediaJob job) {
     final output = job.outputPath!;
     return _noticePanel('Export complete', output);
+  }
+
+  Widget _batchExportReviewPanel() {
+    final complete = _jobs
+        .where((job) => job.status == JobStatus.complete)
+        .length;
+    final failed = _jobs.where((job) => job.status == JobStatus.failed).length;
+    final pending = _jobs.length - complete - failed;
+    return _sectionBox(
+      child: Row(
+        children: [
+          const Icon(CupertinoIcons.rectangle_stack, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Batch export', style: _panelTitle()),
+                const SizedBox(height: 3),
+                Text(
+                  '$pending pending - $complete complete${failed == 0 ? '' : ' - $failed failed'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _secondaryText(context),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            minimumSize: Size.zero,
+            onPressed: _busy ? null : _clearCompleted,
+            child: const Text('Clear'),
+          ),
+          CupertinoButton.filled(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            minimumSize: Size.zero,
+            onPressed: _busy ? null : _processQueue,
+            child: const Text('Export all'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _noticePanel(String title, String message) {
@@ -1381,34 +1604,6 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _navigationRow({
-    String backLabel = 'Back',
-    String nextLabel = 'Next',
-  }) {
-    final state = _workflowState;
-    return Row(
-      children: [
-        Expanded(
-          child: CupertinoButton(
-            onPressed: state.canGoBack && !_busy
-                ? () => setState(() => _step = state.previous)
-                : null,
-            child: Text(backLabel),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: CupertinoButton.filled(
-            onPressed: state.canGoForward && !_busy
-                ? () => setState(() => _step = state.next)
-                : null,
-            child: Text(nextLabel),
-          ),
-        ),
-      ],
-    );
-  }
-
   Future<void> _pickFiles() async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
@@ -1492,10 +1687,13 @@ class _EditorPageState extends State<EditorPage> {
       final startIndex = _jobs.length;
       _jobs = [..._jobs, ...next];
       _selectedIndex = startIndex;
-      _step = EditorWorkflowStep.import;
+      _step = EditorWorkflowStep.edit;
+      _selectedToolGroup = EditorToolGroup.presets;
+      _toolPanelOpen = true;
+      _compareMode = EditorCompareMode.edited;
       _busy = false;
       _status =
-          'Imported ${next.length} item${next.length == 1 ? '' : 's'}${skipped == 0 ? '' : ', skipped $skipped unsupported'}.';
+          'Imported ${next.length} item${next.length == 1 ? '' : 's'}${skipped == 0 ? '' : ', skipped $skipped unsupported'} and opened the editor.';
     });
   }
 
@@ -1776,6 +1974,36 @@ class _EditorPageState extends State<EditorPage> {
   String _friendlyError(Object error) {
     final message = error.toString().replaceAll(RegExp(r'[\r\n]+'), ' ').trim();
     return message.length <= 260 ? message : '${message.substring(0, 260)}...';
+  }
+
+  Widget _floatingGlass({
+    required Widget child,
+    required EdgeInsetsGeometry padding,
+    double borderRadius = 20,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: CupertinoColors.black.withValues(alpha: .34),
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(
+              color: CupertinoColors.white.withValues(alpha: .18),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: CupertinoColors.black.withValues(alpha: .20),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Padding(padding: padding, child: child),
+        ),
+      ),
+    );
   }
 
   Widget _sectionBox({

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
 import 'package:path/path.dart' as p;
@@ -16,11 +17,17 @@ class EditorPreviewStage extends StatelessWidget {
     required this.job,
     required this.settings,
     required this.compareMode,
+    this.immersive = false,
+    this.showHeader = true,
+    this.borderRadius = 18,
   });
 
   final MediaJob job;
   final RestorationSettings settings;
   final EditorCompareMode compareMode;
+  final bool immersive;
+  final bool showHeader;
+  final double borderRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -28,20 +35,21 @@ class EditorPreviewStage extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: CupertinoColors.black,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(borderRadius),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(borderRadius),
         child: Stack(
           fit: StackFit.expand,
           children: [
             _preview(context),
-            Positioned(
-              left: 12,
-              top: 12,
-              right: 12,
-              child: _stageHeader(context, title),
-            ),
+            if (showHeader)
+              Positioned(
+                left: 12,
+                top: 12,
+                right: 12,
+                child: _stageHeader(context, title),
+              ),
           ],
         ),
       ),
@@ -59,23 +67,41 @@ class EditorPreviewStage extends StatelessWidget {
   }
 
   Widget _photoPreview(BuildContext context) {
-    final original = _fitPreview(
-      Image.file(
+    final original = _photoFitPreview(
+      background: Image.file(
+        File(job.inputPath),
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _placeholder(context, job.kind),
+      ),
+      foreground: Image.file(
         File(job.inputPath),
         fit: BoxFit.contain,
         errorBuilder: (_, _, _) => _placeholder(context, job.kind),
       ),
     );
-    final edited = _fitPreview(
-      GpuPreviewFilter(path: job.inputPath, settings: settings),
+    final edited = _photoFitPreview(
+      background: GpuPreviewFilter(
+        path: job.inputPath,
+        settings: settings,
+        fit: BoxFit.cover,
+      ),
+      foreground: GpuPreviewFilter(path: job.inputPath, settings: settings),
     );
     return switch (compareMode) {
       EditorCompareMode.original => original,
       EditorCompareMode.edited => edited,
       EditorCompareMode.split => _splitPreview(
         context,
-        original: original,
-        edited: edited,
+        original: _fitPreview(
+          Image.file(
+            File(job.inputPath),
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => _placeholder(context, job.kind),
+          ),
+        ),
+        edited: _fitPreview(
+          GpuPreviewFilter(path: job.inputPath, settings: settings),
+        ),
       ),
     };
   }
@@ -130,6 +156,41 @@ class EditorPreviewStage extends StatelessWidget {
     return ColoredBox(
       color: CupertinoColors.black,
       child: Center(child: child),
+    );
+  }
+
+  Widget _photoFitPreview({
+    required Widget background,
+    required Widget foreground,
+  }) {
+    if (!immersive) {
+      return _fitPreview(foreground);
+    }
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ImageFiltered(
+          imageFilter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Transform.scale(scale: 1.08, child: background),
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                CupertinoColors.black.withValues(alpha: .16),
+                CupertinoColors.black.withValues(alpha: .05),
+                CupertinoColors.black.withValues(alpha: .34),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 54, 10, 154),
+          child: Center(child: foreground),
+        ),
+      ],
     );
   }
 
