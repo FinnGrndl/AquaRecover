@@ -16,6 +16,7 @@ import 'package:aqua_recover/features/editor/editor_tools.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_bottom_panel.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_preview_stage.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_tool_rail.dart';
+import 'package:aqua_recover/features/editor/widgets/gpu_preview_filter.dart';
 import 'package:aqua_recover/features/editor/widgets/video_frame_preview_tile.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -247,14 +248,28 @@ void main() {
     expect(mode.label, 'Split');
   });
 
+  test('gpu preview matrix responds to color and hue settings', () {
+    final base = GpuPreviewFilter.matrixFor(RestorationPreset.auto.settings);
+    final tuned = GpuPreviewFilter.matrixFor(
+      RestorationPreset.auto.settings.asPro(saturation: 1.8, hue: .12),
+    );
+
+    expect(base, hasLength(20));
+    expect(tuned, hasLength(20));
+    expect(tuned, isNot(equals(base)));
+    expect(tuned[1].abs() + tuned[2].abs(), greaterThan(0));
+  });
+
   testWidgets('editor page renders a controlled import state without media', (
     tester,
   ) async {
     await tester.pumpWidget(const CupertinoApp(home: EditorPage()));
 
-    expect(find.text('No media selected'), findsOneWidget);
+    expect(find.text('No media selected'), findsNothing);
     expect(find.text('Import Files'), findsOneWidget);
-    expect(find.text('Edit selected'), findsOneWidget);
+    expect(find.text('Import media'), findsOneWidget);
+    expect(find.text('Import. Edit. Export.'), findsNothing);
+    expect(find.text('Edit selected'), findsNothing);
   });
 
   testWidgets('editor tool rail selects groups and bottom panel closes', (
