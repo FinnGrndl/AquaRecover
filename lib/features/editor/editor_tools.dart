@@ -40,8 +40,8 @@ extension EditorToolGroupX on EditorToolGroup {
         value: (settings) => settings.recovery,
         apply: (settings, value) => settings.asPro(recovery: value),
         min: 0,
-        max: 1.5,
-        divisions: 30,
+        max: 1.25,
+        divisions: 25,
         help: 'Higher values add stronger water-cast correction.',
       ),
       AdjustmentControl(
@@ -124,8 +124,8 @@ extension EditorToolGroupX on EditorToolGroup {
         value: (settings) => settings.redRecovery,
         apply: (settings, value) => settings.asPro(redRecovery: value),
         min: 0,
-        max: 2.5,
-        divisions: 50,
+        max: 1.8,
+        divisions: 36,
         help: 'Restores colors absorbed by depth.',
       ),
       AdjustmentControl(
@@ -143,8 +143,8 @@ extension EditorToolGroupX on EditorToolGroup {
         value: (settings) => settings.saturation,
         apply: (settings, value) => settings.asPro(saturation: value),
         min: .6,
-        max: 2.2,
-        divisions: 64,
+        max: 1.8,
+        divisions: 48,
       ),
       AdjustmentControl(
         id: 'vibrance',
