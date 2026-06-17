@@ -289,10 +289,11 @@ class UnderwaterProcessor {
         output.setPixelRgba(x, y, _byte(r), _byte(g), _byte(b), a);
       }
     }
+    final fused = _retinexFusion(source, output, stats, settings);
     final detail = (settings.sharpness + settings.clarity * 0.75)
         .clamp(0.0, 1.2)
         .toDouble();
-    return detail <= 0.001 ? output : _unsharp3x3(output, detail);
+    return detail <= 0.001 ? fused : _unsharp3x3(fused, detail);
   }
 
   static void _validateImageSize(img.Image image) {
@@ -425,6 +426,155 @@ class UnderwaterProcessor {
   static double _pixelLuma(img.Pixel p) =>
       0.2126 * p.r + 0.7152 * p.g + 0.0722 * p.b;
 
+  static img.Image _retinexFusion(
+    img.Image source,
+    img.Image corrected,
+    _ImageStats stats,
+    RestorationSettings settings,
+  ) {
+    if (corrected.width < 8 || corrected.height < 8) return corrected;
+    final guide = _FusionGuide.from(corrected);
+    final out = corrected.clone();
+    final redGreenRatio = stats.meanR / math.max(1.0, stats.meanG);
+    final blueGreenRatio = stats.meanB / math.max(1.0, stats.meanG);
+    final blueScene = ((blueGreenRatio - 1.08) / 0.34)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    final redLossScene = ((0.22 - redGreenRatio) / 0.20)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    final recovery = settings.recovery.clamp(0.0, 1.5).toDouble();
+    final amount = (0.46 + recovery * 0.28).clamp(0.0, 0.88).toDouble();
+
+    for (var y = 0; y < corrected.height; y++) {
+      for (var x = 0; x < corrected.width; x++) {
+        final original = source.getPixel(x, y);
+        final current = corrected.getPixel(x, y);
+        final originalR = original.r.toDouble();
+        final originalG = original.g.toDouble();
+        final originalB = original.b.toDouble();
+        final openWater = _openWaterWeight(originalR, originalG, originalB);
+        final blueGreen = math.max(originalG, originalB);
+        final redDeficit = blueGreen <= 1
+            ? 0.0
+            : ((blueGreen - originalR) / 165.0).clamp(0.0, 1.0).toDouble();
+        final sample = guide.sample(x, y, corrected.width, corrected.height);
+        final texture = sample.structure;
+        final waterSuppression = 1.0 - openWater * _mix(0.88, 0.28, texture);
+        final material =
+            (redDeficit *
+                    (0.14 + texture * 1.72) *
+                    waterSuppression *
+                    _mix(0.38, 1.0, redLossScene))
+                .clamp(0.0, 1.0)
+                .toDouble();
+        if (material <= 0.002 && sample.localContrast.abs() <= 0.01) {
+          continue;
+        }
+
+        var r = current.r.toDouble();
+        var g = current.g.toDouble();
+        var b = current.b.toDouble();
+        final luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        final localTone =
+            sample.localContrast *
+            (18.0 + 42.0 * material) *
+            (1.0 - openWater * 0.45);
+        final hazeLift =
+            material *
+            (1.0 - sample.luma).clamp(0.0, 1.0).toDouble() *
+            _mix(0.2, 13.0, math.max(blueScene, redLossScene * 0.35));
+        final targetLuma = (luma + localTone + hazeLift)
+            .clamp(0.0, 255.0)
+            .toDouble();
+
+        final targetRg = _mix(1.00, 0.96, blueScene);
+        final targetBg = _mix(0.96, 1.02, blueScene);
+        final targetG =
+            targetLuma /
+            math.max(0.001, 0.2126 * targetRg + 0.7152 + 0.0722 * targetBg);
+        final targetR = targetG * targetRg;
+        final targetB = targetG * targetBg;
+        final localGray = (sample.localR + sample.localG + sample.localB) / 3.0;
+        final retinexPower =
+            _mix(0.52, 0.72, blueScene) * (0.82 + recovery * 0.12);
+        var retinexR =
+            r *
+            math
+                .pow(
+                  (localGray / math.max(0.012, sample.localR)).clamp(
+                    0.72,
+                    1.52,
+                  ),
+                  retinexPower,
+                )
+                .toDouble();
+        var retinexG =
+            g *
+            math
+                .pow(
+                  (localGray / math.max(0.012, sample.localG)).clamp(
+                    0.78,
+                    1.28,
+                  ),
+                  retinexPower * 0.82,
+                )
+                .toDouble();
+        var retinexB =
+            b *
+            math
+                .pow(
+                  (localGray / math.max(0.012, sample.localB)).clamp(
+                    0.68,
+                    1.24,
+                  ),
+                  retinexPower,
+                )
+                .toDouble();
+        final warmBias =
+            (material * (0.32 + texture * 0.68) * _mix(0.48, 1.0, redLossScene))
+                .clamp(0.0, 1.0)
+                .toDouble();
+        retinexR *= 1.0 + warmBias * _mix(0.08, 0.13, blueScene);
+        retinexG *= 1.0 - warmBias * 0.015;
+        retinexB *= 1.0 - warmBias * _mix(0.04, 0.08, blueScene);
+        final retinexLuma =
+            0.2126 * retinexR + 0.7152 * retinexG + 0.0722 * retinexB;
+        if (retinexLuma > 1.0) {
+          final retinexScale = targetLuma / retinexLuma;
+          retinexR *= retinexScale;
+          retinexG *= retinexScale;
+          retinexB *= retinexScale;
+        }
+        final fusedTargetR = _mix(targetR, retinexR, 0.68);
+        final fusedTargetG = _mix(targetG, retinexG, 0.68);
+        final fusedTargetB = _mix(targetB, retinexB, 0.68);
+        final chromaWeight = (material * amount * (0.56 + texture * 0.44))
+            .clamp(0.0, 0.66);
+        final lumaWeight =
+            ((material * 0.24 + sample.structure * 0.10) *
+                    (1.0 - openWater * 0.55))
+                .clamp(0.0, 0.32)
+                .toDouble();
+
+        r = _mix(r, fusedTargetR, chromaWeight);
+        g = _mix(g, fusedTargetG, chromaWeight);
+        b = _mix(b, fusedTargetB, chromaWeight);
+        if (lumaWeight > 0.001) {
+          final adjustedLuma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          final scale = adjustedLuma <= 1
+              ? 1.0
+              : _mix(1.0, targetLuma / adjustedLuma, lumaWeight);
+          r *= scale;
+          g *= scale;
+          b *= scale;
+        }
+        out.setPixelRgba(x, y, _byte(r), _byte(g), _byte(b), current.a.toInt());
+      }
+    }
+    return out;
+  }
+
   static double _mix(double a, double b, double t) =>
       a + (b - a) * t.clamp(0.0, 1.0).toDouble();
   static double _stretch(double v, int low, int high) => high <= low
@@ -432,6 +582,170 @@ class UnderwaterProcessor {
       : ((v - low) * 255.0 / (high - low)).clamp(0.0, 255.0).toDouble();
   static double _unit(double v) => (v / 255.0).clamp(0.0, 1.0).toDouble();
   static int _byte(num v) => v.round().clamp(0, 255).toInt();
+}
+
+class _FusionGuide {
+  const _FusionGuide({
+    required this.width,
+    required this.height,
+    required this.luma,
+    required this.localR,
+    required this.localG,
+    required this.localB,
+    required this.localContrast,
+    required this.structure,
+  });
+
+  final int width;
+  final int height;
+  final List<double> luma;
+  final List<double> localR;
+  final List<double> localG;
+  final List<double> localB;
+  final List<double> localContrast;
+  final List<double> structure;
+
+  factory _FusionGuide.from(img.Image corrected) {
+    const maxGuideDimension = 420;
+    final scale = math.min(
+      1.0,
+      maxGuideDimension / math.max(corrected.width, corrected.height),
+    );
+    final guideImage = scale < 1.0
+        ? img.copyResize(
+            corrected,
+            width: math.max(1, (corrected.width * scale).round()),
+            height: math.max(1, (corrected.height * scale).round()),
+            interpolation: img.Interpolation.linear,
+          )
+        : corrected;
+    final width = guideImage.width;
+    final height = guideImage.height;
+    final luma = List<double>.filled(width * height, 0);
+    final red = List<double>.filled(width * height, 0);
+    final green = List<double>.filled(width * height, 0);
+    final blue = List<double>.filled(width * height, 0);
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        final p = guideImage.getPixel(x, y);
+        final index = y * width + x;
+        red[index] = p.r / 255.0;
+        green[index] = p.g / 255.0;
+        blue[index] = p.b / 255.0;
+        luma[index] =
+            0.2126 * red[index] + 0.7152 * green[index] + 0.0722 * blue[index];
+      }
+    }
+    final smallRadius = math.max(1, math.min(width, height) ~/ 70);
+    final mediumRadius = math.max(2, math.min(width, height) ~/ 36);
+    final largeRadius = math.max(3, math.min(width, height) ~/ 18);
+    final smallBlur = _boxBlur(luma, width, height, smallRadius);
+    final mediumBlur = _boxBlur(luma, width, height, mediumRadius);
+    final largeBlur = _boxBlur(luma, width, height, largeRadius);
+    final localR = _boxBlur(red, width, height, largeRadius);
+    final localG = _boxBlur(green, width, height, largeRadius);
+    final localB = _boxBlur(blue, width, height, largeRadius);
+    final localContrast = List<double>.filled(width * height, 0);
+    final structure = List<double>.filled(width * height, 0);
+    for (var i = 0; i < luma.length; i++) {
+      final smallDetail = luma[i] - smallBlur[i];
+      final mediumDetail = luma[i] - mediumBlur[i];
+      final largeDetail = luma[i] - largeBlur[i];
+      localContrast[i] =
+          (smallDetail * 0.12 + mediumDetail * 0.32 + largeDetail * 0.56).clamp(
+            -0.45,
+            0.45,
+          );
+      structure[i] = (smallDetail.abs() * 5.5 + mediumDetail.abs() * 3.0)
+          .clamp(0.0, 1.0)
+          .toDouble();
+    }
+    return _FusionGuide(
+      width: width,
+      height: height,
+      luma: luma,
+      localR: localR,
+      localG: localG,
+      localB: localB,
+      localContrast: localContrast,
+      structure: structure,
+    );
+  }
+
+  _FusionSample sample(int x, int y, int sourceWidth, int sourceHeight) {
+    final gx = sourceWidth <= 1
+        ? 0
+        : (x * (width - 1) / (sourceWidth - 1)).round().clamp(0, width - 1);
+    final gy = sourceHeight <= 1
+        ? 0
+        : (y * (height - 1) / (sourceHeight - 1)).round().clamp(0, height - 1);
+    final index = gy * width + gx;
+    return _FusionSample(
+      luma: luma[index],
+      localR: localR[index],
+      localG: localG[index],
+      localB: localB[index],
+      localContrast: localContrast[index],
+      structure: structure[index],
+    );
+  }
+
+  static List<double> _boxBlur(
+    List<double> input,
+    int width,
+    int height,
+    int radius,
+  ) {
+    if (radius <= 0) return List<double>.from(input);
+    final horizontal = List<double>.filled(input.length, 0);
+    final output = List<double>.filled(input.length, 0);
+    final diameter = radius * 2 + 1;
+    for (var y = 0; y < height; y++) {
+      var sum = 0.0;
+      for (var x = -radius; x <= radius; x++) {
+        final xx = x.clamp(0, width - 1);
+        sum += input[y * width + xx];
+      }
+      for (var x = 0; x < width; x++) {
+        horizontal[y * width + x] = sum / diameter;
+        final removeX = (x - radius).clamp(0, width - 1);
+        final addX = (x + radius + 1).clamp(0, width - 1);
+        sum += input[y * width + addX] - input[y * width + removeX];
+      }
+    }
+    for (var x = 0; x < width; x++) {
+      var sum = 0.0;
+      for (var y = -radius; y <= radius; y++) {
+        final yy = y.clamp(0, height - 1);
+        sum += horizontal[yy * width + x];
+      }
+      for (var y = 0; y < height; y++) {
+        output[y * width + x] = sum / diameter;
+        final removeY = (y - radius).clamp(0, height - 1);
+        final addY = (y + radius + 1).clamp(0, height - 1);
+        sum += horizontal[addY * width + x] - horizontal[removeY * width + x];
+      }
+    }
+    return output;
+  }
+}
+
+class _FusionSample {
+  const _FusionSample({
+    required this.luma,
+    required this.localR,
+    required this.localG,
+    required this.localB,
+    required this.localContrast,
+    required this.structure,
+  });
+
+  final double luma;
+  final double localR;
+  final double localG;
+  final double localB;
+  final double localContrast;
+  final double structure;
 }
 
 class _ImageStats {
