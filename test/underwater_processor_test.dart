@@ -17,6 +17,7 @@ import 'package:aqua_recover/features/editor/widgets/editor_bottom_panel.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_preview_stage.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_tool_rail.dart';
 import 'package:aqua_recover/features/editor/widgets/gpu_preview_filter.dart';
+import 'package:aqua_recover/features/editor/widgets/restored_image_preview.dart';
 import 'package:aqua_recover/features/editor/widgets/video_frame_preview_tile.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,6 +41,74 @@ void main() {
 
     expect(after.r, greaterThan(before.r));
     expect(after.a, before.a);
+  });
+
+  test('auto recovery avoids red wash on open-water color casts', () {
+    final source = img.Image(width: 12, height: 12, numChannels: 4);
+    for (var y = 0; y < source.height; y++) {
+      for (var x = 0; x < source.width; x++) {
+        source.setPixelRgba(x, y, 20, 128, 188, 255);
+      }
+    }
+
+    final output = const UnderwaterProcessor().restoreImage(
+      source,
+      RestorationPreset.auto.settings,
+    );
+    final before = source.getPixel(4, 4);
+    final after = output.getPixel(4, 4);
+
+    expect(after.r, greaterThan(before.r));
+    expect(after.r, lessThan(after.b));
+    expect(after.r, lessThan(after.g * 1.15));
+  });
+
+  test(
+    'auto recovery moves reference pairs toward provided after images',
+    () async {
+      final processor = const UnderwaterProcessor();
+      for (var i = 1; i <= 4; i++) {
+        final before = img.decodeImage(
+          await File('test/img/before$i.webp').readAsBytes(),
+        );
+        final target = img.decodeImage(
+          await File('test/img/after$i.webp').readAsBytes(),
+        );
+        expect(before, isNotNull);
+        expect(target, isNotNull);
+
+        final resizedBefore = img.copyResize(
+          before!,
+          width: 240,
+          interpolation: img.Interpolation.linear,
+        );
+        final resizedTarget = img.copyResize(
+          target!,
+          width: resizedBefore.width,
+          height: resizedBefore.height,
+          interpolation: img.Interpolation.linear,
+        );
+        final restored = processor.restoreImage(
+          resizedBefore.clone(),
+          RestorationPreset.auto.settings,
+        );
+
+        final beforeDelta = _meanAbsDelta(resizedBefore, resizedTarget);
+        final restoredDelta = _meanAbsDelta(restored, resizedTarget);
+        expect(
+          restoredDelta,
+          lessThan(beforeDelta * 0.75),
+          reason: 'reference pair $i should move closer to the target after',
+        );
+      }
+    },
+  );
+
+  test('video auto filter uses conservative red lift', () {
+    final filter = RestorationPreset.auto.settings.ffmpegFilter;
+
+    expect(filter, contains('colorbalance=rs=0.0585'));
+    expect(filter, contains('bs=-0.0212'));
   });
 
   test('HEIC photos use platform decoding', () {
@@ -77,16 +146,19 @@ void main() {
     );
   });
 
-  test('video backend is not treated as supported on iOS simulator builds', () {
-    expect(
-      VideoRestorationService.isBackendSupportedForOperatingSystem('ios'),
-      isFalse,
-    );
-    expect(
-      VideoRestorationService.isBackendSupportedForOperatingSystem('macos'),
-      isTrue,
-    );
-  });
+  test(
+    'video backend is supported on iOS through native AVFoundation export',
+    () {
+      expect(
+        VideoRestorationService.isBackendSupportedForOperatingSystem('ios'),
+        isTrue,
+      );
+      expect(
+        VideoRestorationService.isBackendSupportedForOperatingSystem('macos'),
+        isTrue,
+      );
+    },
+  );
 
   test(
     'export preset quality does not change the color restoration preset',
@@ -260,6 +332,42 @@ void main() {
     expect(tuned[1].abs() + tuned[2].abs(), greaterThan(0));
   });
 
+  test('photo preview renderer follows export processor output', () async {
+    final dir = await Directory.systemTemp.createTemp('aqua_preview_test_');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/blue_water.jpg');
+    final image = img.Image(width: 12, height: 12, numChannels: 4);
+    for (var y = 0; y < image.height; y++) {
+      for (var x = 0; x < image.width; x++) {
+        image.setPixelRgba(x, y, 24, 145, 188, 255);
+      }
+    }
+    await file.writeAsBytes(img.encodeJpg(image, quality: 96));
+    final settings = RestorationPreset.deep.settings.asPro(
+      recovery: 1.5,
+      redRecovery: 2.5,
+      autoWhiteBalance: 1,
+      contrastStretch: 1,
+      saturation: 2.4,
+      vibrance: .8,
+    );
+
+    final source = img.decodeImage(await file.readAsBytes())!;
+    final exact = const UnderwaterProcessor().restoreImage(source, settings);
+    final previewBytes = await RestoredImagePreview.renderPreviewBytesForTest(
+      path: file.path,
+      settings: settings,
+      maxDimension: 64,
+    );
+    final preview = img.decodeImage(previewBytes)!;
+    final expected = exact.getPixel(4, 4);
+    final rendered = preview.getPixel(4, 4);
+
+    expect(rendered.r, closeTo(expected.r, 12));
+    expect(rendered.g, closeTo(expected.g, 12));
+    expect(rendered.b, closeTo(expected.b, 12));
+  });
+
   testWidgets('editor page renders a controlled import state without media', (
     tester,
   ) async {
@@ -371,4 +479,20 @@ void main() {
       expect(find.text('Light controls'), findsOneWidget);
     },
   );
+}
+
+double _meanAbsDelta(img.Image a, img.Image b) {
+  final width = a.width < b.width ? a.width : b.width;
+  final height = a.height < b.height ? a.height : b.height;
+  var sum = 0.0;
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < width; x++) {
+      final pa = a.getPixel(x, y);
+      final pb = b.getPixel(x, y);
+      sum += (pa.r - pb.r).abs();
+      sum += (pa.g - pb.g).abs();
+      sum += (pa.b - pb.b).abs();
+    }
+  }
+  return sum / (width * height * 3);
 }

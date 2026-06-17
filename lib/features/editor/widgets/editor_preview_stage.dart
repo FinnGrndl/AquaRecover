@@ -6,9 +6,10 @@ import 'package:path/path.dart' as p;
 
 import '../../../core/models/media_job.dart';
 import '../../../core/models/media_kind.dart';
+import '../../../core/models/lut_profile.dart';
 import '../../../core/models/restoration_settings.dart';
 import '../editor_tools.dart';
-import 'gpu_preview_filter.dart';
+import 'restored_image_preview.dart';
 import 'video_frame_preview_tile.dart';
 
 class EditorPreviewStage extends StatelessWidget {
@@ -17,6 +18,7 @@ class EditorPreviewStage extends StatelessWidget {
     required this.job,
     required this.settings,
     required this.compareMode,
+    this.lutProfile = LutProfile.none,
     this.immersive = false,
     this.showHeader = true,
     this.borderRadius = 18,
@@ -25,6 +27,7 @@ class EditorPreviewStage extends StatelessWidget {
   final MediaJob job;
   final RestorationSettings settings;
   final EditorCompareMode compareMode;
+  final LutProfile lutProfile;
   final bool immersive;
   final bool showHeader;
   final double borderRadius;
@@ -80,12 +83,16 @@ class EditorPreviewStage extends StatelessWidget {
       ),
     );
     final edited = _photoFitPreview(
-      background: GpuPreviewFilter(
+      background: Image.file(
+        File(job.inputPath),
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _placeholder(context, job.kind),
+      ),
+      foreground: RestoredImagePreview(
         path: job.inputPath,
         settings: settings,
-        fit: BoxFit.cover,
+        lutProfile: lutProfile,
       ),
-      foreground: GpuPreviewFilter(path: job.inputPath, settings: settings),
     );
     return switch (compareMode) {
       EditorCompareMode.original => original,
@@ -100,7 +107,11 @@ class EditorPreviewStage extends StatelessWidget {
           ),
         ),
         edited: _fitPreview(
-          GpuPreviewFilter(path: job.inputPath, settings: settings),
+          RestoredImagePreview(
+            path: job.inputPath,
+            settings: settings,
+            lutProfile: lutProfile,
+          ),
         ),
       ),
     };

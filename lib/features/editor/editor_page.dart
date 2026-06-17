@@ -26,9 +26,9 @@ import 'widgets/before_after_scrubber.dart';
 import 'widgets/editor_bottom_panel.dart';
 import 'widgets/editor_preview_stage.dart';
 import 'widgets/editor_tool_rail.dart';
-import 'widgets/gpu_preview_filter.dart';
 import 'widgets/photo_library_sheet.dart';
 import 'widgets/raw_video_dialog.dart';
+import 'widgets/restored_image_preview.dart';
 import 'widgets/setting_slider.dart';
 import 'widgets/video_frame_preview_tile.dart';
 import 'widgets/video_preview_tile.dart';
@@ -62,6 +62,7 @@ class _EditorPageState extends State<EditorPage> {
   EditorToolGroup _selectedToolGroup = EditorToolGroup.presets;
   bool _toolPanelOpen = true;
   EditorCompareMode _compareMode = EditorCompareMode.edited;
+  double _previewSplit = .5;
   bool _busy = false;
   bool _cancelRequested = false;
   String? _status = 'Ready.';
@@ -80,6 +81,9 @@ class _EditorPageState extends State<EditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_step == EditorWorkflowStep.export && _selectedJob != null) {
+      return _exportOverlayScaffold(_selectedJob!);
+    }
     if (_step == EditorWorkflowStep.edit && _selectedJob != null) {
       return CupertinoPageScaffold(
         backgroundColor: CupertinoColors.black,
@@ -168,6 +172,107 @@ class _EditorPageState extends State<EditorPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _exportOverlayScaffold(MediaJob job) {
+    return CupertinoPageScaffold(
+      backgroundColor: CupertinoColors.black,
+      child: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 820;
+            final horizontalPadding = wide ? 24.0 : 12.0;
+            final panel = _exportFloatingPanel(wide: wide);
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                EditorPreviewStage(
+                  job: job,
+                  settings: _settings,
+                  compareMode: EditorCompareMode.edited,
+                  lutProfile: _lutProfile,
+                  immersive: true,
+                  showHeader: false,
+                  borderRadius: 0,
+                ),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          CupertinoColors.black.withValues(alpha: .50),
+                          CupertinoColors.black.withValues(alpha: .06),
+                          CupertinoColors.black.withValues(alpha: .54),
+                        ],
+                        stops: const [0, .42, 1],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  left: horizontalPadding,
+                  right: horizontalPadding,
+                  child: _exportTopBar(job),
+                ),
+                if (wide)
+                  Positioned(
+                    top: 72,
+                    right: 24,
+                    bottom: 24,
+                    width: 460,
+                    child: panel,
+                  )
+                else
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 12,
+                    height: constraints.maxHeight * .70,
+                    child: panel,
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _exportFloatingPanel({required bool wide}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: CupertinoDynamicColor.resolve(
+              CupertinoColors.systemBackground,
+              context,
+            ).withValues(alpha: .91),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: CupertinoColors.white.withValues(alpha: .18),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: CupertinoColors.black.withValues(alpha: .24),
+                blurRadius: 28,
+                offset: const Offset(0, 16),
+              ),
+            ],
+          ),
+          child: CupertinoScrollbar(
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, wide ? 18 : 24),
+              children: [_exportStep(showActions: false)],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -316,6 +421,7 @@ class _EditorPageState extends State<EditorPage> {
               job: job,
               settings: _settings,
               compareMode: _compareMode,
+              lutProfile: _lutProfile,
               immersive: true,
               showHeader: false,
               borderRadius: 0,
@@ -458,6 +564,76 @@ class _EditorPageState extends State<EditorPage> {
                 Icon(CupertinoIcons.chevron_right, size: 18),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _exportTopBar(MediaJob job) {
+    final videoUnavailable =
+        job.kind.isVideo &&
+        !VideoRestorationService.isBackendAvailableOnCurrentPlatform;
+    return _floatingGlass(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      borderRadius: 22,
+      child: Row(
+        children: [
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            minimumSize: Size.zero,
+            onPressed: _busy
+                ? null
+                : () => setState(() => _step = EditorWorkflowStep.edit),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  CupertinoIcons.chevron_left,
+                  size: 18,
+                  color: CupertinoColors.white,
+                ),
+                SizedBox(width: 4),
+                Text('Edit', style: TextStyle(color: CupertinoColors.white)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Export',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(
+                        color: CupertinoColors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                Text(
+                  _friendlyMediaName(job),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(
+                        color: CupertinoColors.white.withValues(alpha: .72),
+                        fontSize: 12,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          CupertinoButton.filled(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            minimumSize: Size.zero,
+            onPressed: (_busy || videoUnavailable) ? null : _processSelected,
+            child: Text(_busy ? 'Exporting...' : 'Export'),
           ),
         ],
       ),
@@ -735,7 +911,7 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _exportStep() {
+  Widget _exportStep({bool showActions = true}) {
     final job = _selectedJob;
     if (job == null) return _noSelectionState();
     final videoUnavailable =
@@ -766,28 +942,29 @@ class _EditorPageState extends State<EditorPage> {
           const SizedBox(height: 12),
           _noticePanel('Video export unavailable', _videoUnavailableMessage),
         ],
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: CupertinoButton(
-                onPressed: _busy
-                    ? null
-                    : () => setState(() => _step = EditorWorkflowStep.edit),
-                child: const Text('Back to edit'),
+        if (showActions) const SizedBox(height: 12),
+        if (showActions)
+          Row(
+            children: [
+              Expanded(
+                child: CupertinoButton(
+                  onPressed: _busy
+                      ? null
+                      : () => setState(() => _step = EditorWorkflowStep.edit),
+                  child: const Text('Back to edit'),
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: CupertinoButton.filled(
-                onPressed: (_busy || videoUnavailable)
-                    ? null
-                    : _processSelected,
-                child: Text(_busy ? 'Exporting...' : 'Export selected'),
+              const SizedBox(width: 10),
+              Expanded(
+                child: CupertinoButton.filled(
+                  onPressed: (_busy || videoUnavailable)
+                      ? null
+                      : _processSelected,
+                  child: Text(_busy ? 'Exporting...' : 'Export selected'),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
       ],
     );
   }
@@ -905,7 +1082,35 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  String _friendlyMediaName(MediaJob job) {
+    final rawName = job.displayName ?? p.basename(job.inputPath);
+    final uuidLike = RegExp(
+      r'^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}',
+    ).hasMatch(rawName);
+    final tempPhotosName =
+        job.source == MediaSource.photos &&
+        (uuidLike || rawName.length > 42 || rawName.contains('_L0_'));
+    if (tempPhotosName) {
+      return job.kind == MediaKind.video ? 'Imported video' : 'Imported photo';
+    }
+    return rawName;
+  }
+
+  String _mediaSummary(MediaJob job) {
+    final details = <String>[
+      job.kind.label,
+      job.source.label,
+      job.status.label,
+      if (job.metadata?.sizeLabel != null) job.metadata!.sizeLabel,
+      if (job.metadata?.dimensionsLabel != null) job.metadata!.dimensionsLabel!,
+      if (_lutProfile.isEnabled) 'LUT ${_lutProfile.name}',
+    ];
+    return details.join(' - ');
+  }
+
   Widget _selectedMediaHeader(MediaJob job) {
+    final title = _friendlyMediaName(job);
+    final subtitle = _mediaSummary(job);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -923,13 +1128,13 @@ class _EditorPageState extends State<EditorPage> {
         ),
         const SizedBox(height: 10),
         Text(
-          job.displayName ?? p.basename(job.inputPath),
+          title,
           style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
         ),
         const SizedBox(height: 4),
         Text(
-          job.inputPath,
-          maxLines: 2,
+          subtitle,
+          maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: _secondaryText(context),
         ),
@@ -955,13 +1160,11 @@ class _EditorPageState extends State<EditorPage> {
         originalPath: job.inputPath,
         restoredPath: job.outputPath!,
         kind: job.kind,
+        aspectRatio: _previewAspectRatio(job),
       );
     }
     if (job.kind == MediaKind.photo) {
-      return _splitCards(
-        left: _mediaCard(title: 'Before', path: job.inputPath, kind: job.kind),
-        right: _gpuPreviewCard(job.inputPath, title: 'After preview'),
-      );
+      return _liveBeforeAfterPreview(job);
     }
     if (job.kind == MediaKind.video) {
       return _videoFrameComparison(job, exportReview: true);
@@ -1025,17 +1228,88 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _gpuPreviewCard(String path, {required String title}) {
+  Widget _liveBeforeAfterPreview(MediaJob job) {
     return _previewCard(
-      title: title,
-      trailing: 'approx',
-      child: SizedBox(
-        height: 236,
-        width: double.infinity,
-        child: GpuPreviewFilter(path: path, settings: _settings),
+      title: 'Before / after',
+      trailing: 'Live render',
+      minHeight: 0,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: Column(
+          children: [
+            AspectRatio(
+              aspectRatio: _previewAspectRatio(job),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: ColoredBox(
+                  color: CupertinoColors.black,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          RestoredImagePreview(
+                            path: job.inputPath,
+                            settings: _settings,
+                            lutProfile: _lutProfile,
+                          ),
+                          Positioned(
+                            left: 0,
+                            top: 0,
+                            bottom: 0,
+                            width: constraints.maxWidth * _previewSplit,
+                            child: ClipRect(
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: SizedBox(
+                                  width: constraints.maxWidth,
+                                  height: constraints.maxHeight,
+                                  child: Image.file(
+                                    File(job.inputPath),
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, _, _) =>
+                                        _placeholder(job.kind),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment((_previewSplit * 2) - 1, 0),
+                            child: Container(
+                              width: 2,
+                              color: CupertinoColors.white.withValues(
+                                alpha: .86,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 10,
+                            top: 10,
+                            child: _darkPill('Original'),
+                          ),
+                          Positioned(
+                            right: 10,
+                            top: 10,
+                            child: _darkPill('Restored'),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            CupertinoSlider(
+              value: _previewSplit,
+              min: 0,
+              max: 1,
+              onChanged: (value) => setState(() => _previewSplit = value),
+            ),
+          ],
+        ),
       ),
-      footer:
-          'Fast preview uses the device renderer. Export uses the local image pipeline.',
     );
   }
 
@@ -1129,7 +1403,12 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _resultPanel(MediaJob job) {
     final output = job.outputPath!;
-    return _noticePanel('Export complete', output);
+    return _noticePanel(
+      'Export saved',
+      _exportOptions.saveToPhotoLibrary
+          ? 'Saved to Photos and AquaRecover Exports.'
+          : 'Saved to AquaRecover Exports as ${p.basename(output)}.',
+    );
   }
 
   Widget _batchExportReviewPanel() {
@@ -1232,7 +1511,7 @@ class _EditorPageState extends State<EditorPage> {
       children: [
         Row(
           children: [
-            Expanded(child: Text('Looks', style: _panelTitle())),
+            Expanded(child: Text('One-tap correction', style: _panelTitle())),
             CupertinoButton(
               padding: EdgeInsets.zero,
               minimumSize: Size.zero,
@@ -1241,6 +1520,59 @@ class _EditorPageState extends State<EditorPage> {
             ),
           ],
         ),
+        const SizedBox(height: 4),
+        Text(
+          'Balanced underwater correction with adjustable strength.',
+          style: _secondaryText(context),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: CupertinoButton.filled(
+                onPressed: _busy
+                    ? null
+                    : () => setState(
+                        () => _settings = RestorationPreset.auto.settings,
+                      ),
+                child: const Text('Auto Fix'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: CupertinoButton(
+                onPressed: _busy
+                    ? null
+                    : () => setState(
+                        () => _compareMode =
+                            _compareMode == EditorCompareMode.split
+                            ? EditorCompareMode.edited
+                            : EditorCompareMode.split,
+                      ),
+                child: Text(
+                  _compareMode == EditorCompareMode.split
+                      ? 'Edited view'
+                      : 'Before / after',
+                ),
+              ),
+            ),
+          ],
+        ),
+        SettingSlider(
+          label: 'Color correction',
+          value: _settings.recovery,
+          min: 0,
+          max: 1.25,
+          divisions: 25,
+          format: (value) => '${(value * 100).round()}%',
+          onChanged: _busy
+              ? null
+              : (value) => setState(
+                  () => _settings = _settings.asPro(recovery: value),
+                ),
+        ),
+        _panelDivider(),
+        Text('Looks', style: _panelTitle()),
         const SizedBox(height: 4),
         Text(_settings.preset.help, style: _secondaryText(context)),
         const SizedBox(height: 12),
@@ -2018,7 +2350,7 @@ class _EditorPageState extends State<EditorPage> {
           CupertinoColors.secondarySystemGroupedBackground,
           context,
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: CupertinoDynamicColor.resolve(
             CupertinoColors.separator,
@@ -2093,6 +2425,36 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  Widget _darkPill(String label) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: CupertinoColors.black.withValues(alpha: .50),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: CupertinoColors.white.withValues(alpha: .16)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        child: Text(
+          label,
+          style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+            color: CupertinoColors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  double _previewAspectRatio(MediaJob job) {
+    final width = job.metadata?.width;
+    final height = job.metadata?.height;
+    if (width == null || height == null || width <= 0 || height <= 0) {
+      return 4 / 3;
+    }
+    return (width / height).clamp(.68, 1.65).toDouble();
+  }
+
   Widget _switchRow({
     required String title,
     required bool value,
@@ -2163,7 +2525,7 @@ class _EditorPageState extends State<EditorPage> {
         CupertinoColors.secondarySystemGroupedBackground,
         context,
       ),
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(12),
       border: Border.all(
         color: CupertinoDynamicColor.resolve(
           CupertinoColors.separator,
