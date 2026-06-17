@@ -5,6 +5,20 @@ import 'package:image/image.dart' as img;
 
 import '../models/restoration_settings.dart';
 
+enum RestorationRenderQuality { export, preview }
+
+extension on RestorationRenderQuality {
+  int get fusionGuideDimension => switch (this) {
+    RestorationRenderQuality.export => 420,
+    RestorationRenderQuality.preview => 180,
+  };
+
+  double get detailScale => switch (this) {
+    RestorationRenderQuality.export => 1.0,
+    RestorationRenderQuality.preview => 0.0,
+  };
+}
+
 class UnderwaterProcessor {
   const UnderwaterProcessor();
   static const maxDimension = 16384;
@@ -29,7 +43,11 @@ class UnderwaterProcessor {
     );
   }
 
-  img.Image restoreImage(img.Image source, RestorationSettings settings) {
+  img.Image restoreImage(
+    img.Image source,
+    RestorationSettings settings, {
+    RestorationRenderQuality quality = RestorationRenderQuality.export,
+  }) {
     _validateImageSize(source);
     final stats = _ImageStats.from(source);
     final output = img.Image(
@@ -88,8 +106,19 @@ class UnderwaterProcessor {
                 ((0.14 - redGreenRatio) / 0.14).clamp(0.0, 1.0))
             .toDouble();
     final shallowCyanHighlightLift = blueNotDominant
-        ? severeGlobalRedLoss
+        ? severeGlobalRedLoss && stats.lowMidLuma < 82
         : false;
+    final shallowCyanWaterLift =
+        blueNotDominant && severeGlobalRedLoss && stats.lowMidLuma < 82
+        ? (((82.0 - stats.lowMidLuma) / 30.0).clamp(0.0, 1.0) *
+                  ((1.20 - blueGreenRatio) / 0.25).clamp(0.0, 1.0))
+              .toDouble()
+        : 0.0;
+    final brightShallowCyanDim = blueNotDominant && severeGlobalRedLoss
+        ? (((stats.lowMidLuma - 76.0) / 36.0).clamp(0.0, 1.0) *
+                  ((1.20 - blueGreenRatio) / 0.25).clamp(0.0, 1.0))
+              .toDouble()
+        : 0.0;
     final centerX = (source.width - 1) / 2.0;
     final centerY = (source.height - 1) / 2.0;
     final maxRadius = math
@@ -211,10 +240,10 @@ class UnderwaterProcessor {
           final toneNow = _unit(0.2126 * r + 0.7152 * g + 0.0722 * b);
           final lift =
               darkBlueSceneLift *
-              (14.0 + 98.0 * math.pow(toneNow, 1.55).toDouble());
-          r += lift * 1.16;
-          g += lift;
-          b += lift * 0.94;
+              (18.0 + 126.0 * math.pow(toneNow, 1.42).toDouble());
+          r += lift * 1.20;
+          g += lift * 1.04;
+          b += lift * 0.88;
         }
         if (shallowCyanHighlightLift) {
           final toneNow = _unit(0.2126 * r + 0.7152 * g + 0.0722 * b);
@@ -222,6 +251,25 @@ class UnderwaterProcessor {
           r += lift * 1.04;
           g += lift;
           b += lift;
+        }
+        if (shallowCyanWaterLift > 0.001 && openWater > 0.01) {
+          final toneNow = _unit(0.2126 * r + 0.7152 * g + 0.0722 * b);
+          final waterLift =
+              shallowCyanWaterLift *
+              openWater *
+              (7.0 + 28.0 * math.pow(1.0 - toneNow, 1.25).toDouble());
+          r += waterLift * 0.52;
+          g += waterLift * 0.90;
+          b += waterLift * 1.18;
+        }
+        if (brightShallowCyanDim > 0.001) {
+          final toneNow = _unit(0.2126 * r + 0.7152 * g + 0.0722 * b);
+          final dim =
+              brightShallowCyanDim *
+              (34.0 + 58.0 * math.pow(toneNow, 1.25).toDouble());
+          r -= dim * 1.08;
+          g -= dim;
+          b -= dim * 0.86;
         }
         if (originalB > originalG * 1.12) {
           final structure = _localStructureWeight(
@@ -265,6 +313,29 @@ class UnderwaterProcessor {
             r = _mix(r, surfaceRedTarget, neutralWeight);
           }
         }
+        if (brightShallowCyanDim > 0.001) {
+          final lumaNow = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          final chromaBoost = 1.0 + brightShallowCyanDim * 0.62;
+          r = lumaNow + (r - lumaNow) * chromaBoost;
+          g = lumaNow + (g - lumaNow) * chromaBoost;
+          b = lumaNow + (b - lumaNow) * chromaBoost;
+          final materialWarm =
+              (brightShallowCyanDim * cyanMaterial * (1.0 - openWater * 0.55))
+                  .clamp(0.0, 1.0)
+                  .toDouble();
+          if (materialWarm > 0.001) {
+            r *= 1.0 + materialWarm * 0.72;
+            g *= 1.0 + materialWarm * 0.08;
+            b *= 1.0 - materialWarm * 0.44;
+            final warmedLuma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            if (warmedLuma > 1.0) {
+              final scale = lumaNow / warmedLuma;
+              r *= scale;
+              g *= scale;
+              b *= scale;
+            }
+          }
+        }
         if (openWater > 0.01) {
           final pureWaterCeiling = _mix(1.32, 0.74, openWater);
           final materialCeiling = _mix(
@@ -289,10 +360,12 @@ class UnderwaterProcessor {
         output.setPixelRgba(x, y, _byte(r), _byte(g), _byte(b), a);
       }
     }
-    final fused = _retinexFusion(source, output, stats, settings);
-    final detail = (settings.sharpness + settings.clarity * 0.75)
-        .clamp(0.0, 1.2)
-        .toDouble();
+    final fused = _retinexFusion(source, output, stats, settings, quality);
+    final detail =
+        (settings.sharpness + settings.clarity * 0.75)
+            .clamp(0.0, 1.2)
+            .toDouble() *
+        quality.detailScale;
     return detail <= 0.001 ? fused : _unsharp3x3(fused, detail);
   }
 
@@ -314,6 +387,51 @@ class UnderwaterProcessor {
 
   static img.Image _unsharp3x3(img.Image source, double amount) {
     if (source.width < 3 || source.height < 3) return source;
+    final sourceData = source.data;
+    if (source.format == img.Format.uint8 &&
+        sourceData != null &&
+        source.numChannels >= 3) {
+      final out = source.clone();
+      final outData = out.data;
+      if (outData != null &&
+          outData.lengthInBytes == sourceData.lengthInBytes) {
+        final src = sourceData.toUint8List();
+        final dst = outData.toUint8List();
+        final channels = source.numChannels;
+        final stride = sourceData.rowStride;
+        for (var y = 1; y < source.height - 1; y++) {
+          final row = y * stride;
+          final prevRow = row - stride;
+          final nextRow = row + stride;
+          for (var x = 1; x < source.width - 1; x++) {
+            final index = row + x * channels;
+            final left = index - channels;
+            final right = index + channels;
+            final top = prevRow + x * channels;
+            final bottom = nextRow + x * channels;
+            final topLeft = top - channels;
+            final topRight = top + channels;
+            final bottomLeft = bottom - channels;
+            final bottomRight = bottom + channels;
+            for (var channel = 0; channel < 3; channel++) {
+              final i = index + channel;
+              final sum =
+                  src[topLeft + channel] +
+                  src[top + channel] +
+                  src[topRight + channel] +
+                  src[left + channel] +
+                  src[i] +
+                  src[right + channel] +
+                  src[bottomLeft + channel] +
+                  src[bottom + channel] +
+                  src[bottomRight + channel];
+              dst[i] = _byte(src[i] + (src[i] - sum / 9.0) * amount);
+            }
+          }
+        }
+        return out;
+      }
+    }
     final out = source.clone();
     for (var y = 1; y < source.height - 1; y++) {
       for (var x = 1; x < source.width - 1; x++) {
@@ -431,9 +549,13 @@ class UnderwaterProcessor {
     img.Image corrected,
     _ImageStats stats,
     RestorationSettings settings,
+    RestorationRenderQuality quality,
   ) {
     if (corrected.width < 8 || corrected.height < 8) return corrected;
-    final guide = _FusionGuide.from(corrected);
+    final guide = _FusionGuide.from(
+      corrected,
+      maxGuideDimension: quality.fusionGuideDimension,
+    );
     final out = corrected.clone();
     final redGreenRatio = stats.meanR / math.max(1.0, stats.meanG);
     final blueGreenRatio = stats.meanB / math.max(1.0, stats.meanG);
@@ -569,6 +691,38 @@ class UnderwaterProcessor {
           g *= scale;
           b *= scale;
         }
+        final brightSandWarm =
+            (blueScene *
+                    redLossScene *
+                    redDeficit *
+                    (1.0 - texture * 0.28) *
+                    (1.0 - openWater * 0.32) *
+                    ((sample.luma - 0.42) / 0.34).clamp(0.0, 1.0))
+                .clamp(0.0, 1.0)
+                .toDouble();
+        final blueMaterialWarm =
+            (blueScene *
+                        redLossScene *
+                        redDeficit *
+                        (0.20 + texture * 0.62) *
+                        (1.0 - openWater * 0.72) *
+                        ((sample.luma - 0.18) / 0.54).clamp(0.0, 1.0) +
+                    brightSandWarm * 0.24)
+                .clamp(0.0, 1.0)
+                .toDouble();
+        if (blueMaterialWarm > 0.001) {
+          final preserveLuma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          r *= 1.0 + blueMaterialWarm * 0.46;
+          g *= 1.0 + blueMaterialWarm * 0.07;
+          b *= 1.0 - blueMaterialWarm * 0.32;
+          final warmedLuma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          if (warmedLuma > 1.0) {
+            final scale = preserveLuma / warmedLuma;
+            r *= scale;
+            g *= scale;
+            b *= scale;
+          }
+        }
         out.setPixelRgba(x, y, _byte(r), _byte(g), _byte(b), current.a.toInt());
       }
     }
@@ -605,8 +759,10 @@ class _FusionGuide {
   final List<double> localContrast;
   final List<double> structure;
 
-  factory _FusionGuide.from(img.Image corrected) {
-    const maxGuideDimension = 420;
+  factory _FusionGuide.from(
+    img.Image corrected, {
+    required int maxGuideDimension,
+  }) {
     final scale = math.min(
       1.0,
       maxGuideDimension / math.max(corrected.width, corrected.height),

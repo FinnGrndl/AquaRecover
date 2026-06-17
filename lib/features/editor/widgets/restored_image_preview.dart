@@ -4,7 +4,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/models/lut_profile.dart';
 import '../../../core/models/restoration_settings.dart';
@@ -51,6 +54,8 @@ class RestoredImagePreview extends StatefulWidget {
 }
 
 class _RestoredImagePreviewState extends State<RestoredImagePreview> {
+  static const _nativeImageChannel = MethodChannel('aqua_recover/image');
+
   Timer? _debounce;
   Uint8List? _bytes;
   Object? _error;
@@ -135,15 +140,13 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
       _error = null;
     });
     try {
-      final bytes = await compute(
-        _renderPreviewBytes,
-        _PreviewRequest(
-          path: widget.path,
-          settings: _settingsToMap(widget.settings),
-          lutProfile: _lutToMap(widget.lutProfile),
-          maxDimension: widget.maxDimension,
-        ),
+      final request = _PreviewRequest(
+        path: widget.path,
+        settings: _settingsToMap(widget.settings),
+        lutProfile: _lutToMap(widget.lutProfile),
+        maxDimension: widget.maxDimension,
       );
+      final bytes = await _renderPreview(request);
       if (!mounted || id != _requestId) return;
       setState(() {
         _bytes = bytes;
@@ -185,6 +188,66 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
       ),
     );
   }
+
+  Future<Uint8List> _renderPreview(_PreviewRequest request) async {
+    if (Platform.isIOS && !widget.lutProfile.isCustomCube) {
+      try {
+        return await _renderNativePreview(request);
+      } on MissingPluginException {
+        // Unit tests and development shells without the iOS runner use Dart.
+      } on PlatformException {
+        // Keep preview responsive even when a platform decoder rejects a file.
+      }
+    }
+    return compute(_renderPreviewBytes, request);
+  }
+
+  Future<Uint8List> _renderNativePreview(_PreviewRequest request) async {
+    final outputPath = await _previewOutputPath(request.path);
+    await Directory(p.dirname(outputPath)).create(recursive: true);
+    final restored = await _nativeImageChannel.invokeMethod<String>(
+      'restoreImage',
+      {
+        'inputPath': request.path,
+        'outputPath': outputPath,
+        'maxDimension': request.maxDimension,
+        'settings': widget.settings.toJson(),
+        'exportOptions': const {
+          'imageFormat': 'jpeg',
+          'stripMetadata': true,
+          'saveToPhotoLibrary': false,
+          'keepAudio': false,
+        },
+        'lutProfile': widget.lutProfile.toJson(),
+      },
+    );
+    if (restored == null || restored.isEmpty) {
+      throw StateError('Native preview did not return an output path.');
+    }
+    try {
+      return await File(restored).readAsBytes();
+    } finally {
+      unawaited(_deletePreviewFile(restored));
+    }
+  }
+
+  Future<String> _previewOutputPath(String inputPath) async {
+    final dir = await getTemporaryDirectory();
+    final stem = p
+        .basenameWithoutExtension(inputPath)
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
+    final safeStem = stem.isEmpty ? 'preview' : stem;
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    return p.join(dir.path, 'AquaRecover Previews', '${safeStem}_$stamp.jpg');
+  }
+
+  Future<void> _deletePreviewFile(String path) async {
+    try {
+      await File(path).delete();
+    } on Object {
+      // Temporary preview files are best-effort cleanup.
+    }
+  }
 }
 
 class _PreviewRequest {
@@ -214,6 +277,7 @@ Future<Uint8List> _renderPreviewBytes(_PreviewRequest request) async {
   final restored = const UnderwaterProcessor().restoreImage(
     resized,
     _settingsFromMap(request.settings),
+    quality: RestorationRenderQuality.preview,
   );
   final withLut = await const LutService().apply(
     restored,

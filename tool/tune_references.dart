@@ -45,7 +45,7 @@ Future<void> main(List<String> args) async {
 
 Future<List<_Pair>> _loadPairs() async {
   final pairs = <_Pair>[];
-  for (var i = 1; i <= 4; i++) {
+  for (final i in _referencePairIndices()) {
     final before = img.decodeImage(
       await File('test/img/before$i.webp').readAsBytes(),
     );
@@ -64,6 +64,24 @@ Future<List<_Pair>> _loadPairs() async {
   }
   if (pairs.isEmpty) throw StateError('No reference pairs found in test/img.');
   return pairs;
+}
+
+List<int> _referencePairIndices() {
+  final beforePattern = RegExp(r'^before(\d+)\.webp$');
+  final afterPattern = RegExp(r'^after(\d+)\.webp$');
+  final before = <int>{};
+  final after = <int>{};
+  for (final file in Directory('test/img').listSync().whereType<File>()) {
+    final name = p.basename(file.path);
+    final beforeMatch = beforePattern.firstMatch(name);
+    if (beforeMatch != null) {
+      before.add(int.parse(beforeMatch.group(1)!));
+      continue;
+    }
+    final afterMatch = afterPattern.firstMatch(name);
+    if (afterMatch != null) after.add(int.parse(afterMatch.group(1)!));
+  }
+  return before.intersection(after).toList()..sort();
 }
 
 List<RestorationSettings> _expandColor(RestorationSettings base) {
