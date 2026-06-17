@@ -15,21 +15,21 @@ Future<void> main(List<String> args) async {
     _expandColor(RestorationPreset.auto.settings),
     pairs,
     processor,
-    keep: 12,
+    keep: 8,
   );
   await _writeScores(outDir, 'stage1_color', stage1);
   final stage2 = _scoreTop(
     stage1.expand((seed) => _expandTone(seed.settings)),
     pairs,
     processor,
-    keep: 12,
+    keep: 8,
   );
   await _writeScores(outDir, 'stage2_tone', stage2);
   final scored = _scoreTop(
     stage2.expand((seed) => _expandLight(seed.settings)),
     pairs,
     processor,
-    keep: 12,
+    keep: 8,
   );
   final log = StringBuffer();
   for (var i = 0; i < math.min(24, scored.length); i++) {
@@ -53,7 +53,7 @@ Future<List<_Pair>> _loadPairs() async {
       await File('test/img/after$i.webp').readAsBytes(),
     );
     if (before == null || after == null) continue;
-    final resizedBefore = _fit(before, 160, 120);
+    final resizedBefore = _fit(before, 96, 72);
     final resizedAfter = img.copyResize(
       after,
       width: resizedBefore.width,
