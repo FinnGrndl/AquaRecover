@@ -67,7 +67,9 @@ void main() {
     'auto recovery moves reference pairs toward provided after images',
     () async {
       final processor = const UnderwaterProcessor();
-      for (var i = 1; i <= 4; i++) {
+      final pairIndices = _referencePairIndices();
+      expect(pairIndices, isNotEmpty);
+      for (final i in pairIndices) {
         final before = img.decodeImage(
           await File('test/img/before$i.webp').readAsBytes(),
         );
@@ -332,7 +334,7 @@ void main() {
     expect(tuned[1].abs() + tuned[2].abs(), greaterThan(0));
   });
 
-  test('photo preview renderer follows export processor output', () async {
+  test('photo preview renderer follows preview processor output', () async {
     final dir = await Directory.systemTemp.createTemp('aqua_preview_test_');
     addTearDown(() => dir.delete(recursive: true));
     final file = File('${dir.path}/blue_water.jpg');
@@ -353,7 +355,11 @@ void main() {
     );
 
     final source = img.decodeImage(await file.readAsBytes())!;
-    final exact = const UnderwaterProcessor().restoreImage(source, settings);
+    final exact = const UnderwaterProcessor().restoreImage(
+      source,
+      settings,
+      quality: RestorationRenderQuality.preview,
+    );
     final previewBytes = await RestoredImagePreview.renderPreviewBytesForTest(
       path: file.path,
       settings: settings,
@@ -495,4 +501,22 @@ double _meanAbsDelta(img.Image a, img.Image b) {
     }
   }
   return sum / (width * height * 3);
+}
+
+List<int> _referencePairIndices() {
+  final beforePattern = RegExp(r'^before(\d+)\.webp$');
+  final afterPattern = RegExp(r'^after(\d+)\.webp$');
+  final before = <int>{};
+  final after = <int>{};
+  for (final file in Directory('test/img').listSync().whereType<File>()) {
+    final name = file.uri.pathSegments.last;
+    final beforeMatch = beforePattern.firstMatch(name);
+    if (beforeMatch != null) {
+      before.add(int.parse(beforeMatch.group(1)!));
+      continue;
+    }
+    final afterMatch = afterPattern.firstMatch(name);
+    if (afterMatch != null) after.add(int.parse(afterMatch.group(1)!));
+  }
+  return before.intersection(after).toList()..sort();
 }

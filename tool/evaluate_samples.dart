@@ -249,10 +249,9 @@ Future<void> _evaluateReferencePairs(
 ) async {
   final rows = <img.Image>[];
   final tuned = RestorationPreset.auto.settings;
-  for (var i = 1; i <= 4; i++) {
+  for (final i in _referencePairIndices()) {
     final beforeFile = File('test/img/before$i.webp');
     final afterFile = File('test/img/after$i.webp');
-    if (!beforeFile.existsSync() || !afterFile.existsSync()) continue;
 
     final before = img.decodeImage(await beforeFile.readAsBytes());
     final target = img.decodeImage(await afterFile.readAsBytes());
@@ -330,6 +329,24 @@ Future<void> _evaluateReferencePairs(
   final path = p.join(outDir.path, 'reference_pairs_sheet.jpg');
   await File(path).writeAsBytes(img.encodeJpg(sheet, quality: 92));
   stdout.writeln('Wrote $path');
+}
+
+List<int> _referencePairIndices() {
+  final beforePattern = RegExp(r'^before(\d+)\.webp$');
+  final afterPattern = RegExp(r'^after(\d+)\.webp$');
+  final before = <int>{};
+  final after = <int>{};
+  for (final file in Directory('test/img').listSync().whereType<File>()) {
+    final name = p.basename(file.path);
+    final beforeMatch = beforePattern.firstMatch(name);
+    if (beforeMatch != null) {
+      before.add(int.parse(beforeMatch.group(1)!));
+      continue;
+    }
+    final afterMatch = afterPattern.firstMatch(name);
+    if (afterMatch != null) after.add(int.parse(afterMatch.group(1)!));
+  }
+  return before.intersection(after).toList()..sort();
 }
 
 Future<void> _runFfmpeg(List<String> args) async {
