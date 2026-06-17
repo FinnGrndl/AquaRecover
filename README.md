@@ -57,13 +57,15 @@ The current build is now a more complete on-device prototype rather than the ear
 
 ### Video restoration
 
-- Video export is optional in this build. It is enabled on macOS only when a local `ffmpeg` command-line binary is available.
-- iOS, Android, and iOS Simulator builds keep photo recovery available and show a controlled "Video unavailable" state instead of linking a bundled FFmpeg runtime.
+- iOS video export uses the native AVFoundation/CoreImage bridge in `IosVideoProcessor.swift`.
+- iOS still-image export and live still preview use the same native CoreImage image bridge when built with the bundled Runner sources.
+- macOS video export is enabled only when a local `ffmpeg` command-line binary is available.
+- Android builds keep photo recovery available and show a controlled "Video unavailable" state for video export.
 - Optional trimming by start and end seconds before export.
 - Optional audio retention; audio is transcoded to AAC for MP4 compatibility.
 - Metadata stripping enabled by default.
 - H.264 MP4 export with `+faststart` for easier sharing.
-- Cancel control for running macOS `ffmpeg` video jobs.
+- Cancel control is only shown for running macOS `ffmpeg` video jobs; native/Dart exports ask the user to wait instead of pretending to cancel.
 - Video before/after view by showing original and restored previews side by side.
 
 ### Batch processing
@@ -98,12 +100,13 @@ The current build is now a more complete on-device prototype rather than the ear
 ## Important limitations
 
 - This repository is a source prototype. It still needs local Flutter/Xcode validation before App Store or Play Store distribution.
-- Current local validation has covered `flutter analyze`, `flutter test`, macOS build/launch, and iOS Simulator build/launch. Physical iPhone and Android builds have not been run here.
-- The latest audit fixed duplicate Apple `RawBridge` definitions, temporary RAW/HEIC intermediate cleanup, Photos import error recovery, stricter trim parsing, full RAW pixel-format selection, and idempotent bootstrap insertion logic.
-- The fast live preview uses Flutter's device renderer and a color matrix approximation. Final still exports use the full local CPU/native pipeline.
+- Before distribution, run `flutter analyze`, `flutter test`, `flutter build ios --profile --no-pub`, and `flutter build macos --debug --no-pub` on the target machine. Android builds require a local Android SDK.
+- The latest audit fixed duplicate Apple `RawBridge` definitions, temporary RAW/HEIC intermediate cleanup, Photos import error recovery, stricter trim parsing, full RAW pixel-format selection, native iOS video/image bridge bootstrapping, and idempotent bootstrap insertion logic.
+- The fast live preview uses a native iOS CoreImage path when available and a bounded Dart isolate fallback elsewhere. Final still exports use full-resolution native iOS rendering or the guarded Dart isolate fallback.
 - Custom `.cube` LUT intensity is fully respected for still images. macOS video export applies the generated FFmpeg filter chain when the optional `ffmpeg` CLI backend is present.
 - Generic raw frame streams are supported. Proprietary RAW video such as Blackmagic RAW, REDCODE RAW, and ProRes RAW needs vendor/platform SDK and licensing review.
 - The bundled `ffmpeg_kit_flutter_new` dependency was removed because its Apple binaries introduced absolute Homebrew dylib references and blocked Apple-Silicon iOS Simulator builds. Reintroduce bundled video processing only after licensing and packaging review.
+- Android still uses the demo `com.example.aqua_recover` package ID and debug signing for release builds. Change `namespace`, `applicationId`, and signing config before publishing an APK/AAB.
 
 ## Mac setup
 
@@ -117,23 +120,7 @@ sudo sh -c 'xcode-select -s /Applications/Xcode.app/Contents/Developer && xcodeb
 
 Open Xcode once and accept license prompts. Install any missing iOS runtime components if Xcode asks.
 
-### 2. Install CocoaPods
-
-With Homebrew:
-
-```bash
-brew install cocoapods
-pod --version
-```
-
-Alternative RubyGems install:
-
-```bash
-sudo gem install cocoapods
-pod --version
-```
-
-### 3. Install Flutter
+### 2. Install Flutter
 
 Install the latest stable Flutter SDK for macOS, add `flutter/bin` to your shell path, then verify:
 
@@ -149,7 +136,7 @@ flutter config --enable-macos-desktop
 flutter precache --ios --macos
 ```
 
-### 4. Unzip and bootstrap the generated platform folders
+### 3. Unzip and bootstrap the generated platform folders
 
 ```bash
 unzip aqua_recover_on_device_full_audited.zip
@@ -174,20 +161,23 @@ The script:
 - sets Android `minSdk` to 24,
 - sets iOS deployment target to 14.0,
 - adds Android media permissions,
-- copies native Android/iOS/macOS RAW/image bridge files,
+- copies native Android/iOS/macOS RAW/image/video bridge files,
+- adds iOS native `RawBridge.swift` and `IosVideoProcessor.swift` to the Xcode project,
 - adds iOS/macOS Photos usage strings,
 - adds macOS Photos and user-selected-file entitlements,
 - copies the privacy manifest files,
 - runs `flutter pub get`.
 
-### 5. Run checks locally
+### 4. Run checks locally
 
 ```bash
+flutter clean
+flutter pub get
 flutter analyze
 flutter test
 ```
 
-### 6. Run on your Mac
+### 5. Run on your Mac
 
 ```bash
 flutter run -d macos
@@ -264,8 +254,11 @@ Import from Files / Photos
         v
 Local app sandbox or OS-provided local asset file
         |
-        +--> Still image decode in Dart image package
+        +--> Still image decode/restoration in native iOS CoreImage
+        |       or guarded Dart isolate fallback
         |       or native HEIC/RAW decode bridge
+        |
+        +--> Native iOS video processing through AVFoundation/CoreImage
         |
         +--> Optional macOS video/raw frame processing through local ffmpeg CLI
         |
@@ -337,17 +330,22 @@ rm -rf android ios macos
 AQUA_ORG=com.yourname ./scripts/bootstrap_flutter_project.sh
 ```
 
-### CocoaPods errors
+### Native iOS video or image export says the backend is missing
 
-Try:
+Make sure the generated iOS project contains both native bridge files:
+
+```text
+ios/Runner/RawBridge.swift
+ios/Runner/IosVideoProcessor.swift
+```
+
+If either file is missing after a fresh `flutter create`, rerun:
 
 ```bash
-cd ios
-pod repo update
-pod install
-cd ..
+./scripts/bootstrap_flutter_project.sh
 flutter clean
 flutter pub get
+flutter build ios --profile --no-pub
 ```
 
 ### HEIC or RAW import fails

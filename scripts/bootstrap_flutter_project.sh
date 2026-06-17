@@ -30,8 +30,9 @@ fi
 if [ -f "$ROOT/android/app/build.gradle" ]; then
   perl -0pi -e 's/minSdkVersion flutter\.minSdkVersion/minSdkVersion 24/g; s/minSdkVersion = flutter\.minSdkVersion/minSdkVersion = 24/g' "$ROOT/android/app/build.gradle"
 fi
-if [ -f "$ROOT/ios/Podfile" ]; then
-  perl -0pi -e "s/# platform :ios, '[0-9.]+'/platform :ios, '14.0'/g; s/platform :ios, '[0-9.]+'/platform :ios, '14.0'/g" "$ROOT/ios/Podfile"
+IOS_PROJECT="$ROOT/ios/Runner.xcodeproj/project.pbxproj"
+if [ -f "$IOS_PROJECT" ]; then
+  perl -0pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;/IPHONEOS_DEPLOYMENT_TARGET = 14.0;/g' "$IOS_PROJECT"
 fi
 
 ANDROID_PACKAGE="$ORG.$PROJECT_NAME"
@@ -63,7 +64,7 @@ fi
 rsync -a "$ROOT/platform_overrides/ios/" "$ROOT/ios/"
 rsync -a "$ROOT/platform_overrides/macos/" "$ROOT/macos/"
 
-python3 - "$ROOT/ios/Runner.xcodeproj/project.pbxproj:RawBridge.swift:AppDelegate.swift" "$ROOT/macos/Runner.xcodeproj/project.pbxproj:RawBridge.swift:MainFlutterWindow.swift" <<'PY'
+python3 - "$ROOT/ios/Runner.xcodeproj/project.pbxproj:RawBridge.swift:AppDelegate.swift" "$ROOT/ios/Runner.xcodeproj/project.pbxproj:IosVideoProcessor.swift:RawBridge.swift" "$ROOT/macos/Runner.xcodeproj/project.pbxproj:RawBridge.swift:MainFlutterWindow.swift" <<'PY'
 from pathlib import Path
 import hashlib
 import re

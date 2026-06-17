@@ -72,6 +72,16 @@ class _EditorPageState extends State<EditorPage> {
     return _jobs[_selectedIndex.clamp(0, _jobs.length - 1).toInt()];
   }
 
+  bool get _canCancelCurrentWork {
+    if (!_busy ||
+        !VideoRestorationService.canCancelRunningJobsOnCurrentPlatform) {
+      return false;
+    }
+    return _jobs.any(
+      (job) => job.status == JobStatus.processing && job.kind.isVideo,
+    );
+  }
+
   @override
   void dispose() {
     _trimStartController.dispose();
@@ -1925,11 +1935,21 @@ class _EditorPageState extends State<EditorPage> {
                 style: _secondaryText(context),
               ),
             ),
-          if (_busy)
+          if (_busy && _canCancelCurrentWork)
             CupertinoButton(
               padding: EdgeInsets.zero,
               onPressed: _cancelProcessing,
               child: const Text('Cancel'),
+            )
+          else if (_busy)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                'Export cannot be cancelled safely. Keep the app open until this item finishes.',
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: _secondaryText(context),
+              ),
             ),
         ],
       ),
@@ -2243,6 +2263,13 @@ class _EditorPageState extends State<EditorPage> {
       setState(() => _settings = RestorationPreset.auto.settings);
 
   void _cancelProcessing() {
+    if (!_canCancelCurrentWork) {
+      setState(
+        () => _status =
+            'This export cannot be cancelled safely. It will finish shortly.',
+      );
+      return;
+    }
     _cancelRequested = true;
     _videoService.cancelAll();
     setState(() => _status = 'Cancel requested.');

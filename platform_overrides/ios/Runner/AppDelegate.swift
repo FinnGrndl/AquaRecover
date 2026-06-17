@@ -11,6 +11,9 @@ import UIKit
     if let registrar = registrar(forPlugin: "AquaRecoverRawBridge") {
       RawBridge.register(binaryMessenger: registrar.messenger())
     }
+    if let registrar = registrar(forPlugin: "AquaRecoverVideoProcessor") {
+      IosVideoProcessor.register(binaryMessenger: registrar.messenger())
+    }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }

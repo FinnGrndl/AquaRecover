@@ -17,6 +17,8 @@ class VideoRestorationService {
 
   static const unavailableMessage =
       'Video export is not available in this build. Photo recovery remains available.';
+  static const iosMissingBackendMessage =
+      'Native iOS video export is missing from this build. Rebuild the iOS runner or run the bootstrap script, then try again.';
   static const MethodChannel _iosChannel = MethodChannel('aqua_recover/video');
   static final Set<Process> _runningProcesses = <Process>{};
 
@@ -28,15 +30,29 @@ class VideoRestorationService {
     return isBackendSupportedForOperatingSystem(Platform.operatingSystem);
   }
 
+  static bool isBackendAvailableForOperatingSystem(
+    String operatingSystem, {
+    bool ffmpegAvailable = false,
+  }) {
+    if (operatingSystem == 'ios') return true;
+    if (operatingSystem == 'macos') return ffmpegAvailable;
+    return false;
+  }
+
   static bool get isBackendAvailableOnCurrentPlatform {
-    if (Platform.isIOS) return true;
-    return isBackendSupportedOnCurrentPlatform &&
-        _findFfmpegExecutable() != null;
+    return isBackendAvailableForOperatingSystem(
+      Platform.operatingSystem,
+      ffmpegAvailable: _findFfmpegExecutable() != null,
+    );
+  }
+
+  static bool get canCancelRunningJobsOnCurrentPlatform {
+    return Platform.isMacOS && _findFfmpegExecutable() != null;
   }
 
   static String get backendUnavailableReason {
     if (!isBackendSupportedOnCurrentPlatform) return unavailableMessage;
-    if (Platform.isIOS) return unavailableMessage;
+    if (Platform.isIOS) return iosMissingBackendMessage;
     return 'Video export requires an ffmpeg command-line binary on macOS. Photo recovery remains available.';
   }
 
@@ -163,6 +179,8 @@ class VideoRestorationService {
         );
       }
       return exported;
+    } on MissingPluginException {
+      throw StateError(iosMissingBackendMessage);
     } on PlatformException catch (error) {
       throw StateError(
         'Native iOS video restoration failed. ${error.message ?? error.code}',

@@ -12,7 +12,9 @@ The app has no backend processing path. Media flows through local Files/Photos A
 Files / Photos import
         |
         +--> Dart image decode for JPEG/PNG/WebP/TIFF
+        +--> Native iOS Core Image still restore path when available
         +--> Native Core Image/ImageDecoder bridge for HEIC/HEIF/RAW stills
+        +--> Native iOS AVFoundation/CoreImage video export
         +--> Optional macOS ffmpeg CLI for video and raw frame streams
         |
         v
@@ -38,11 +40,13 @@ The still-image pipeline is deterministic and runs locally:
 
 ## Video pipeline
 
-Videos are not bundled with an FFmpeg runtime in the current Flutter build. On macOS, video and raw frame streams can be processed locally when a command-line `ffmpeg` binary is installed. The generated filter chain uses color balance, tone/saturation/gamma, optional hue rotation, unsharp masking, optional vignette, optional LUT filters, and MP4-compatible output formatting. Optional trim arguments are placed around the input/output to avoid processing unwanted portions where possible. On iOS, Android, and iOS Simulator, the UI leaves photo recovery available and reports video export as unavailable.
+iOS video export uses `IosVideoProcessor.swift`, AVFoundation, and Core Image. The native bridge exposes `aqua_recover/video.restoreVideo` for video export and `aqua_recover/image.restoreImage` for still export/preview. The iOS path supports standard local videos, trim settings, built-in LUT looks, metadata stripping, and optional audio retention; custom `.cube` video LUTs still fall back to the macOS FFmpeg backend.
 
-For production performance, replace the FFmpeg-based color path with native GPU pipelines:
+Videos are not bundled with an FFmpeg runtime in the Flutter build. On macOS, video and raw frame streams can be processed locally when a command-line `ffmpeg` binary is installed. The generated filter chain uses color balance, tone/saturation/gamma, optional hue rotation, unsharp masking, optional vignette, optional LUT filters, and MP4-compatible output formatting. Optional trim arguments are placed around the input/output to avoid processing unwanted portions where possible. On Android, the UI leaves photo recovery available and reports video export as unavailable.
 
-- iOS/macOS: Core Image/Metal + AVFoundation/VideoToolbox.
+For production performance, continue moving the remaining non-iOS fallback paths toward native GPU pipelines:
+
+- macOS: Core Image/Metal + AVFoundation/VideoToolbox.
 - Android: MediaCodec + AGSL/RenderEffect/OpenGL/Vulkan.
 
 ## RAW still pipeline

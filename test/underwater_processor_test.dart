@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:aqua_recover/core/media/media_inspection_service.dart';
 import 'package:aqua_recover/core/media/media_classifier.dart';
@@ -8,6 +9,7 @@ import 'package:aqua_recover/core/models/media_kind.dart';
 import 'package:aqua_recover/core/models/media_metadata.dart';
 import 'package:aqua_recover/core/models/raw_video_descriptor.dart';
 import 'package:aqua_recover/core/models/restoration_settings.dart';
+import 'package:aqua_recover/core/processing/image_restoration_service.dart';
 import 'package:aqua_recover/core/processing/video_restoration_service.dart';
 import 'package:aqua_recover/core/processing/underwater_processor.dart';
 import 'package:aqua_recover/core/workflow/editor_workflow.dart';
@@ -159,6 +161,55 @@ void main() {
         VideoRestorationService.isBackendSupportedForOperatingSystem('macos'),
         isTrue,
       );
+      expect(
+        VideoRestorationService.isBackendAvailableForOperatingSystem('ios'),
+        isTrue,
+      );
+      expect(
+        VideoRestorationService.isBackendAvailableForOperatingSystem(
+          'macos',
+          ffmpegAvailable: false,
+        ),
+        isFalse,
+      );
+      expect(
+        VideoRestorationService.isBackendAvailableForOperatingSystem(
+          'macos',
+          ffmpegAvailable: true,
+        ),
+        isTrue,
+      );
+      expect(
+        VideoRestorationService.isBackendAvailableForOperatingSystem('android'),
+        isFalse,
+      );
+      expect(
+        VideoRestorationService.backendUnavailableReason,
+        isNot(contains('/Users/')),
+      );
+    },
+  );
+
+  test(
+    'image restoration service restores bytes on a background path',
+    () async {
+      final source = img.Image(width: 8, height: 8, numChannels: 4);
+      for (var y = 0; y < source.height; y++) {
+        for (var x = 0; x < source.width; x++) {
+          source.setPixelRgba(x, y, 20, 128, 188, 255);
+        }
+      }
+
+      final restoredBytes = await const ImageRestorationService().restoreBytes(
+        Uint8List.fromList(img.encodeJpg(source, quality: 95)),
+        RestorationPreset.auto.settings,
+      );
+      final restored = img.decodeImage(restoredBytes);
+
+      expect(restored, isNotNull);
+      expect(restored!.width, source.width);
+      expect(restored.height, source.height);
+      expect(restored.getPixel(4, 4).r, greaterThan(source.getPixel(4, 4).r));
     },
   );
 
