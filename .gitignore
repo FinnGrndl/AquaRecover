@@ -89,3 +89,5 @@ GoogleService-Info.plist
 *.mobileprovision
 *.cer
 *.certSigningRequest
+
+test/image/*.mov
