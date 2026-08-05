@@ -61,8 +61,8 @@ with optional clarity and sharpening; previews skip that expensive final pass.
 ### 5. Encode and record the edit
 
 The result is written as JPEG or PNG. The sidecar stores the chosen settings,
-export options, LUT, trim values, and source/output names. It does not store the
-full source path.
+crop and orientation, export options, LUT, trim values, and source/output
+names. It does not store the full source path.
 
 The portable implementation is in
 [`underwater_processor.dart`](lib/core/processing/underwater_processor.dart).
@@ -90,6 +90,10 @@ saturation, or sharpening.
 
 The preview button switches between the edited image and a side-by-side split.
 Pressing and holding the normal edited preview temporarily shows the original.
+The Crop tab applies a nondestructive crop, 90-degree rotation, horizontal or
+vertical flip, and pinch-to-zoom positioning. Original, square, 4:3, and 16:9
+aspect ratios are available; portrait media keeps the corresponding portrait
+orientation.
 
 ## Platform support
 

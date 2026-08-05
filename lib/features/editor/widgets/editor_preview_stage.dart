@@ -6,11 +6,77 @@ import 'package:path/path.dart' as p;
 
 import '../../../core/models/media_job.dart';
 import '../../../core/models/media_kind.dart';
+import '../../../core/models/image_transform_settings.dart';
 import '../../../core/models/lut_profile.dart';
 import '../../../core/models/restoration_settings.dart';
 import '../editor_tools.dart';
 import 'restored_image_preview.dart';
+import 'image_transform_preview.dart';
 import 'video_frame_preview_tile.dart';
+
+class EditorHoldPreview extends StatefulWidget {
+  const EditorHoldPreview({
+    super.key,
+    required this.compareMode,
+    required this.previewBuilder,
+    this.heldIndicator,
+    this.onScaleStart,
+    this.onScaleUpdate,
+    this.onScaleEnd,
+  });
+
+  final EditorCompareMode compareMode;
+  final Widget Function(EditorCompareMode mode) previewBuilder;
+  final Widget? heldIndicator;
+  final GestureScaleStartCallback? onScaleStart;
+  final GestureScaleUpdateCallback? onScaleUpdate;
+  final GestureScaleEndCallback? onScaleEnd;
+
+  @override
+  State<EditorHoldPreview> createState() => _EditorHoldPreviewState();
+}
+
+class _EditorHoldPreviewState extends State<EditorHoldPreview> {
+  bool _holdingOriginal = false;
+
+  @override
+  void didUpdateWidget(EditorHoldPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.compareMode != EditorCompareMode.edited) {
+      _holdingOriginal = false;
+    }
+  }
+
+  void _setHoldingOriginal(bool value) {
+    if (_holdingOriginal == value) return;
+    setState(() => _holdingOriginal = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canHold = widget.compareMode == EditorCompareMode.edited;
+    final effectiveMode = _holdingOriginal
+        ? EditorCompareMode.original
+        : widget.compareMode;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onLongPressStart: canHold ? (_) => _setHoldingOriginal(true) : null,
+      onLongPressEnd: canHold ? (_) => _setHoldingOriginal(false) : null,
+      onLongPressCancel: canHold ? () => _setHoldingOriginal(false) : null,
+      onScaleStart: widget.onScaleStart,
+      onScaleUpdate: widget.onScaleUpdate,
+      onScaleEnd: widget.onScaleEnd,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          widget.previewBuilder(effectiveMode),
+          if (_holdingOriginal && widget.heldIndicator != null)
+            widget.heldIndicator!,
+        ],
+      ),
+    );
+  }
+}
 
 class EditorPreviewStage extends StatelessWidget {
   const EditorPreviewStage({
@@ -23,6 +89,8 @@ class EditorPreviewStage extends StatelessWidget {
     this.showHeader = true,
     this.borderRadius = 18,
     this.immersiveBottomInset = 154,
+    this.transform = const ImageTransformSettings(),
+    this.showCropGrid = false,
   });
 
   final MediaJob job;
@@ -33,6 +101,8 @@ class EditorPreviewStage extends StatelessWidget {
   final bool showHeader;
   final double borderRadius;
   final double immersiveBottomInset;
+  final ImageTransformSettings transform;
+  final bool showCropGrid;
 
   @override
   Widget build(BuildContext context) {
@@ -72,51 +142,77 @@ class EditorPreviewStage extends StatelessWidget {
   }
 
   Widget _photoPreview(BuildContext context) {
-    final original = _photoFitPreview(
-      background: Image.file(
+    final background = Image.file(
+      File(job.inputPath),
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => _placeholder(context, job.kind),
+    );
+    final original = _transformedPhoto(
+      builder: (fit, alignment) => Image.file(
         File(job.inputPath),
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _placeholder(context, job.kind),
-      ),
-      foreground: Image.file(
-        File(job.inputPath),
-        fit: BoxFit.contain,
+        fit: fit,
+        alignment: alignment,
         errorBuilder: (_, _, _) => _placeholder(context, job.kind),
       ),
     );
-    final edited = _photoFitPreview(
-      background: Image.file(
-        File(job.inputPath),
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _placeholder(context, job.kind),
-      ),
-      foreground: RestoredImagePreview(
+    final edited = _transformedPhoto(
+      builder: (fit, alignment) => RestoredImagePreview(
         path: job.inputPath,
         settings: settings,
         lutProfile: lutProfile,
+        fit: fit,
+        alignment: alignment,
       ),
     );
     return switch (compareMode) {
-      EditorCompareMode.original => original,
-      EditorCompareMode.edited => edited,
-      EditorCompareMode.split => _splitPreview(
+      EditorCompareMode.original => _photoFitPreview(
+        background: background,
+        foreground: original,
+      ),
+      EditorCompareMode.edited => _photoFitPreview(
+        background: background,
+        foreground: edited,
+      ),
+      EditorCompareMode.split => _photoSplitPreview(
         context,
-        original: _fitPreview(
-          Image.file(
-            File(job.inputPath),
-            fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => _placeholder(context, job.kind),
-          ),
-        ),
-        edited: _fitPreview(
-          RestoredImagePreview(
-            path: job.inputPath,
-            settings: settings,
-            lutProfile: lutProfile,
-          ),
-        ),
+        background: background,
+        original: original,
+        edited: edited,
       ),
     };
+  }
+
+  Widget _transformedPhoto({required TransformPreviewBuilder builder}) {
+    final width = job.metadata?.width;
+    final height = job.metadata?.height;
+    final sourceAspect = width != null && height != null && height > 0
+        ? width / height
+        : 4 / 3;
+    return ImageTransformPreview(
+      settings: transform,
+      sourceAspectRatio: sourceAspect,
+      showGrid: showCropGrid && compareMode != EditorCompareMode.split,
+      builder: builder,
+    );
+  }
+
+  Widget _photoSplitPreview(
+    BuildContext context, {
+    required Widget background,
+    required Widget original,
+    required Widget edited,
+  }) {
+    final split = Row(
+      children: [
+        Expanded(child: _labeledHalf(context, 'Original', original)),
+        Container(width: 1, color: CupertinoColors.white.withValues(alpha: .5)),
+        Expanded(child: _labeledHalf(context, 'Edited', edited)),
+      ],
+    );
+    if (!immersive) {
+      return ColoredBox(color: CupertinoColors.black, child: split);
+    }
+    return _photoFitPreview(background: background, foreground: split);
   }
 
   Widget _videoPreview(BuildContext context) {
@@ -209,7 +305,7 @@ class EditorPreviewStage extends StatelessWidget {
         ),
         Padding(
           padding: EdgeInsets.fromLTRB(10, 54, 10, immersiveBottomInset),
-          child: Center(child: foreground),
+          child: foreground,
         ),
       ],
     );

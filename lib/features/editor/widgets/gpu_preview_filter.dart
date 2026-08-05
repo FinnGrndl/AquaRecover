@@ -30,6 +30,31 @@ class GpuPreviewFilter extends StatelessWidget {
   }
 
   static List<double> matrixFor(RestorationSettings s) {
+    if (s.isIdentity) {
+      return const <double>[
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+      ];
+    }
+    final correctionScale = (s.recovery / 1.18).clamp(0.0, 1.3).toDouble();
     final red = (1.0 + s.recovery * s.redRecovery * 0.10)
         .clamp(0.6, 1.45)
         .toDouble();
@@ -62,12 +87,12 @@ class GpuPreviewFilter extends StatelessWidget {
       colorMatrix[0][1] * scales[0],
       colorMatrix[0][2] * scales[0],
       0,
-      bias + 4,
+      bias + 4 * correctionScale,
       colorMatrix[1][0] * scales[1],
       colorMatrix[1][1] * scales[1],
       colorMatrix[1][2] * scales[1],
       0,
-      bias + 2,
+      bias + 2 * correctionScale,
       colorMatrix[2][0] * scales[2],
       colorMatrix[2][1] * scales[2],
       colorMatrix[2][2] * scales[2],

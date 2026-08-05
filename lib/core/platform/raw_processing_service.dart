@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 
 import '../models/export_options.dart';
+import '../models/image_transform_settings.dart';
 import '../models/lut_profile.dart';
 import '../models/restoration_settings.dart';
 import '../processing/image_restoration_service.dart';
@@ -28,6 +29,7 @@ class RawProcessingService {
     RestorationSettings settings, {
     ExportOptions exportOptions = const ExportOptions(),
     LutProfile lutProfile = LutProfile.none,
+    ImageTransformSettings transform = const ImageTransformSettings(),
   }) async {
     final decodedPng = await decodeRawToPng(inputPath);
     try {
@@ -36,6 +38,7 @@ class RawProcessingService {
         settings,
         exportOptions: exportOptions,
         lutProfile: lutProfile,
+        transform: transform,
       );
     } finally {
       await _deleteIntermediate(decodedPng);
@@ -47,6 +50,7 @@ class RawProcessingService {
     RestorationSettings settings, {
     ExportOptions exportOptions = const ExportOptions(),
     LutProfile lutProfile = LutProfile.none,
+    ImageTransformSettings transform = const ImageTransformSettings(),
   }) async {
     final decodedPng = await decodePlatformImageToPng(inputPath);
     try {
@@ -55,6 +59,7 @@ class RawProcessingService {
         settings,
         exportOptions: exportOptions,
         lutProfile: lutProfile,
+        transform: transform,
       );
     } finally {
       await _deleteIntermediate(decodedPng);

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'features/editor/editor_page.dart';
+import 'features/editor/editor_tools.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,10 +19,14 @@ class AquaRecoverApp extends StatelessWidget {
     super.key,
     this.initialPaths = const [],
     this.openPhotosOnStart = false,
+    this.initialToolGroup,
+    this.initialCompareMode,
   });
 
   final List<String> initialPaths;
   final bool openPhotosOnStart;
+  final EditorToolGroup? initialToolGroup;
+  final EditorCompareMode? initialCompareMode;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +42,8 @@ class AquaRecoverApp extends StatelessWidget {
       home: EditorPage(
         initialPaths: initialPaths,
         openPhotosOnStart: openPhotosOnStart,
+        initialToolGroup: initialToolGroup,
+        initialCompareMode: initialCompareMode,
       ),
     );
   }

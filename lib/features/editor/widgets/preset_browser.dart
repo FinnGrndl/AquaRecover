@@ -27,16 +27,6 @@ class PresetBrowser extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Choose a preset',
-          style: textStyle.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Presets provide the starting values. Adjustments refine the selected preset without replacing it.',
-          style: textStyle.copyWith(fontSize: 13, color: secondary),
-        ),
-        const SizedBox(height: 12),
         SizedBox(
           height: 40,
           child: ListView.separated(

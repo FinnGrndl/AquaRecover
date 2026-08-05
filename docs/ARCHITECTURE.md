@@ -30,10 +30,10 @@ ImageRestorationService   VideoRestorationService
 
 ## Editor state
 
-`EditorPage` owns the current jobs, selected item, restoration settings, LUT,
-trim values, export options, and workflow step. It calls small services for
-side effects. UI components in `lib/features/editor/widgets` receive values and
-callbacks; they do not read files or process pixels.
+`EditorPage` owns the current jobs, selected item, restoration and image
+transform settings, LUT, trim values, export options, and workflow step. It
+calls small services for side effects. UI components in
+`lib/features/editor/widgets` receive values and callbacks.
 
 A single import moves to the edit step. A multi-import creates queue entries and
 starts `_processQueue` immediately. Queue items move through pending,
@@ -53,7 +53,9 @@ Other platforms and custom still LUTs use a Dart isolate:
 5. Apply tone, color, and vignette values.
 6. Fuse the global result with a local illumination estimate.
 7. Add export-only clarity/sharpening.
-8. Apply the selected LUT and encode JPEG or PNG.
+8. Apply the selected LUT.
+9. Apply crop, quarter-turn rotation, and flip settings, then encode JPEG or
+   PNG.
 
 The limits are 16,384 pixels on either axis and 120 million decoded pixels.
 Encoded still files are limited to 512 MiB before the decode step.
@@ -63,7 +65,8 @@ Encoded still files are limited to 512 MiB before the decode step.
 Preview work uses bounded dimensions and skips the final high-cost detail pass.
 Changes are scheduled away from the UI thread. Full-resolution export reruns the
 pipeline from the original file; the preview bitmap is not upscaled or reused as
-the final output.
+the final output. Recent preview renders are kept in a small memory cache so
+switching between edited and split views does not start the same render twice.
 
 ## Apple native channels
 

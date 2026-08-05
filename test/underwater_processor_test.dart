@@ -4,18 +4,21 @@ import 'dart:typed_data';
 import 'package:aqua_recover/core/media/media_inspection_service.dart';
 import 'package:aqua_recover/core/media/media_classifier.dart';
 import 'package:aqua_recover/core/models/export_options.dart';
+import 'package:aqua_recover/core/models/image_transform_settings.dart';
 import 'package:aqua_recover/core/models/media_job.dart';
 import 'package:aqua_recover/core/models/media_kind.dart';
 import 'package:aqua_recover/core/models/media_metadata.dart';
 import 'package:aqua_recover/core/models/raw_video_descriptor.dart';
 import 'package:aqua_recover/core/models/restoration_settings.dart';
 import 'package:aqua_recover/core/processing/image_restoration_service.dart';
+import 'package:aqua_recover/core/processing/image_transform_service.dart';
 import 'package:aqua_recover/core/processing/video_restoration_service.dart';
 import 'package:aqua_recover/core/processing/underwater_processor.dart';
 import 'package:aqua_recover/core/workflow/editor_workflow.dart';
 import 'package:aqua_recover/features/editor/editor_page.dart';
 import 'package:aqua_recover/features/editor/editor_tools.dart';
 import 'package:aqua_recover/features/editor/widgets/app_license_page.dart';
+import 'package:aqua_recover/features/editor/widgets/crop_browser.dart';
 import 'package:aqua_recover/features/editor/widgets/adjustment_browser.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_bottom_panel.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_preview_stage.dart';
@@ -92,6 +95,33 @@ void main() {
         );
       }
     }
+  });
+
+  test('image crop settings produce normalized crops and pixel transforms', () {
+    const square = ImageTransformSettings(aspectRatio: CropAspectRatio.square);
+    final rect = square.normalizedCropRect(2);
+    expect(rect.left, closeTo(.25, .0001));
+    expect(rect.top, 0);
+    expect(rect.width, closeTo(.5, .0001));
+    expect(rect.height, 1);
+
+    final source = img.Image(width: 8, height: 4, numChannels: 4);
+    for (var y = 0; y < source.height; y++) {
+      for (var x = 0; x < source.width; x++) {
+        source.setPixelRgba(x, y, x * 20, y * 30, 0, 255);
+      }
+    }
+    final cropped = const ImageTransformService().apply(source, square);
+    expect(cropped.width, 4);
+    expect(cropped.height, 4);
+    expect(cropped.getPixel(0, 0).r, source.getPixel(2, 0).r);
+
+    final rotated = const ImageTransformService().apply(
+      source,
+      const ImageTransformSettings(quarterTurns: 1),
+    );
+    expect(rotated.width, 4);
+    expect(rotated.height, 8);
   });
 
   test('preset strength preserves later manual offsets', () {
@@ -274,6 +304,27 @@ void main() {
     },
   );
 
+  test(
+    'image restoration service applies crop settings before encoding',
+    () async {
+      final source = img.Image(width: 8, height: 4, numChannels: 4);
+      source.clear(img.ColorRgba8(20, 120, 180, 255));
+      final bytes = await const ImageRestorationService().restoreBytes(
+        Uint8List.fromList(img.encodePng(source)),
+        RestorationPreset.none.settings,
+        exportOptions: const ExportOptions(imageFormat: ImageOutputFormat.png),
+        transform: const ImageTransformSettings(
+          aspectRatio: CropAspectRatio.square,
+        ),
+      );
+      final transformed = img.decodePng(bytes);
+
+      expect(transformed, isNotNull);
+      expect(transformed!.width, 4);
+      expect(transformed.height, 4);
+    },
+  );
+
   test('media inspection reads local image metadata', () async {
     final dir = await Directory.systemTemp.createTemp('aqua_recover_test_');
     addTearDown(() => dir.delete(recursive: true));
@@ -382,8 +433,13 @@ void main() {
     expect(activeEditorToolGroupsFor(MediaKind.photo), [
       EditorToolGroup.presets,
       EditorToolGroup.light,
+      EditorToolGroup.crop,
       EditorToolGroup.effects,
     ]);
+    expect(
+      activeEditorToolGroupsFor(MediaKind.video),
+      isNot(contains(EditorToolGroup.crop)),
+    );
     expect(
       activeEditorToolGroupsFor(MediaKind.video),
       contains(EditorToolGroup.video),
@@ -444,6 +500,28 @@ void main() {
   });
 
   test('gpu preview matrix responds to color and hue settings', () {
+    expect(GpuPreviewFilter.matrixFor(RestorationPreset.none.settings), const [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+    ]);
     final base = GpuPreviewFilter.matrixFor(RestorationPreset.auto.settings);
     final tuned = GpuPreviewFilter.matrixFor(
       RestorationPreset.auto.settings.copyWith(saturation: 1.8, hue: .12),
@@ -648,10 +726,7 @@ void main() {
       ),
     );
 
-    expect(
-      find.textContaining('Presets provide the starting values'),
-      findsOneWidget,
-    );
+    expect(find.text('Choose a preset'), findsNothing);
     expect(find.byKey(const Key('preset_list')), findsOneWidget);
     expect(find.byKey(const Key('preset_none')), findsOneWidget);
     expect(find.text('Auto Fix'), findsNothing);
@@ -669,6 +744,38 @@ void main() {
         .firstWhere((control) => control.id == 'contrast')
         .apply(settings, 1.2);
     expect(settings.preset, RestorationPreset.deep);
+  });
+
+  testWidgets('crop browser updates aspect, rotation, and reset', (
+    tester,
+  ) async {
+    var settings = const ImageTransformSettings();
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: StatefulBuilder(
+          builder: (context, setState) => CropBrowser(
+            settings: settings,
+            onChanged: (value) => setState(() => settings = value),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Square'));
+    await tester.pump();
+    expect(settings.aspectRatio, CropAspectRatio.square);
+
+    await tester.tap(find.byKey(const Key('crop_rotate_right')));
+    await tester.pump();
+    expect(settings.normalizedQuarterTurns, 1);
+
+    await tester.tap(find.byKey(const Key('crop_flip_horizontal')));
+    await tester.pump();
+    expect(settings.flipHorizontal, isTrue);
+
+    await tester.tap(find.byKey(const Key('crop_reset')));
+    await tester.pump();
+    expect(settings.isIdentity, isTrue);
   });
 
   testWidgets('immersive split preview reserves space for editor tools', (
@@ -706,54 +813,55 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.byType(ImageFiltered), findsWidgets);
   });
 
-  testWidgets('preview toggle keeps Presets active and hold reveals original', (
+  testWidgets('holding the edited preview temporarily reveals the original', (
     tester,
   ) async {
-    final dir = await Directory.systemTemp.createTemp('aqua_editor_ui_test_');
-    addTearDown(() => dir.delete(recursive: true));
-    final file = File('${dir.path}/preview.jpg');
-    final image = img.Image(width: 12, height: 16, numChannels: 4);
-    for (var y = 0; y < image.height; y++) {
-      for (var x = 0; x < image.width; x++) {
-        image.setPixelRgba(x, y, 24, 130, 190, 255);
-      }
-    }
-    await file.writeAsBytes(img.encodeJpg(image));
+    final job = MediaJob(
+      id: 'hold-preview',
+      inputPath: '/tmp/hold-preview.dng',
+      kind: MediaKind.rawPhoto,
+      displayName: 'hold-preview.dng',
+    );
 
     await tester.pumpWidget(
-      CupertinoApp(home: EditorPage(initialPaths: [file.path])),
+      CupertinoApp(
+        home: SizedBox(
+          width: 393,
+          height: 700,
+          child: EditorHoldPreview(
+            compareMode: EditorCompareMode.edited,
+            previewBuilder: (mode) => EditorPreviewStage(
+              job: job,
+              settings: RestorationPreset.auto.settings,
+              compareMode: mode,
+            ),
+            heldIndicator: const Align(
+              alignment: Alignment.topLeft,
+              child: Text('Holding original'),
+            ),
+          ),
+        ),
+      ),
     );
-    await tester.pumpAndSettle();
 
     EditorPreviewStage stage() =>
         tester.widget<EditorPreviewStage>(find.byType(EditorPreviewStage));
-    expect(find.text('Presets'), findsWidgets);
     expect(stage().compareMode, EditorCompareMode.edited);
 
-    await tester.tap(find.byKey(const Key('editor_preview_compare')));
-    await tester.pumpAndSettle();
-    expect(find.text('Presets'), findsWidgets);
-    expect(stage().compareMode, EditorCompareMode.split);
-
-    await tester.tap(find.byKey(const Key('editor_preview_compare')));
-    await tester.pumpAndSettle();
-    final stageRect = tester.getRect(find.byType(EditorPreviewStage));
     final gesture = await tester.startGesture(
-      Offset(stageRect.center.dx, stageRect.top + 120),
+      tester.getCenter(find.byType(EditorHoldPreview)),
     );
     await tester.pump(const Duration(milliseconds: 650));
     expect(stage().compareMode, EditorCompareMode.original);
-    expect(find.text('Original'), findsOneWidget);
+    expect(find.text('Holding original'), findsOneWidget);
 
     await gesture.up();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
     expect(stage().compareMode, EditorCompareMode.edited);
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    expect(find.text('Holding original'), findsNothing);
   });
 
   testWidgets(

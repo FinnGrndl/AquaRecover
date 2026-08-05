@@ -153,7 +153,7 @@ class VideoRestorationService {
     }
     if (lutProfile.isCustomCube) {
       throw UnsupportedError(
-        'Custom .cube LUT video export is not supported by the native iOS backend yet. Built-in looks and photo exports remain available.',
+        'Custom .cube LUT video export is not supported by the native iOS backend yet. Built-in presets and photo exports remain available.',
       );
     }
     final inputFile = File(inputPath);

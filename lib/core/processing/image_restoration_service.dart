@@ -6,10 +6,12 @@ import 'package:flutter/services.dart' hide Uint8List;
 import 'package:image/image.dart' as img;
 
 import '../models/export_options.dart';
+import '../models/image_transform_settings.dart';
 import '../models/lut_profile.dart';
 import '../models/restoration_settings.dart';
 import '../utils/output_paths.dart';
 import 'lut_service.dart';
+import 'image_transform_service.dart';
 import 'underwater_processor.dart';
 
 class ImageRestorationService {
@@ -31,6 +33,7 @@ class ImageRestorationService {
     RestorationSettings settings, {
     ExportOptions exportOptions = const ExportOptions(),
     LutProfile lutProfile = LutProfile.none,
+    ImageTransformSettings transform = const ImageTransformSettings(),
   }) async {
     final inputFile = File(inputPath);
     if (!await inputFile.exists()) {
@@ -55,6 +58,7 @@ class ImageRestorationService {
           settings,
           exportOptions: exportOptions,
           lutProfile: lutProfile,
+          transform: transform,
         );
       } on MissingPluginException {
         // Fall through to the portable Dart renderer for tests and non-runner builds.
@@ -70,6 +74,7 @@ class ImageRestorationService {
         settings: settings.toJson(),
         exportOptions: exportOptions.toJson(),
         lutProfile: lutProfile.toJson(),
+        transform: transform.toJson(),
       ),
       debugLabel: 'AquaRecover image export',
     );
@@ -82,6 +87,7 @@ class ImageRestorationService {
     RestorationSettings settings, {
     ExportOptions exportOptions = const ExportOptions(),
     LutProfile lutProfile = LutProfile.none,
+    ImageTransformSettings transform = const ImageTransformSettings(),
   }) async {
     return compute(
       _restoreBytesInBackground,
@@ -90,6 +96,7 @@ class ImageRestorationService {
         settings: settings.toJson(),
         exportOptions: exportOptions.toJson(),
         lutProfile: lutProfile.toJson(),
+        transform: transform.toJson(),
       ),
       debugLabel: 'AquaRecover image bytes',
     );
@@ -118,6 +125,7 @@ class ImageRestorationService {
     RestorationSettings settings, {
     required ExportOptions exportOptions,
     required LutProfile lutProfile,
+    required ImageTransformSettings transform,
   }) async {
     await File(outputPath).parent.create(recursive: true);
     final restored = await _nativeChannel.invokeMethod<String>('restoreImage', {
@@ -126,6 +134,7 @@ class ImageRestorationService {
       'settings': settings.toJson(),
       'exportOptions': exportOptions.toJson(),
       'lutProfile': lutProfile.toJson(),
+      'transform': transform.toJson(),
     });
     if (restored == null || restored.isEmpty) {
       throw StateError(
@@ -149,12 +158,14 @@ class _ImageFileRestoreRequest {
     required this.settings,
     required this.exportOptions,
     required this.lutProfile,
+    required this.transform,
   });
 
   final String inputPath;
   final Map<String, Object?> settings;
   final Map<String, Object?> exportOptions;
   final Map<String, Object?> lutProfile;
+  final Map<String, Object?> transform;
 }
 
 class _ImageBytesRestoreRequest {
@@ -163,12 +174,14 @@ class _ImageBytesRestoreRequest {
     required this.settings,
     required this.exportOptions,
     required this.lutProfile,
+    required this.transform,
   });
 
   final Uint8List inputBytes;
   final Map<String, Object?> settings;
   final Map<String, Object?> exportOptions;
   final Map<String, Object?> lutProfile;
+  final Map<String, Object?> transform;
 }
 
 Future<Uint8List> _restoreFileBytesInBackground(
@@ -180,6 +193,7 @@ Future<Uint8List> _restoreFileBytesInBackground(
       settings: request.settings,
       exportOptions: request.exportOptions,
       lutProfile: request.lutProfile,
+      transform: request.transform,
     ),
   );
 }
@@ -195,13 +209,18 @@ Future<Uint8List> _restoreBytesInBackground(
   final settings = _settingsFromJson(request.settings);
   final exportOptions = _exportOptionsFromJson(request.exportOptions);
   final lutProfile = _lutProfileFromJson(request.lutProfile);
+  final transform = ImageTransformSettings.fromJson(request.transform);
   final restored = const UnderwaterProcessor().restoreImage(decoded, settings);
   final withLut = await const LutService().apply(restored, lutProfile);
+  final transformed = const ImageTransformService().apply(withLut, transform);
   if (exportOptions.outputPng) {
-    return Uint8List.fromList(img.encodePng(withLut));
+    return Uint8List.fromList(img.encodePng(transformed));
   }
   return Uint8List.fromList(
-    img.encodeJpg(withLut, quality: settings.jpegQuality.clamp(1, 100).toInt()),
+    img.encodeJpg(
+      transformed,
+      quality: settings.jpegQuality.clamp(1, 100).toInt(),
+    ),
   );
 }
 

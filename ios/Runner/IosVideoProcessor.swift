@@ -57,6 +57,7 @@ final class IosVideoProcessor {
       float r = originalR;
       float g = originalG;
       float b = originalB;
+      float correctionScale = clamp(recovery / 1.18, 0.0, 1.2711864);
       float highlightWeight = 1.0 - clamp(highlightProtection, 0.0, 1.0) * pow(maxOriginal, 2.0);
       float redLiftScale = mix(0.42, 0.18, openWater);
       r += clamp(recovery, 0.0, 1.5) * clamp(redRecovery, 0.0, 2.5) * redLiftScale * max(0.0, g - r) * (1.0 - r) * highlightWeight;
@@ -93,7 +94,7 @@ final class IosVideoProcessor {
       float maxChannel = max(r, max(g, b));
       float luma = dot(vec3(r, g, b), vec3(0.2126, 0.7152, 0.0722));
       float effectiveSat = clamp(saturation, 0.0, 3.0) * (1.0 + clamp(vibrance, 0.0, 1.0) * (1.0 - clamp(maxChannel, 0.0, 1.0)));
-      effectiveSat = mix(effectiveSat, min(effectiveSat, 0.96), openWater * 0.72);
+      effectiveSat = mix(effectiveSat, min(effectiveSat, 0.96), openWater * 0.72 * correctionScale);
       r = luma + (r - luma) * effectiveSat;
       g = luma + (g - luma) * effectiveSat;
       b = luma + (b - luma) * effectiveSat;
@@ -108,25 +109,25 @@ final class IosVideoProcessor {
       g = (g + shadowsLift + highlightsLift - blackOffset) * exposureGain + brightnessOffset;
       b = (b + shadowsLift + highlightsLift - blackOffset) * exposureGain + brightnessOffset;
 
-      float darkBlueSceneLift = clamp((0.2156863 - lowMidLuma) / 0.1176471, 0.0, 1.0) * clamp((blueGreenRatio - 1.25) / 0.20, 0.0, 1.0) * clamp((0.14 - redGreenRatio) / 0.14, 0.0, 1.0);
+      float darkBlueSceneLift = clamp((0.2156863 - lowMidLuma) / 0.1176471, 0.0, 1.0) * clamp((blueGreenRatio - 1.25) / 0.20, 0.0, 1.0) * clamp((0.14 - redGreenRatio) / 0.14, 0.0, 1.0) * correctionScale;
       float darkTone = clamp(dot(vec3(r, g, b), vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0);
       float darkLift = darkBlueSceneLift * (0.0705882 + 0.4941176 * pow(darkTone, 1.42));
       r += darkLift * 1.20;
       g += darkLift * 1.04;
       b += darkLift * 0.88;
 
-      float shallowLift = blueNotDominant * (1.0 - step(0.3215686, lowMidLuma)) * 0.0392157 * pow(clamp(dot(vec3(r, g, b), vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0), 2.2);
+      float shallowLift = blueNotDominant * (1.0 - step(0.3215686, lowMidLuma)) * 0.0392157 * pow(clamp(dot(vec3(r, g, b), vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0), 2.2) * correctionScale;
       r += shallowLift * 1.04;
       g += shallowLift;
       b += shallowLift;
-      float shallowWaterLiftScene = blueNotDominant * clamp((0.3215686 - lowMidLuma) / 0.1176471, 0.0, 1.0) * clamp((1.20 - blueGreenRatio) / 0.25, 0.0, 1.0);
+      float shallowWaterLiftScene = blueNotDominant * clamp((0.3215686 - lowMidLuma) / 0.1176471, 0.0, 1.0) * clamp((1.20 - blueGreenRatio) / 0.25, 0.0, 1.0) * correctionScale;
       float waterTone = clamp(dot(vec3(r, g, b), vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0);
       float waterLift = shallowWaterLiftScene * openWater * (0.0274510 + 0.1098039 * pow(1.0 - waterTone, 1.25));
       r += waterLift * 0.52;
       g += waterLift * 0.90;
       b += waterLift * 1.18;
 
-      float brightShallowDim = blueNotDominant * clamp((lowMidLuma - 0.2980392) / 0.1411765, 0.0, 1.0) * clamp((1.20 - blueGreenRatio) / 0.25, 0.0, 1.0);
+      float brightShallowDim = blueNotDominant * clamp((lowMidLuma - 0.2980392) / 0.1411765, 0.0, 1.0) * clamp((1.20 - blueGreenRatio) / 0.25, 0.0, 1.0) * correctionScale;
       float dimTone = clamp(dot(vec3(r, g, b), vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0);
       float dim = brightShallowDim * (0.1333333 + 0.2274510 * pow(dimTone, 1.25));
       r -= dim * 1.08;
@@ -136,7 +137,7 @@ final class IosVideoProcessor {
       float surfaceMask = 1.0 - step(originalG * 1.12, originalB);
       float surfaceRedTarget = min(g, b) * 0.94;
       float inputRedLoss = clamp((min(originalG, originalB) - originalR) / 0.5098039, 0.0, 1.0);
-      float neutralWeight = clamp((0.18 + inputRedLoss * 0.62) * (1.0 - openWater * 0.25), 0.0, 0.82);
+      float neutralWeight = clamp((0.18 + inputRedLoss * 0.62) * (1.0 - openWater * 0.25), 0.0, 0.82) * correctionScale;
       r = mix(r, max(r, surfaceRedTarget), surfaceMask * neutralWeight);
 
       float shallowChromaLuma = dot(vec3(r, g, b), vec3(0.2126, 0.7152, 0.0722));
@@ -158,7 +159,7 @@ final class IosVideoProcessor {
       float pureWaterCeiling = mix(1.32, 0.74, openWater);
       float materialCeiling = mix(pureWaterCeiling, 1.05, cyanMaterial * 0.92);
       float redCeiling = max(g, b) * materialCeiling + 0.0470588;
-      r = mix(r, min(r, redCeiling), openWater * 0.78);
+      r = mix(r, min(r, redCeiling), openWater * 0.78 * correctionScale);
 
       return vec4(clamp(vec3(r, g, b), vec3(0.0), vec3(1.0)), original.a);
     }
@@ -430,6 +431,7 @@ final class IosVideoProcessor {
       let settings = VideoSettings(args["settings"] as? [String: Any] ?? [:])
       let exportOptions = ExportSettings(args["exportOptions"] as? [String: Any] ?? [:])
       let lut = LutSettings(args["lutProfile"] as? [String: Any] ?? [:])
+      let transform = ImageTransformSettings(args["transform"] as? [String: Any] ?? [:])
       guard lut.kind != "customCube" else {
         throw bridgeError("Custom .cube LUTs are not supported for native iOS image export.")
       }
@@ -463,10 +465,56 @@ final class IosVideoProcessor {
         lut: lut,
         sceneStats: sceneStats
       ).cropped(to: extent)
+      let transformed = applyImageTransform(to: restored, settings: transform)
 
-      try writeImage(restored, outputURL: outputURL, exportOptions: exportOptions, settings: settings)
+      try writeImage(transformed, outputURL: outputURL, exportOptions: exportOptions, settings: settings)
       return outputURL.path
     }
+  }
+
+  private func applyImageTransform(
+    to image: CIImage,
+    settings: ImageTransformSettings
+  ) -> CIImage {
+    if settings.isIdentity { return image }
+    var output = image
+    switch settings.normalizedQuarterTurns {
+    case 1:
+      output = output.oriented(.right)
+    case 2:
+      output = output.oriented(.down)
+    case 3:
+      output = output.oriented(.left)
+    default:
+      break
+    }
+    if settings.flipHorizontal {
+      output = output.oriented(.upMirrored)
+    }
+    if settings.flipVertical {
+      output = output.oriented(.downMirrored)
+    }
+    output = output.transformed(
+      by: CGAffineTransform(
+        translationX: -output.extent.origin.x,
+        y: -output.extent.origin.y
+      )
+    )
+    let extent = output.extent.integral
+    let crop = settings.cropRect(width: extent.width, height: extent.height)
+    let coreImageCrop = CGRect(
+      x: crop.origin.x,
+      y: extent.height - crop.origin.y - crop.height,
+      width: crop.width,
+      height: crop.height
+    ).integral.intersection(extent)
+    let cropped = output.cropped(to: coreImageCrop)
+    return cropped.transformed(
+      by: CGAffineTransform(
+        translationX: -cropped.extent.origin.x,
+        y: -cropped.extent.origin.y
+      )
+    )
   }
 
   private func applyFilters(
@@ -477,12 +525,15 @@ final class IosVideoProcessor {
     sceneStats: VideoSceneStats
   ) -> CIImage {
     let original = image
-    var output = applyBaseRecovery(
-      to: image,
-      extent: extent,
-      settings: settings,
-      sceneStats: sceneStats
-    )
+    var output = image
+    if !settings.isIdentity {
+      output = applyBaseRecovery(
+        to: image,
+        extent: extent,
+        settings: settings,
+        sceneStats: sceneStats
+      )
+    }
 
     if abs(settings.hue) > 0.0001, let filter = CIFilter(name: "CIHueAdjust") {
       filter.setValue(output, forKey: kCIInputImageKey)
@@ -490,13 +541,15 @@ final class IosVideoProcessor {
       output = filter.outputImage?.cropped(to: extent) ?? output
     }
 
-    output = applyRetinexFusion(
-      original: original,
-      corrected: output,
-      extent: extent,
-      settings: settings,
-      sceneStats: sceneStats
-    )
+    if settings.recovery > 0.000001 {
+      output = applyRetinexFusion(
+        original: original,
+        corrected: output,
+        extent: extent,
+        settings: settings,
+        sceneStats: sceneStats
+      )
+    }
 
     output = applyBuiltInLut(output, extent: extent, lut: lut)
 
@@ -848,7 +901,7 @@ private struct VideoSettings {
     recovery = double(values, key: "recovery", fallback: 1.18)
     redRecovery = double(values, key: "redRecovery", fallback: 1.24)
     autoWhiteBalance = double(values, key: "autoWhiteBalance", fallback: 0.76)
-    contrastStretch = double(values, key: "contrastStretch", fallback: 0.58)
+    contrastStretch = double(values, key: "contrastStretch", fallback: 0.52)
     contrast = double(values, key: "contrast", fallback: 1.04)
     gamma = double(values, key: "gamma", fallback: 0.98)
     saturation = double(values, key: "saturation", fallback: 0.88)
@@ -887,6 +940,31 @@ private struct VideoSettings {
   let blackPoint: Double
   let vignette: Double
   let jpegQuality: Double
+
+  var isIdentity: Bool {
+    func same(_ lhs: Double, _ rhs: Double) -> Bool {
+      abs(lhs - rhs) < 0.0000001
+    }
+    return same(recovery, 0.0)
+      && same(redRecovery, 0.0)
+      && same(autoWhiteBalance, 0.0)
+      && same(contrastStretch, 0.0)
+      && same(contrast, 1.0)
+      && same(gamma, 1.0)
+      && same(saturation, 1.0)
+      && same(vibrance, 0.0)
+      && same(clarity, 0.0)
+      && same(sharpness, 0.0)
+      && same(hazeReduction, 0.0)
+      && same(highlightProtection, 0.0)
+      && same(hue, 0.0)
+      && same(brightness, 0.0)
+      && same(exposure, 0.0)
+      && same(highlights, 0.0)
+      && same(shadows, 0.0)
+      && same(blackPoint, 0.0)
+      && same(vignette, 0.0)
+  }
 }
 
 private struct ExportSettings {
@@ -901,6 +979,79 @@ private struct ExportSettings {
   let stripMetadata: Bool
 
   var outputPng: Bool { imageFormat == "png" }
+}
+
+private struct ImageTransformSettings {
+  init(_ values: [String: Any]) {
+    aspectRatio = values["aspectRatio"] as? String ?? "original"
+    zoom = double(values, key: "zoom", fallback: 1.0)
+    offsetX = double(values, key: "offsetX", fallback: 0.0)
+    offsetY = double(values, key: "offsetY", fallback: 0.0)
+    quarterTurns = Int(double(values, key: "quarterTurns", fallback: 0.0))
+    flipHorizontal = bool(values, key: "flipHorizontal", fallback: false)
+    flipVertical = bool(values, key: "flipVertical", fallback: false)
+  }
+
+  let aspectRatio: String
+  let zoom: Double
+  let offsetX: Double
+  let offsetY: Double
+  let quarterTurns: Int
+  let flipHorizontal: Bool
+  let flipVertical: Bool
+
+  var normalizedQuarterTurns: Int {
+    ((quarterTurns % 4) + 4) % 4
+  }
+
+  var isIdentity: Bool {
+    aspectRatio == "original"
+      && abs(zoom - 1.0) < 0.0000001
+      && abs(offsetX) < 0.0000001
+      && abs(offsetY) < 0.0000001
+      && normalizedQuarterTurns == 0
+      && !flipHorizontal
+      && !flipVertical
+  }
+
+  func cropRect(width: CGFloat, height: CGFloat) -> CGRect {
+    let safeWidth = max(1.0, width)
+    let safeHeight = max(1.0, height)
+    let sourceAspect = safeWidth / safeHeight
+    let portrait = sourceAspect < 1.0
+    let targetAspect: CGFloat
+    switch aspectRatio {
+    case "square":
+      targetAspect = 1.0
+    case "fourThree":
+      targetAspect = portrait ? 3.0 / 4.0 : 4.0 / 3.0
+    case "sixteenNine":
+      targetAspect = portrait ? 9.0 / 16.0 : 16.0 / 9.0
+    default:
+      targetAspect = sourceAspect
+    }
+
+    var normalizedWidth: CGFloat = 1.0
+    var normalizedHeight: CGFloat = 1.0
+    if sourceAspect > targetAspect {
+      normalizedWidth = targetAspect / sourceAspect
+    } else if sourceAspect < targetAspect {
+      normalizedHeight = sourceAspect / targetAspect
+    }
+    let safeZoom = CGFloat(clamp(zoom, 1.0, 4.0))
+    normalizedWidth /= safeZoom
+    normalizedHeight /= safeZoom
+    let safeX = CGFloat(clamp(offsetX, -1.0, 1.0))
+    let safeY = CGFloat(clamp(offsetY, -1.0, 1.0))
+    let left = (1.0 - normalizedWidth) * (safeX + 1.0) / 2.0
+    let top = (1.0 - normalizedHeight) * (safeY + 1.0) / 2.0
+    return CGRect(
+      x: left * safeWidth,
+      y: top * safeHeight,
+      width: max(1.0, normalizedWidth * safeWidth),
+      height: max(1.0, normalizedHeight * safeHeight)
+    )
+  }
 }
 
 private struct LutSettings {

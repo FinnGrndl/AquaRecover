@@ -25,19 +25,13 @@ class EditorToolRail extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: CupertinoDynamicColor.resolve(
-                CupertinoColors.systemBackground,
-                context,
-              ).withValues(alpha: .70),
+              color: const Color(0xff202328).withValues(alpha: .58),
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: CupertinoDynamicColor.resolve(
-                  CupertinoColors.separator,
-                  context,
-                ).withValues(alpha: .52),
+                color: CupertinoColors.white.withValues(alpha: .13),
               ),
             ),
             child: Padding(
@@ -119,6 +113,7 @@ class _ToolButton extends StatelessWidget {
   IconData _iconFor(EditorToolGroup group) => switch (group) {
     EditorToolGroup.presets => CupertinoIcons.wand_stars,
     EditorToolGroup.light => CupertinoIcons.sun_max,
+    EditorToolGroup.crop => CupertinoIcons.crop,
     EditorToolGroup.color => CupertinoIcons.color_filter,
     EditorToolGroup.details => CupertinoIcons.slider_horizontal_3,
     EditorToolGroup.effects => CupertinoIcons.sparkles,

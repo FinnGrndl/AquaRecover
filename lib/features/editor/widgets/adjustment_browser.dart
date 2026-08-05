@@ -35,34 +35,20 @@ class AdjustmentBrowser extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                '${controls.length} adjustments',
-                style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                  color: CupertinoDynamicColor.resolve(
-                    CupertinoColors.secondaryLabel,
-                    context,
-                  ),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            'Tap a value to restore the preset value',
+            style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+              color: CupertinoDynamicColor.resolve(
+                CupertinoColors.secondaryLabel,
+                context,
               ),
+              fontSize: 11,
             ),
-            Text(
-              'Tap a value to reset',
-              style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                color: CupertinoDynamicColor.resolve(
-                  CupertinoColors.secondaryLabel,
-                  context,
-                ),
-                fontSize: 11,
-              ),
-            ),
-          ],
+          ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         SizedBox(
           height: 82,
           child: ListView.separated(

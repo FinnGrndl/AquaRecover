@@ -4,7 +4,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../core/media/media_classifier.dart';
+import '../../../core/models/image_transform_settings.dart';
 import '../../../core/models/media_kind.dart';
+import 'image_transform_preview.dart';
 
 class BeforeAfterScrubber extends StatefulWidget {
   const BeforeAfterScrubber({
@@ -13,11 +15,15 @@ class BeforeAfterScrubber extends StatefulWidget {
     required this.restoredPath,
     required this.kind,
     this.aspectRatio = 4 / 3,
+    this.sourceAspectRatio = 4 / 3,
+    this.transform = const ImageTransformSettings(),
   });
   final String originalPath;
   final String restoredPath;
   final MediaKind kind;
   final double aspectRatio;
+  final double sourceAspectRatio;
+  final ImageTransformSettings transform;
   @override
   State<BeforeAfterScrubber> createState() => _BeforeAfterScrubberState();
 }
@@ -43,68 +49,79 @@ class _BeforeAfterScrubberState extends State<BeforeAfterScrubber> {
           ],
         ),
         const SizedBox(height: 10),
-        AspectRatio(
-          aspectRatio: widget.aspectRatio,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: ColoredBox(
-              color: CupertinoColors.black,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.file(
-                        File(widget.restoredPath),
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) => _previewError(
-                          context,
-                          'Restored preview unavailable',
-                        ),
-                      ),
-                      Positioned(
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
-                        width: constraints.maxWidth * _split,
-                        child: ClipRect(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: SizedBox(
-                              width: constraints.maxWidth,
-                              height: constraints.maxHeight,
-                              child: Image.file(
-                                File(widget.originalPath),
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, _, _) => _previewError(
-                                  context,
-                                  'Original preview unavailable',
+        Expanded(
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: widget.aspectRatio,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: ColoredBox(
+                  color: CupertinoColors.black,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.file(
+                            File(widget.restoredPath),
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => _previewError(
+                              context,
+                              'Restored preview unavailable',
+                            ),
+                          ),
+                          Positioned(
+                            left: 0,
+                            top: 0,
+                            bottom: 0,
+                            width: constraints.maxWidth * _split,
+                            child: ClipRect(
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: SizedBox(
+                                  width: constraints.maxWidth,
+                                  height: constraints.maxHeight,
+                                  child: ImageTransformPreview(
+                                    settings: widget.transform,
+                                    sourceAspectRatio: widget.sourceAspectRatio,
+                                    builder: (fit, alignment) => Image.file(
+                                      File(widget.originalPath),
+                                      fit: fit,
+                                      alignment: alignment,
+                                      errorBuilder: (_, _, _) => _previewError(
+                                        context,
+                                        'Original preview unavailable',
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                      Align(
-                        alignment: Alignment((_split * 2) - 1, 0),
-                        child: Container(
-                          width: 2,
-                          color: CupertinoColors.white.withValues(alpha: 0.85),
-                        ),
-                      ),
-                      Positioned(
-                        left: 10,
-                        top: 10,
-                        child: _pill(context, 'Original'),
-                      ),
-                      Positioned(
-                        right: 10,
-                        top: 10,
-                        child: _pill(context, 'Restored'),
-                      ),
-                    ],
-                  );
-                },
+                          Align(
+                            alignment: Alignment((_split * 2) - 1, 0),
+                            child: Container(
+                              width: 2,
+                              color: CupertinoColors.white.withValues(
+                                alpha: 0.85,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 10,
+                            top: 10,
+                            child: _pill(context, 'Original'),
+                          ),
+                          Positioned(
+                            right: 10,
+                            top: 10,
+                            child: _pill(context, 'Restored'),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ),

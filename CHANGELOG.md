@@ -20,11 +20,18 @@ source releases; the number after `+` is the mobile build number.
 - The preview toggle no longer changes the active editing tool.
 - Simplified adjustment controls with full-width sliders and a single visible
   value in the adjustment browser.
+- Added a nondestructive Crop tab with aspect ratios, pinch positioning,
+  90-degree rotation, horizontal and vertical flip, native iOS export, and
+  sidecar persistence.
+- Reduced editor panel height, removed duplicate panel headings, and updated
+  the tools to a lighter gray glass treatment.
 
 ### Fixed
 
 - Collapsed editor tools can be reopened through the visible up-arrow control.
 - Split comparison previews no longer render underneath the editor tools.
+- Split mode reuses rendered previews and keeps the same blurred immersive
+  background as the normal edited view.
 
 ## 0.4.0 - 2026-08-05
 

@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import '../../core/media/media_classifier.dart';
 import '../../core/media/media_inspection_service.dart';
 import '../../core/models/export_options.dart';
+import '../../core/models/image_transform_settings.dart';
 import '../../core/models/lut_profile.dart';
 import '../../core/models/media_job.dart';
 import '../../core/models/media_kind.dart';
@@ -28,6 +29,7 @@ import 'editor_tools.dart';
 import 'widgets/adjustment_browser.dart';
 import 'widgets/app_license_page.dart';
 import 'widgets/before_after_scrubber.dart';
+import 'widgets/crop_browser.dart';
 import 'widgets/editor_bottom_panel.dart';
 import 'widgets/editor_preview_stage.dart';
 import 'widgets/editor_tool_rail.dart';
@@ -43,10 +45,14 @@ class EditorPage extends StatefulWidget {
     super.key,
     this.initialPaths = const [],
     this.openPhotosOnStart = false,
+    this.initialToolGroup,
+    this.initialCompareMode,
   });
 
   final List<String> initialPaths;
   final bool openPhotosOnStart;
+  final EditorToolGroup? initialToolGroup;
+  final EditorCompareMode? initialCompareMode;
 
   @override
   State<EditorPage> createState() => _EditorPageState();
@@ -68,6 +74,7 @@ class _EditorPageState extends State<EditorPage> {
   EditorWorkflowStep _step = EditorWorkflowStep.import;
   RawVideoDescriptor _rawDescriptor = RawVideoDescriptor.default4k;
   RestorationSettings _settings = RestorationPreset.auto.settings;
+  ImageTransformSettings _transformSettings = const ImageTransformSettings();
   ExportPreset _exportPreset = ExportPreset.archive;
   ExportOptions _exportOptions = ExportPreset.archive.options;
   LutProfile _lutProfile = LutProfile.none;
@@ -76,9 +83,9 @@ class _EditorPageState extends State<EditorPage> {
   String _selectedAdjustmentId = 'recovery';
   bool _toolPanelOpen = true;
   EditorCompareMode _compareMode = EditorCompareMode.edited;
-  bool _holdingOriginal = false;
   bool _busy = false;
   bool _cancelRequested = false;
+  double _cropGestureStartZoom = 1;
   String? _status = 'Ready.';
 
   MediaJob? get _selectedJob {
@@ -99,6 +106,8 @@ class _EditorPageState extends State<EditorPage> {
   @override
   void initState() {
     super.initState();
+    _selectedToolGroup = widget.initialToolGroup ?? EditorToolGroup.presets;
+    _compareMode = widget.initialCompareMode ?? EditorCompareMode.edited;
     if (widget.initialPaths.isNotEmpty || widget.openPhotosOnStart) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -235,6 +244,7 @@ class _EditorPageState extends State<EditorPage> {
                   immersive: true,
                   showHeader: false,
                   borderRadius: 0,
+                  transform: _transformSettings,
                 ),
                 Positioned.fill(
                   child: DecoratedBox(
@@ -521,18 +531,20 @@ class _EditorPageState extends State<EditorPage> {
             constraints.maxHeight - reservedPreview - reservedChrome;
         final preferredPanelHeight = compact
             ? switch (activeGroup) {
-                EditorToolGroup.light => 320.0,
-                EditorToolGroup.presets => 360.0,
-                EditorToolGroup.effects => 330.0,
-                EditorToolGroup.video => 340.0,
-                _ => 300.0,
+                EditorToolGroup.light => 260.0,
+                EditorToolGroup.presets => 255.0,
+                EditorToolGroup.crop => 250.0,
+                EditorToolGroup.effects => 240.0,
+                EditorToolGroup.video => 275.0,
+                _ => 255.0,
               }
             : switch (activeGroup) {
-                EditorToolGroup.light => 340.0,
-                EditorToolGroup.presets => 370.0,
-                EditorToolGroup.effects => 360.0,
-                EditorToolGroup.video => 370.0,
-                _ => 330.0,
+                EditorToolGroup.light => 280.0,
+                EditorToolGroup.presets => 275.0,
+                EditorToolGroup.crop => 270.0,
+                EditorToolGroup.effects => 260.0,
+                EditorToolGroup.video => 300.0,
+                _ => 275.0,
               };
         final panelHeight = availablePanelHeight <= 120
             ? 0.0
@@ -541,42 +553,48 @@ class _EditorPageState extends State<EditorPage> {
         return Stack(
           fit: StackFit.expand,
           children: [
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onLongPressStart: _compareMode == EditorCompareMode.edited
-                  ? (_) => setState(() => _holdingOriginal = true)
-                  : null,
-              onLongPressEnd: _compareMode == EditorCompareMode.edited
-                  ? (_) => setState(() => _holdingOriginal = false)
-                  : null,
-              onLongPressCancel: _compareMode == EditorCompareMode.edited
-                  ? () => setState(() => _holdingOriginal = false)
-                  : null,
-              child: EditorPreviewStage(
+            EditorHoldPreview(
+              compareMode: _compareMode,
+              previewBuilder: (mode) => EditorPreviewStage(
                 job: job,
                 settings: _settings,
-                compareMode: _holdingOriginal
-                    ? EditorCompareMode.original
-                    : _compareMode,
+                compareMode: mode,
                 lutProfile: _lutProfile,
                 immersive: true,
                 showHeader: false,
                 borderRadius: 0,
                 immersiveBottomInset: panelOpen ? panelHeight + 102 : 112,
+                transform: _transformSettings,
+                showCropGrid: activeGroup == EditorToolGroup.crop,
+              ),
+              onScaleStart: activeGroup == EditorToolGroup.crop
+                  ? _startCropGesture
+                  : null,
+              onScaleUpdate: activeGroup == EditorToolGroup.crop
+                  ? _updateCropGesture
+                  : null,
+              heldIndicator: Positioned(
+                top: _jobs.length > 1
+                    ? (compact ? 128 : 132)
+                    : (compact ? 76 : 80),
+                left: horizontalPadding,
+                child: _darkPill('Original'),
               ),
             ),
             Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      CupertinoColors.black.withValues(alpha: .46),
-                      CupertinoColors.black.withValues(alpha: .05),
-                      CupertinoColors.black.withValues(alpha: .42),
-                    ],
-                    stops: const [0, .45, 1],
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        CupertinoColors.black.withValues(alpha: .46),
+                        CupertinoColors.black.withValues(alpha: .05),
+                        CupertinoColors.black.withValues(alpha: .42),
+                      ],
+                      stops: const [0, .45, 1],
+                    ),
                   ),
                 ),
               ),
@@ -604,14 +622,6 @@ class _EditorPageState extends State<EditorPage> {
                 onPressed: _toggleComparePreview,
               ),
             ),
-            if (_holdingOriginal)
-              Positioned(
-                top: _jobs.length > 1
-                    ? (compact ? 128 : 132)
-                    : (compact ? 76 : 80),
-                left: horizontalPadding,
-                child: _darkPill('Original'),
-              ),
             Positioned(
               left: horizontalPadding,
               right: horizontalPadding,
@@ -703,9 +713,35 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   void _toggleComparePreview() {
+    setState(() => _compareMode = _compareMode.toggled);
+  }
+
+  void _startCropGesture(ScaleStartDetails details) {
+    _cropGestureStartZoom = _transformSettings.zoom;
+  }
+
+  void _updateCropGesture(ScaleUpdateDetails details) {
+    if (_busy) return;
+    final zoom = (_cropGestureStartZoom * details.scale)
+        .clamp(1.0, 4.0)
+        .toDouble();
+    final movementScale = 150 * zoom;
+    final offsetX =
+        (_transformSettings.offsetX -
+                details.focalPointDelta.dx / movementScale)
+            .clamp(-1.0, 1.0)
+            .toDouble();
+    final offsetY =
+        (_transformSettings.offsetY -
+                details.focalPointDelta.dy / movementScale)
+            .clamp(-1.0, 1.0)
+            .toDouble();
     setState(() {
-      _holdingOriginal = false;
-      _compareMode = _compareMode.toggled;
+      _transformSettings = _transformSettings.copyWith(
+        zoom: zoom,
+        offsetX: offsetX,
+        offsetY: offsetY,
+      );
     });
   }
 
@@ -981,6 +1017,12 @@ class _EditorPageState extends State<EditorPage> {
           enabled: !_busy,
           onSelected: (id) => setState(() => _selectedAdjustmentId = id),
           onChanged: (settings) => setState(() => _settings = settings),
+        ),
+        EditorToolGroup.crop => CropBrowser(
+          settings: _transformSettings,
+          enabled: !_busy,
+          onChanged: (settings) =>
+              setState(() => _transformSettings = settings),
         ),
         EditorToolGroup.effects => _lutSection(panelContext),
         EditorToolGroup.color || EditorToolGroup.details => _adjustmentSliders(
@@ -1277,6 +1319,7 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _exportPreview(MediaJob job) {
+    final sourceAspectRatio = _previewAspectRatio(job);
     if (job.status == JobStatus.complete &&
         job.outputPath != null &&
         job.kind.isImage) {
@@ -1288,7 +1331,11 @@ class _EditorPageState extends State<EditorPage> {
             originalPath: job.inputPath,
             restoredPath: job.outputPath!,
             kind: job.kind,
-            aspectRatio: _previewAspectRatio(job),
+            aspectRatio: _transformSettings.outputAspectRatio(
+              sourceAspectRatio,
+            ),
+            sourceAspectRatio: sourceAspectRatio,
+            transform: _transformSettings,
           ),
         ),
       );
@@ -1302,6 +1349,7 @@ class _EditorPageState extends State<EditorPage> {
         lutProfile: _lutProfile,
         showHeader: false,
         borderRadius: 16,
+        transform: _transformSettings,
       ),
     );
   }
@@ -1496,8 +1544,6 @@ class _EditorPageState extends State<EditorPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Video timing', style: _panelTitle(panelContext)),
-        const SizedBox(height: 4),
         Text(
           'Frame preview updates with the same color settings; full video export depends on the backend.',
           style: _secondaryText(panelContext),
@@ -1557,8 +1603,6 @@ class _EditorPageState extends State<EditorPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('LUT', style: _panelTitle(panelContext)),
-        const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -1633,11 +1677,16 @@ class _EditorPageState extends State<EditorPage> {
           const SizedBox(height: 12),
           CupertinoSlidingSegmentedControl<ExportPreset>(
             groupValue: _exportPreset,
+            backgroundColor: CupertinoColors.white.withValues(alpha: .10),
+            thumbColor: CupertinoColors.activeBlue,
             children: {
               for (final preset in ExportPreset.values)
                 preset: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(preset.label),
+                  child: Text(
+                    preset.label,
+                    style: const TextStyle(color: CupertinoColors.white),
+                  ),
                 ),
             },
             onValueChanged: (value) {
@@ -1647,14 +1696,22 @@ class _EditorPageState extends State<EditorPage> {
           const SizedBox(height: 8),
           CupertinoSlidingSegmentedControl<ImageOutputFormat>(
             groupValue: _exportOptions.imageFormat,
+            backgroundColor: CupertinoColors.white.withValues(alpha: .10),
+            thumbColor: CupertinoColors.activeBlue,
             children: const {
               ImageOutputFormat.jpeg: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text('JPEG'),
+                child: Text(
+                  'JPEG',
+                  style: TextStyle(color: CupertinoColors.white),
+                ),
               ),
               ImageOutputFormat.png: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text('PNG'),
+                child: Text(
+                  'PNG',
+                  style: TextStyle(color: CupertinoColors.white),
+                ),
               ),
             },
             onValueChanged: (value) {
@@ -1963,11 +2020,11 @@ class _EditorPageState extends State<EditorPage> {
       _selectedIndex = startIndex;
       _step = EditorWorkflowStep.edit;
       _settings = RestorationPreset.auto.settings;
-      _selectedToolGroup = EditorToolGroup.presets;
+      _transformSettings = const ImageTransformSettings();
+      _selectedToolGroup = widget.initialToolGroup ?? EditorToolGroup.presets;
       _selectedAdjustmentId = 'recovery';
       _toolPanelOpen = true;
-      _compareMode = EditorCompareMode.edited;
-      _holdingOriginal = false;
+      _compareMode = widget.initialCompareMode ?? EditorCompareMode.edited;
       _exportOptions = _exportOptions.copyWith(
         saveToPhotoLibrary:
             processAutomatically && source == MediaSource.photos,
@@ -2079,6 +2136,7 @@ class _EditorPageState extends State<EditorPage> {
           _settings,
           exportOptions: _exportOptions,
           lutProfile: _lutProfile,
+          transform: _transformSettings,
         ),
         MediaKind.video => await _videoService.restoreVideo(
           job.inputPath,
@@ -2103,6 +2161,7 @@ class _EditorPageState extends State<EditorPage> {
         exportOptions: _exportOptions,
         lutProfile: _lutProfile,
         trim: trim,
+        transform: _transformSettings,
         rawVideoDescriptor: rawDescriptor,
       );
       if (_exportOptions.saveToPhotoLibrary) {
@@ -2149,6 +2208,7 @@ class _EditorPageState extends State<EditorPage> {
         _settings,
         exportOptions: _exportOptions,
         lutProfile: _lutProfile,
+        transform: _transformSettings,
       );
     }
     return _imageService.restoreFile(
@@ -2156,6 +2216,7 @@ class _EditorPageState extends State<EditorPage> {
       _settings,
       exportOptions: _exportOptions,
       lutProfile: _lutProfile,
+      transform: _transformSettings,
     );
   }
 

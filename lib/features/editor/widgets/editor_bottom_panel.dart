@@ -30,7 +30,7 @@ class EditorCollapsedPanelButton extends StatelessWidget {
             filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: CupertinoColors.black.withValues(alpha: .52),
+                color: const Color(0xff24272b).withValues(alpha: .58),
                 borderRadius: BorderRadius.circular(99),
                 border: Border.all(
                   color: CupertinoColors.white.withValues(alpha: .20),
@@ -93,23 +93,17 @@ class EditorBottomPanel extends StatelessWidget {
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       height: height,
-      margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      margin: const EdgeInsets.fromLTRB(6, 0, 6, 7),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: CupertinoDynamicColor.resolve(
-                CupertinoColors.systemBackground,
-                context,
-              ).withValues(alpha: .82),
-              borderRadius: BorderRadius.circular(20),
+              color: const Color(0xff22252a).withValues(alpha: .62),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: CupertinoDynamicColor.resolve(
-                  CupertinoColors.separator,
-                  context,
-                ).withValues(alpha: .62),
+                color: CupertinoColors.white.withValues(alpha: .14),
               ),
               boxShadow: [
                 BoxShadow(
@@ -119,73 +113,41 @@ class EditorBottomPanel extends StatelessWidget {
                 ),
               ],
             ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 6, 6),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              group.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: CupertinoTheme.of(context)
-                                  .textTheme
-                                  .textStyle
-                                  .copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              group.subtitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: CupertinoTheme.of(context)
-                                  .textTheme
-                                  .textStyle
-                                  .copyWith(
-                                    fontSize: 12,
-                                    color: CupertinoDynamicColor.resolve(
-                                      CupertinoColors.secondaryLabel,
-                                      context,
-                                    ),
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      CupertinoButton(
-                        key: const Key('editor_tool_panel_close'),
-                        padding: const EdgeInsets.all(8),
-                        minimumSize: Size.zero,
-                        onPressed: onClose,
-                        child: const Icon(
-                          CupertinoIcons.chevron_down,
-                          size: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  height: 1,
-                  color: CupertinoDynamicColor.resolve(
-                    CupertinoColors.separator,
-                    context,
-                  ).withValues(alpha: .55),
-                ),
-                Expanded(
-                  child: CupertinoScrollbar(
+            child: Semantics(
+              container: true,
+              label: '${group.label} tools',
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CupertinoScrollbar(
                     child: ListView(
-                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 18),
+                      padding: const EdgeInsets.fromLTRB(14, 34, 14, 16),
                       children: [child],
                     ),
                   ),
-                ),
-              ],
+                  Positioned(
+                    top: 2,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: CupertinoButton(
+                        key: const Key('editor_tool_panel_close'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 6,
+                        ),
+                        minimumSize: Size.zero,
+                        onPressed: onClose,
+                        child: Icon(
+                          CupertinoIcons.chevron_down,
+                          size: 17,
+                          color: CupertinoColors.white.withValues(alpha: .66),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

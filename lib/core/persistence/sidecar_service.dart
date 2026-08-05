@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../models/export_options.dart';
+import '../models/image_transform_settings.dart';
 import '../models/lut_profile.dart';
 import '../models/raw_video_descriptor.dart';
 import '../models/restoration_settings.dart';
@@ -19,6 +20,7 @@ class SidecarService {
     required ExportOptions exportOptions,
     required LutProfile lutProfile,
     required VideoEditSettings trim,
+    ImageTransformSettings transform = const ImageTransformSettings(),
     RawVideoDescriptor? rawVideoDescriptor,
   }) async {
     final sidecarPath = '$outputPath.aquarecover.json';
@@ -31,6 +33,7 @@ class SidecarService {
       'export': exportOptions.toJson(),
       'lut': lutProfile.toJson(),
       'trim': trim.toJson(),
+      'transform': transform.toJson(),
       if (rawVideoDescriptor != null)
         'rawVideoDescriptor': rawVideoDescriptor.toJson(),
     };

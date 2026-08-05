@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:collection';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -22,6 +24,7 @@ class RestoredImagePreview extends StatefulWidget {
     required this.settings,
     this.lutProfile = LutProfile.none,
     this.fit = BoxFit.contain,
+    this.alignment = Alignment.center,
     this.fallback,
     this.maxDimension = 1280,
   });
@@ -30,6 +33,7 @@ class RestoredImagePreview extends StatefulWidget {
   final RestorationSettings settings;
   final LutProfile lutProfile;
   final BoxFit fit;
+  final Alignment alignment;
   final Widget? fallback;
   final int maxDimension;
 
@@ -56,17 +60,24 @@ class RestoredImagePreview extends StatefulWidget {
 
 class _RestoredImagePreviewState extends State<RestoredImagePreview> {
   static const _nativeImageChannel = MethodChannel('aqua_recover/image');
+  static final LinkedHashMap<String, Uint8List> _previewCache =
+      LinkedHashMap<String, Uint8List>();
+  static final Map<String, Future<Uint8List>> _inFlightPreviews = {};
+  static const _maxCachedPreviews = 12;
 
   Timer? _debounce;
   Uint8List? _bytes;
   Object? _error;
   int _requestId = 0;
   bool _rendering = false;
+  late String _cacheKey;
 
   @override
   void initState() {
     super.initState();
-    _scheduleRender(immediate: true);
+    _cacheKey = _cacheKeyFor(widget);
+    _bytes = _previewCache[_cacheKey];
+    if (_bytes == null) _scheduleRender(immediate: true);
   }
 
   @override
@@ -78,7 +89,17 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
         oldWidget.lutProfile.path != widget.lutProfile.path ||
         oldWidget.lutProfile.intensity != widget.lutProfile.intensity ||
         oldWidget.maxDimension != widget.maxDimension) {
-      _scheduleRender();
+      _cacheKey = _cacheKeyFor(widget);
+      final cached = _previewCache[_cacheKey];
+      if (cached != null) {
+        _debounce?.cancel();
+        _requestId++;
+        _bytes = cached;
+        _rendering = false;
+        _error = null;
+      } else {
+        _scheduleRender();
+      }
     }
   }
 
@@ -95,6 +116,7 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
         : Image.memory(
             _bytes!,
             fit: widget.fit,
+            alignment: widget.alignment,
             gaplessPlayback: true,
             errorBuilder: (_, _, _) =>
                 widget.fallback ?? _previewPlaceholder(context),
@@ -147,8 +169,22 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
         lutProfile: _lutToMap(widget.lutProfile),
         maxDimension: widget.maxDimension,
       );
-      final bytes = await _renderPreview(request);
+      final cacheKey = _cacheKey;
+      var future = _inFlightPreviews[cacheKey];
+      if (future == null) {
+        future = _renderPreview(request);
+        _inFlightPreviews[cacheKey] = future;
+      }
+      late Uint8List bytes;
+      try {
+        bytes = await future;
+      } finally {
+        if (identical(_inFlightPreviews[cacheKey], future)) {
+          _inFlightPreviews.remove(cacheKey);
+        }
+      }
       if (!mounted || id != _requestId) return;
+      _storeCachedPreview(cacheKey, bytes);
       setState(() {
         _bytes = bytes;
         _rendering = false;
@@ -159,6 +195,23 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
         _error = error;
         _rendering = false;
       });
+    }
+  }
+
+  static String _cacheKeyFor(RestoredImagePreview widget) {
+    return jsonEncode({
+      'path': widget.path,
+      'settings': widget.settings.toJson(),
+      'lut': widget.lutProfile.toJson(),
+      'maxDimension': widget.maxDimension,
+    });
+  }
+
+  static void _storeCachedPreview(String key, Uint8List bytes) {
+    _previewCache.remove(key);
+    _previewCache[key] = bytes;
+    while (_previewCache.length > _maxCachedPreviews) {
+      _previewCache.remove(_previewCache.keys.first);
     }
   }
 
@@ -192,8 +245,14 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
 
   Future<Uint8List> _renderPreview(_PreviewRequest request) async {
     if (Platform.isIOS && !widget.lutProfile.isCustomCube) {
+      final nativeSettings = widget.settings.toJson();
+      final nativeLut = widget.lutProfile.toJson();
       try {
-        return await _renderNativePreview(request);
+        return await _renderNativePreview(
+          request,
+          settings: nativeSettings,
+          lutProfile: nativeLut,
+        );
       } on MissingPluginException {
         // Unit tests and development shells without the iOS runner use Dart.
       } on PlatformException {
@@ -203,7 +262,11 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
     return compute(_renderPreviewBytes, request);
   }
 
-  Future<Uint8List> _renderNativePreview(_PreviewRequest request) async {
+  Future<Uint8List> _renderNativePreview(
+    _PreviewRequest request, {
+    required Map<String, Object> settings,
+    required Map<String, Object?> lutProfile,
+  }) async {
     final outputPath = await _previewOutputPath(request.path);
     await Directory(p.dirname(outputPath)).create(recursive: true);
     final restored = await _nativeImageChannel.invokeMethod<String>(
@@ -212,14 +275,14 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
         'inputPath': request.path,
         'outputPath': outputPath,
         'maxDimension': request.maxDimension,
-        'settings': widget.settings.toJson(),
+        'settings': settings,
         'exportOptions': const {
           'imageFormat': 'jpeg',
           'stripMetadata': true,
           'saveToPhotoLibrary': false,
           'keepAudio': false,
         },
-        'lutProfile': widget.lutProfile.toJson(),
+        'lutProfile': lutProfile,
       },
     );
     if (restored == null || restored.isEmpty) {

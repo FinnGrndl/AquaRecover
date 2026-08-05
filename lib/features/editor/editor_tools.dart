@@ -5,12 +5,13 @@ typedef SettingValueReader = double Function(RestorationSettings settings);
 typedef SettingValueWriter =
     RestorationSettings Function(RestorationSettings settings, double value);
 
-enum EditorToolGroup { presets, light, color, details, effects, video }
+enum EditorToolGroup { presets, light, crop, color, details, effects, video }
 
 extension EditorToolGroupX on EditorToolGroup {
   String get label => switch (this) {
     EditorToolGroup.presets => 'Presets',
     EditorToolGroup.light => 'Adjust',
+    EditorToolGroup.crop => 'Crop',
     EditorToolGroup.color => 'Color',
     EditorToolGroup.details => 'Details',
     EditorToolGroup.effects => 'Finish',
@@ -20,6 +21,7 @@ extension EditorToolGroupX on EditorToolGroup {
   String get subtitle => switch (this) {
     EditorToolGroup.presets => 'Starting profile and strength',
     EditorToolGroup.light => 'All image adjustments',
+    EditorToolGroup.crop => 'Crop, rotate, and flip',
     EditorToolGroup.color => 'Water cast and color balance',
     EditorToolGroup.details => 'Haze, clarity, and sharpening',
     EditorToolGroup.effects => 'LUT and finishing options',
@@ -27,7 +29,11 @@ extension EditorToolGroupX on EditorToolGroup {
   };
 
   bool isAvailableFor(MediaKind kind) {
-    return this != EditorToolGroup.video || kind.isVideo;
+    return switch (this) {
+      EditorToolGroup.video => kind.isVideo,
+      EditorToolGroup.crop => kind == MediaKind.photo,
+      _ => true,
+    };
   }
 
   List<AdjustmentControl> get adjustments => switch (this) {
@@ -299,6 +305,7 @@ List<EditorToolGroup> activeEditorToolGroupsFor(MediaKind kind) {
   return [
     EditorToolGroup.presets,
     EditorToolGroup.light,
+    if (kind == MediaKind.photo) EditorToolGroup.crop,
     EditorToolGroup.effects,
     if (kind.isVideo) EditorToolGroup.video,
   ];
