@@ -65,9 +65,15 @@ enum JobStatus { pending, processing, complete, failed }
 
 extension JobStatusX on JobStatus {
   String get label => switch (this) {
-    JobStatus.pending => 'Pending',
+    JobStatus.pending => 'Ready',
     JobStatus.processing => 'Processing',
     JobStatus.complete => 'Complete',
     JobStatus.failed => 'Failed',
   };
+
+  /// Whether the item can start an explicit single-item export.
+  ///
+  /// Completed items remain eligible so they can be exported again to a
+  /// different destination without rerunning the rest of their batch.
+  bool get canStartIndividualExport => this != JobStatus.processing;
 }

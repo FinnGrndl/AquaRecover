@@ -35,10 +35,23 @@ transform settings, LUT, trim values, export options, and workflow step. It
 calls small services for side effects. UI components in
 `lib/features/editor/widgets` receive values and callbacks.
 
-A single import moves to the edit step. A multi-import creates queue entries and
-starts `_processQueue` immediately. Queue items move through pending,
-processing, complete, or failed states. Completed automatic iOS items are saved
-with add-only Photos access.
+A single import moves to the edit step. A multi-import creates ready queue
+entries without writing output files. Confirming the export view starts either
+the selected export or `_processQueue` for the remaining batch. An individual
+export marks only its selected queue item as complete; the later full-batch
+action skips completed items. Queue items move through ready, processing,
+complete, or failed states. Photos saving remains an explicit export option and
+uses add-only access on iOS. The selection sheet can remove ready items while a
+batch is running; the item currently being processed remains locked.
+
+Import inspection runs in bounded groups of three. File reads can overlap, but
+the app avoids unbounded image decodes that would increase peak memory use. The
+dimension probe reads decoder metadata instead of producing a full pixel image.
+
+`ExportLibraryService` lists supported files inside `AquaRecover Exports`.
+Deletion is restricted to that directory and also removes the adjacent
+`.aquarecover.json` sidecar. The UI supports individual and confirmed batch
+deletion. The imported source and copies in Photos are never touched.
 
 ## Still-image pipeline
 
@@ -95,7 +108,12 @@ Android reports video export as unavailable and keeps the photo workflow active.
 `OutputPaths` creates sanitized names in the app documents directory.
 `SidecarService` writes a versioned `.aquarecover.json` document containing
 settings and file names but no absolute source path. `PhotoLibraryService` can
-then ask the platform to add the exported file to Photos.
+then ask the platform to add the exported file to Photos. When no local copy is
+requested, rendering and preview use temporary storage; no output or sidecar
+appears in the local export directory.
+`FolderExportService` copies output to a directory selected by the system file
+picker and creates a numbered file name instead of overwriting an existing
+file. Batch items reuse the selected folder for the current editor session.
 
 ## Dependencies
 

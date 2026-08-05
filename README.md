@@ -15,14 +15,27 @@ described below.
 ## How the app behaves
 
 - Selecting one image opens the editor after the initial preview is ready.
-- Selecting several images starts automatic processing. There is no separate
-  batch button.
+- Selecting several images creates one batch automatically. No output file is
+  written until an export action is confirmed in the export view.
+- The currently selected batch item can be exported on its own. A later
+  `Export all` processes only the remaining ready or failed items; completed
+  items can also be exported again to another destination.
+- The selection overview shows every queued item and lets ready or completed
+  items be removed without deleting the original file.
+- Local exports can be opened, selected in batches, or deleted all at once.
+  Deleting them also removes their settings sidecars, but never imported
+  originals or copies already added to Photos.
 - Every image adjustment remains visible in the editor and can be changed before
   a single-image export.
-- On iOS, selection uses the system Photos picker. Automatic exports request
-  add-only Photos access instead of access to the complete library.
-- Files can be imported and exports remain available in the app's Documents
-  directory. Each export also gets an `.aquarecover.json` settings sidecar.
+- On iOS, selection uses the system Photos picker. Saving an export to Photos
+  requests add-only access instead of access to the complete library.
+- Files can be imported directly. When the local destination is selected,
+  exports remain available in the app's Documents directory and receive an
+  `.aquarecover.json` settings sidecar.
+- Export destinations are independent: keep a local AquaRecover copy, add the
+  result to the device Photos library, copy it to a folder selected through the
+  system file picker, or combine those destinations. Photos and Files exports
+  do not remain in the local library unless its destination is also enabled.
 
 ## How image restoration works
 

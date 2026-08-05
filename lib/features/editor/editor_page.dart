@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Tooltip;
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 
@@ -19,22 +20,26 @@ import '../../core/models/raw_video_descriptor.dart';
 import '../../core/models/restoration_settings.dart';
 import '../../core/models/video_edit_settings.dart';
 import '../../core/photo/photo_library_service.dart';
+import '../../core/persistence/folder_export_service.dart';
 import '../../core/persistence/sidecar_service.dart';
 import '../../core/platform/raw_processing_service.dart';
 import '../../core/processing/image_restoration_service.dart';
 import '../../core/processing/video_restoration_service.dart';
+import '../../core/utils/output_paths.dart';
 import '../../core/workflow/editor_workflow.dart';
 import '../../shared/widgets/glass_panel.dart';
+import '../library/export_library_page.dart';
 import 'editor_tools.dart';
 import 'widgets/adjustment_browser.dart';
 import 'widgets/app_license_page.dart';
-import 'widgets/before_after_scrubber.dart';
 import 'widgets/crop_browser.dart';
 import 'widgets/editor_bottom_panel.dart';
 import 'widgets/editor_preview_stage.dart';
 import 'widgets/editor_tool_rail.dart';
+import 'widgets/exported_photo_preview.dart';
 import 'widgets/preset_browser.dart';
 import 'widgets/photo_library_sheet.dart';
+import 'widgets/queue_overview_sheet.dart';
 import 'widgets/raw_video_dialog.dart';
 import 'widgets/setting_slider.dart';
 import 'widgets/video_frame_preview_tile.dart';
@@ -47,12 +52,14 @@ class EditorPage extends StatefulWidget {
     this.openPhotosOnStart = false,
     this.initialToolGroup,
     this.initialCompareMode,
+    this.reviewExportOnStart = false,
   });
 
   final List<String> initialPaths;
   final bool openPhotosOnStart;
   final EditorToolGroup? initialToolGroup;
   final EditorCompareMode? initialCompareMode;
+  final bool reviewExportOnStart;
 
   @override
   State<EditorPage> createState() => _EditorPageState();
@@ -63,6 +70,7 @@ class _EditorPageState extends State<EditorPage> {
   final _videoService = const VideoRestorationService();
   final _rawService = RawProcessingService();
   final _photoLibraryService = const PhotoLibraryService();
+  final _folderExportService = const FolderExportService();
   final _sidecarService = const SidecarService();
   final _inspectionService = const MediaInspectionService();
   final _imagePicker = ImagePicker();
@@ -77,6 +85,7 @@ class _EditorPageState extends State<EditorPage> {
   ImageTransformSettings _transformSettings = const ImageTransformSettings();
   ExportPreset _exportPreset = ExportPreset.archive;
   ExportOptions _exportOptions = ExportPreset.archive.options;
+  String? _exportDirectoryPath;
   LutProfile _lutProfile = LutProfile.none;
   bool _trimEnabled = false;
   EditorToolGroup _selectedToolGroup = EditorToolGroup.presets;
@@ -135,83 +144,99 @@ class _EditorPageState extends State<EditorPage> {
     if (_step == EditorWorkflowStep.edit && _selectedJob != null) {
       return CupertinoPageScaffold(
         backgroundColor: CupertinoColors.black,
-        child: SafeArea(
+        child: AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light,
           child: LayoutBuilder(
             builder: (context, constraints) {
+              final safeInsets = MediaQuery.paddingOf(context);
               final wide = constraints.maxWidth >= 1040;
               if (wide) {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(child: _editStep(wide: true)),
+                    Expanded(
+                      child: _editStep(
+                        wide: true,
+                        topInset: safeInsets.top,
+                        bottomInset: safeInsets.bottom,
+                      ),
+                    ),
                     SizedBox(
                       width: 390,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 20, 20, 20),
-                        child: _sidePane(),
+                      child: SafeArea(
+                        left: false,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(0, 20, 20, 20),
+                          child: _sidePane(),
+                        ),
                       ),
                     ),
                   ],
                 );
               }
-              return _editStep(wide: false);
+              return _editStep(
+                wide: false,
+                topInset: safeInsets.top,
+                bottomInset: safeInsets.bottom,
+              );
             },
           ),
         ),
       );
     }
+    return _importScaffold();
+  }
+
+  Widget _importScaffold() {
     return CupertinoPageScaffold(
-      backgroundColor: CupertinoDynamicColor.resolve(
-        CupertinoColors.systemGroupedBackground,
-        context,
-      ),
-      child: CustomScrollView(
-        slivers: [
-          CupertinoSliverNavigationBar(
-            largeTitle: const Text('AquaRecover'),
-            trailing: CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: _showAbout,
-              child: const Icon(CupertinoIcons.info_circle),
+      backgroundColor: const Color(0xff041923),
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xff07384b), Color(0xff07596b), Color(0xff03151e)],
+              stops: [0, .50, 1],
             ),
           ),
-          SliverFillRemaining(
-            hasScrollBody: _step != EditorWorkflowStep.edit,
-            child: SafeArea(
-              top: false,
+          child: SafeArea(
+            child: CupertinoTheme(
+              data: CupertinoTheme.of(context).copyWith(
+                brightness: Brightness.dark,
+                primaryColor: CupertinoColors.activeBlue,
+                scaffoldBackgroundColor: const Color(0xff041923),
+              ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final wide = constraints.maxWidth >= 1040;
-                  if (_step == EditorWorkflowStep.edit) {
-                    if (wide) {
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(child: _editStep(wide: true)),
-                          SizedBox(width: 390, child: _sidePane()),
-                        ],
-                      );
-                    }
-                    return _editStep(wide: false);
-                  }
-                  if (wide) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(child: _workflowPane(wide: true)),
-                        SizedBox(width: 390, child: _sidePane()),
-                      ],
-                    );
-                  }
+                  final wide = constraints.maxWidth >= 720;
                   return CupertinoScrollbar(
                     child: ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      padding: EdgeInsets.fromLTRB(
+                        wide ? 40 : 22,
+                        12,
+                        wide ? 40 : 22,
+                        32,
+                      ),
                       children: [
-                        _workflowPane(wide: false),
-                        if (_shouldShowInlineStatus) ...[
-                          const SizedBox(height: 12),
-                          _statusPanel(),
-                        ],
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 680),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _importHeader(),
+                                SizedBox(height: wide ? 54 : 42),
+                                _importStep(showQueue: true),
+                                if (_shouldShowStartStatus) ...[
+                                  const SizedBox(height: 16),
+                                  _statusPanel(),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -219,20 +244,90 @@ class _EditorPageState extends State<EditorPage> {
               ),
             ),
           ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _importHeader() {
+    return Row(
+      children: [
+        Container(
+          width: 54,
+          height: 54,
+          padding: const EdgeInsets.all(2.5),
+          decoration: BoxDecoration(
+            color: CupertinoColors.white.withValues(alpha: .16),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: CupertinoColors.white.withValues(alpha: .28),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(13.5),
+            child: Image.asset(
+              'assets/branding/aquarecover_app_icon.png',
+              key: const Key('start_brand_icon'),
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        const SizedBox(width: 13),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'AquaRecover',
+                style: TextStyle(
+                  color: CupertinoColors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.3,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Private, on-device restoration',
+                style: TextStyle(
+                  color: CupertinoColors.white.withValues(alpha: .65),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        CupertinoButton(
+          key: const Key('start_about'),
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(42, 42),
+          borderRadius: BorderRadius.circular(99),
+          color: CupertinoColors.white.withValues(alpha: .11),
+          onPressed: _showAbout,
+          child: const Icon(
+            CupertinoIcons.info,
+            color: CupertinoColors.white,
+            size: 20,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _exportOverlayScaffold(MediaJob job) {
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.black,
-      child: SafeArea(
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final safeInsets = MediaQuery.paddingOf(context);
             final wide = constraints.maxWidth >= 820;
             final horizontalPadding = wide ? 24.0 : 12.0;
-            final panel = _exportFloatingPanel(wide: wide);
+            final panel = _exportFloatingPanel(
+              wide: wide,
+              bottomInset: safeInsets.bottom,
+            );
             return Stack(
               fit: StackFit.expand,
               children: [
@@ -263,25 +358,25 @@ class _EditorPageState extends State<EditorPage> {
                   ),
                 ),
                 Positioned(
-                  top: 8,
+                  top: safeInsets.top + 8,
                   left: horizontalPadding,
                   right: horizontalPadding,
                   child: _exportTopBar(job),
                 ),
                 if (wide)
                   Positioned(
-                    top: 72,
+                    top: safeInsets.top + 72,
                     right: 24,
-                    bottom: 24,
+                    bottom: safeInsets.bottom + 24,
                     width: 460,
                     child: panel,
                   )
                 else
                   Positioned(
-                    left: 12,
-                    right: 12,
-                    bottom: 12,
-                    height: constraints.maxHeight * .70,
+                    top: safeInsets.top + 68,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
                     child: panel,
                   ),
               ],
@@ -292,25 +387,33 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _exportFloatingPanel({required bool wide}) {
+  Widget _exportFloatingPanel({
+    required bool wide,
+    required double bottomInset,
+  }) {
+    final panelRadius = wide
+        ? BorderRadius.circular(22)
+        : const BorderRadius.vertical(top: Radius.circular(28));
     return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: panelRadius,
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: CupertinoColors.black.withValues(alpha: .78),
-            borderRadius: BorderRadius.circular(22),
+            color: const Color(0xff141719).withValues(alpha: .96),
+            borderRadius: panelRadius,
             border: Border.all(
               color: CupertinoColors.white.withValues(alpha: .18),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: CupertinoColors.black.withValues(alpha: .24),
-                blurRadius: 28,
-                offset: const Offset(0, 16),
-              ),
-            ],
+            boxShadow: wide
+                ? [
+                    BoxShadow(
+                      color: CupertinoColors.black.withValues(alpha: .24),
+                      blurRadius: 28,
+                      offset: const Offset(0, 16),
+                    ),
+                  ]
+                : null,
           ),
           child: CupertinoTheme(
             data: CupertinoTheme.of(context).copyWith(
@@ -320,7 +423,12 @@ class _EditorPageState extends State<EditorPage> {
             child: Builder(
               builder: (panelContext) => CupertinoScrollbar(
                 child: ListView(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, wide ? 18 : 24),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    wide ? 16 : 20,
+                    16,
+                    wide ? 18 : bottomInset + 24,
+                  ),
                   children: [_exportStep(panelContext, showActions: false)],
                 ),
               ),
@@ -331,21 +439,13 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _workflowPane({required bool wide}) {
-    final content = _step == EditorWorkflowStep.import
-        ? _stepBody(wide: wide)
-        : GlassPanel(child: _stepBody(wide: wide));
-    if (!wide) return content;
-    return CupertinoScrollbar(
-      child: ListView(padding: const EdgeInsets.all(20), children: [content]),
-    );
-  }
-
-  bool get _shouldShowInlineStatus {
-    if (_step != EditorWorkflowStep.import) return true;
+  bool get _shouldShowStartStatus {
     if (_busy || _jobs.isNotEmpty) return true;
     final status = _status?.trim();
-    return status != null && status.isNotEmpty && status != 'Ready.';
+    if (status == null || status.isEmpty) return false;
+    return status != 'Ready.' &&
+        status != 'No file selected.' &&
+        status != 'No local Photos items were imported.';
   }
 
   Widget _sidePane() {
@@ -355,14 +455,6 @@ class _EditorPageState extends State<EditorPage> {
         children: [_statusPanel(), const SizedBox(height: 12), _queueSection()],
       ),
     );
-  }
-
-  Widget _stepBody({required bool wide}) {
-    return switch (_step) {
-      EditorWorkflowStep.import => _importStep(showQueue: !wide),
-      EditorWorkflowStep.edit => _editStep(wide: wide),
-      EditorWorkflowStep.export => _exportStep(context),
-    };
   }
 
   Widget _importStep({required bool showQueue}) {
@@ -381,134 +473,111 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _importHero(MediaJob? job) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xff0878d7), Color(0xff00a6b8)],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: CupertinoColors.activeBlue.withValues(alpha: .24),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: CupertinoColors.white.withValues(alpha: .16),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: const Icon(
-                  CupertinoIcons.drop_fill,
-                  color: CupertinoColors.white,
-                  size: 24,
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Restore underwater color',
+          style: CupertinoTheme.of(context).textTheme.navLargeTitleTextStyle
+              .copyWith(
+                color: CupertinoColors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 38,
+                letterSpacing: -1,
+                height: 1.05,
               ),
-              const Spacer(),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: CupertinoColors.white.withValues(alpha: .15),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  child: Text(
-                    'On-device',
-                    style: TextStyle(
-                      color: CupertinoColors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+        ),
+        const SizedBox(height: 13),
+        Text(
+          'Choose one photo or video to edit. Select several to prepare one batch, then export everything with one confirmation.',
+          style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+            color: CupertinoColors.white.withValues(alpha: .72),
+            fontSize: 17,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 28),
+        CupertinoButton(
+          key: const Key('start_choose_photos'),
+          color: CupertinoColors.white,
+          borderRadius: BorderRadius.circular(16),
+          onPressed: _busy ? null : _importFromPhotos,
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(CupertinoIcons.photo_on_rectangle, size: 20),
+              SizedBox(width: 8),
+              Text('Choose from Photos'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        CupertinoButton(
+          key: const Key('start_import_files'),
+          color: CupertinoColors.white.withValues(alpha: .12),
+          borderRadius: BorderRadius.circular(16),
+          onPressed: _busy ? null : _pickFiles,
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                CupertinoIcons.folder,
+                size: 20,
+                color: CupertinoColors.white,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Import Files',
+                style: TextStyle(color: CupertinoColors.white),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          Text(
-            'Restore underwater color',
-            style: CupertinoTheme.of(context).textTheme.navLargeTitleTextStyle
-                .copyWith(
-                  color: CupertinoColors.white,
-                  fontWeight: FontWeight.w700,
-                ),
+        ),
+        const SizedBox(height: 10),
+        CupertinoButton(
+          key: const Key('start_local_exports'),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          borderRadius: BorderRadius.circular(16),
+          onPressed: _openLocalExports,
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                CupertinoIcons.tray_full,
+                size: 19,
+                color: CupertinoColors.white,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Local Exports',
+                style: TextStyle(color: CupertinoColors.white),
+              ),
+            ],
           ),
-          const SizedBox(height: 7),
-          Text(
-            'Choose one photo or video to edit. Select several and AquaRecover processes the complete selection automatically.',
-            style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-              color: CupertinoColors.white.withValues(alpha: .82),
-              height: 1.35,
+        ),
+        if (job != null) ...[
+          const SizedBox(height: 10),
+          CupertinoButton(
+            color: CupertinoColors.white.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(16),
+            onPressed: _busy
+                ? null
+                : () => setState(() => _step = EditorWorkflowStep.edit),
+            child: const Text(
+              'Edit selected',
+              style: TextStyle(color: CupertinoColors.white),
             ),
           ),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              CupertinoButton(
-                color: CupertinoColors.white,
-                onPressed: _busy ? null : _importFromPhotos,
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(CupertinoIcons.photo_on_rectangle, size: 18),
-                    SizedBox(width: 7),
-                    Text('Choose from Photos'),
-                  ],
-                ),
-              ),
-              CupertinoButton(
-                color: CupertinoColors.white.withValues(alpha: .15),
-                onPressed: _busy ? null : _pickFiles,
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      CupertinoIcons.folder,
-                      size: 18,
-                      color: CupertinoColors.white,
-                    ),
-                    SizedBox(width: 7),
-                    Text(
-                      'Import Files',
-                      style: TextStyle(color: CupertinoColors.white),
-                    ),
-                  ],
-                ),
-              ),
-              if (job != null)
-                CupertinoButton(
-                  color: CupertinoColors.white.withValues(alpha: .15),
-                  onPressed: _busy
-                      ? null
-                      : () => setState(() => _step = EditorWorkflowStep.edit),
-                  child: const Text(
-                    'Edit selected',
-                    style: TextStyle(color: CupertinoColors.white),
-                  ),
-                ),
-            ],
-          ),
         ],
-      ),
+      ],
     );
   }
 
-  Widget _editStep({required bool wide}) {
+  Widget _editStep({
+    required bool wide,
+    double topInset = 0,
+    double bottomInset = 0,
+  }) {
     final job = _selectedJob;
     if (job == null) {
       return Padding(
@@ -524,11 +593,15 @@ class _EditorPageState extends State<EditorPage> {
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 720;
         final horizontalPadding = wide ? 24.0 : 12.0;
-        final bottomPadding = compact ? 10.0 : 18.0;
+        final bottomPadding = bottomInset + (compact ? 10.0 : 18.0);
         final reservedPreview = compact ? 250.0 : 320.0;
         final reservedChrome = compact ? 174.0 : 182.0;
         final availablePanelHeight =
-            constraints.maxHeight - reservedPreview - reservedChrome;
+            constraints.maxHeight -
+            reservedPreview -
+            reservedChrome -
+            topInset -
+            bottomInset;
         final preferredPanelHeight = compact
             ? switch (activeGroup) {
                 EditorToolGroup.light => 260.0,
@@ -563,7 +636,8 @@ class _EditorPageState extends State<EditorPage> {
                 immersive: true,
                 showHeader: false,
                 borderRadius: 0,
-                immersiveBottomInset: panelOpen ? panelHeight + 102 : 112,
+                immersiveBottomInset:
+                    (panelOpen ? panelHeight + 102 : 112) + bottomInset,
                 transform: _transformSettings,
                 showCropGrid: activeGroup == EditorToolGroup.crop,
               ),
@@ -574,9 +648,11 @@ class _EditorPageState extends State<EditorPage> {
                   ? _updateCropGesture
                   : null,
               heldIndicator: Positioned(
-                top: _jobs.length > 1
-                    ? (compact ? 128 : 132)
-                    : (compact ? 76 : 80),
+                top:
+                    topInset +
+                    (_jobs.length > 1
+                        ? (compact ? 128 : 132)
+                        : (compact ? 76 : 80)),
                 left: horizontalPadding,
                 child: _darkPill('Original'),
               ),
@@ -600,22 +676,24 @@ class _EditorPageState extends State<EditorPage> {
               ),
             ),
             Positioned(
-              top: 8,
+              top: topInset + 8,
               left: horizontalPadding,
               right: horizontalPadding,
               child: _editorTopBar(job),
             ),
             if (_jobs.length > 1)
               Positioned(
-                top: compact ? 66 : 70,
+                top: topInset + (compact ? 66 : 70),
                 left: horizontalPadding,
                 right: horizontalPadding,
                 child: _editorBatchStrip(job, compact: compact),
               ),
             Positioned(
-              top: _jobs.length > 1
-                  ? (compact ? 122 : 126)
-                  : (compact ? 70 : 74),
+              top:
+                  topInset +
+                  (_jobs.length > 1
+                      ? (compact ? 122 : 126)
+                      : (compact ? 70 : 74)),
               right: horizontalPadding,
               child: _previewCompareButton(
                 mode: _compareMode,
@@ -802,19 +880,26 @@ class _EditorPageState extends State<EditorPage> {
             ),
           ),
           const SizedBox(width: 6),
-          CupertinoButton.filled(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            minimumSize: Size.zero,
-            onPressed: _busy
-                ? null
-                : () => setState(() => _step = EditorWorkflowStep.export),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Export'),
-                SizedBox(width: 4),
-                Icon(CupertinoIcons.chevron_right, size: 18),
-              ],
+          Tooltip(
+            message: 'Review export',
+            child: Semantics(
+              button: true,
+              label: 'Review export',
+              child: CupertinoButton(
+                key: const Key('editor_review_export'),
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(44, 38),
+                borderRadius: BorderRadius.circular(16),
+                color: CupertinoColors.systemGrey.withValues(alpha: .72),
+                onPressed: _busy
+                    ? null
+                    : () => setState(() => _step = EditorWorkflowStep.export),
+                child: const Icon(
+                  CupertinoIcons.check_mark,
+                  color: CupertinoColors.white,
+                  size: 21,
+                ),
+              ),
             ),
           ),
         ],
@@ -826,7 +911,7 @@ class _EditorPageState extends State<EditorPage> {
     final videoUnavailable =
         job.kind.isVideo &&
         !VideoRestorationService.isBackendAvailableOnCurrentPlatform;
-    final complete = job.status == JobStatus.complete;
+    final complete = _jobs.every((item) => item.status == JobStatus.complete);
     return _floatingGlass(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       borderRadius: 22,
@@ -889,12 +974,14 @@ class _EditorPageState extends State<EditorPage> {
                 ? null
                 : complete
                 ? () => setState(() => _step = EditorWorkflowStep.import)
-                : _processSelected,
+                : _commitExport,
             child: Text(
               _busy
                   ? 'Exporting...'
                   : complete
                   ? 'Done'
+                  : _jobs.length > 1
+                  ? 'Export all'
                   : 'Export',
             ),
           ),
@@ -926,34 +1013,55 @@ class _EditorPageState extends State<EditorPage> {
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  compact
-                      ? 'Batch $current/$total'
-                      : 'Batch $current of $total - ${job.displayName ?? p.basename(job.inputPath)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CupertinoTheme.of(context).textTheme.textStyle
-                      .copyWith(
-                        color: CupertinoColors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$pending pending - $complete complete${failed == 0 ? '' : ' - $failed failed'}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CupertinoTheme.of(context).textTheme.textStyle
-                      .copyWith(
-                        color: CupertinoColors.white.withValues(alpha: .72),
-                        fontSize: 12,
-                      ),
-                ),
-              ],
+            child: CupertinoButton(
+              key: const Key('editor_open_queue'),
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              alignment: Alignment.centerLeft,
+              onPressed: _showQueueOverview,
+              child: Row(
+                children: [
+                  const Icon(
+                    CupertinoIcons.rectangle_stack,
+                    color: CupertinoColors.white,
+                    size: 19,
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          compact
+                              ? 'Selection $current/$total'
+                              : '$current of $total - ${job.displayName ?? p.basename(job.inputPath)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CupertinoTheme.of(context).textTheme.textStyle
+                              .copyWith(
+                                color: CupertinoColors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$pending ready - $complete complete${failed == 0 ? '' : ' - $failed failed'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CupertinoTheme.of(context).textTheme.textStyle
+                              .copyWith(
+                                color: CupertinoColors.white.withValues(
+                                  alpha: .72,
+                                ),
+                                fontSize: 12,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 6),
@@ -1108,10 +1216,14 @@ class _EditorPageState extends State<EditorPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: CupertinoButton.filled(
-                  onPressed: (_busy || videoUnavailable)
-                      ? null
-                      : _processSelected,
-                  child: Text(_busy ? 'Exporting...' : 'Export selected'),
+                  onPressed: (_busy || videoUnavailable) ? null : _commitExport,
+                  child: Text(
+                    _busy
+                        ? 'Exporting...'
+                        : _jobs.length > 1
+                        ? 'Export all'
+                        : 'Export',
+                  ),
                 ),
               ),
             ],
@@ -1323,25 +1435,13 @@ class _EditorPageState extends State<EditorPage> {
     if (job.status == JobStatus.complete &&
         job.outputPath != null &&
         job.kind.isImage) {
-      return SizedBox(
-        height: 220,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: BeforeAfterScrubber(
-            originalPath: job.inputPath,
-            restoredPath: job.outputPath!,
-            kind: job.kind,
-            aspectRatio: _transformSettings.outputAspectRatio(
-              sourceAspectRatio,
-            ),
-            sourceAspectRatio: sourceAspectRatio,
-            transform: _transformSettings,
-          ),
-        ),
+      return ExportedPhotoPreview(
+        path: job.outputPath!,
+        aspectRatio: _transformSettings.outputAspectRatio(sourceAspectRatio),
       );
     }
-    return SizedBox(
-      height: 220,
+    return AspectRatio(
+      aspectRatio: _transformSettings.outputAspectRatio(sourceAspectRatio),
       child: EditorPreviewStage(
         job: job,
         settings: _settings,
@@ -1444,13 +1544,80 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _resultPanel(MediaJob job) {
     final output = job.outputPath!;
-    return _noticePanel(
-      'Export saved',
-      _exportOptions.saveToPhotoLibrary
-          ? 'Saved to Photos and AquaRecover Exports.'
-          : 'Saved to AquaRecover Exports as ${p.basename(output)}.',
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CupertinoColors.white.withValues(alpha: .07),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: CupertinoColors.white.withValues(alpha: .13)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            CupertinoIcons.check_mark_circled_solid,
+            color: CupertinoColors.activeGreen,
+            size: 25,
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Export saved',
+                  style: TextStyle(
+                    color: CupertinoColors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _exportResultMessage(output),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: CupertinoColors.systemGrey,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_exportOptions.keepLocalCopy)
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+              minimumSize: Size.zero,
+              onPressed: _openLocalExports,
+              child: const Text('View'),
+            ),
+        ],
+      ),
     );
   }
+
+  String _exportResultMessage(String outputPath) {
+    final destinations = _exportDestinationNames();
+    if (destinations.length == 1 && _exportOptions.keepLocalCopy) {
+      return 'Saved locally as ${p.basename(outputPath)}.';
+    }
+    final joined = switch (destinations.length) {
+      0 => 'the selected destination',
+      1 => destinations.single,
+      2 => '${destinations.first} and ${destinations.last}',
+      _ =>
+        '${destinations.sublist(0, destinations.length - 1).join(', ')}, and ${destinations.last}',
+    };
+    final localNote = _exportOptions.keepLocalCopy
+        ? ''
+        : ' No local copy was kept.';
+    return 'Saved to $joined.$localNote';
+  }
+
+  List<String> _exportDestinationNames() => [
+    if (_exportOptions.keepLocalCopy) 'AquaRecover',
+    if (_exportOptions.saveToPhotoLibrary) 'Photos',
+    if (_exportOptions.saveToFiles) 'Files',
+  ];
 
   Widget _batchExportReviewPanel() {
     final complete = _jobs
@@ -1458,32 +1625,109 @@ class _EditorPageState extends State<EditorPage> {
         .length;
     final failed = _jobs.where((job) => job.status == JobStatus.failed).length;
     final pending = _jobs.length - complete - failed;
+    final selected = _selectedJob;
+    final videoUnavailable =
+        selected != null &&
+        selected.kind.isVideo &&
+        !VideoRestorationService.isBackendAvailableOnCurrentPlatform;
+    final canExportSelected =
+        selected != null &&
+        !_busy &&
+        !videoUnavailable &&
+        selected.status.canStartIndividualExport;
+    final actionLabel = switch (selected?.status) {
+      JobStatus.failed => 'Retry selected',
+      JobStatus.complete => 'Export selected again',
+      JobStatus.processing => 'Exporting selected...',
+      _ => 'Export selected',
+    };
     return _sectionBox(
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(CupertinoIcons.rectangle_stack, size: 28),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            children: [
+              const Icon(CupertinoIcons.rectangle_stack, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Batch export', style: _panelTitle()),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$pending ready - $complete complete${failed == 0 ? '' : ' - $failed failed'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _secondaryText(context),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              CupertinoButton(
+                key: const Key('export_open_queue'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                minimumSize: Size.zero,
+                onPressed: _busy ? null : _showQueueOverview,
+                child: const Text('Manage'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+            decoration: BoxDecoration(
+              color: CupertinoColors.systemGrey5.resolveFrom(context),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
               children: [
-                Text('Automatic batch', style: _panelTitle()),
-                const SizedBox(height: 3),
-                Text(
-                  '$pending pending - $complete complete${failed == 0 ? '' : ' - $failed failed'}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _secondaryText(context),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Selected item',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        selected == null
+                            ? 'No item selected'
+                            : _friendlyMediaName(selected),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _secondaryText(context).copyWith(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                CupertinoButton(
+                  key: const Key('export_selected_batch'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 9,
+                  ),
+                  minimumSize: Size.zero,
+                  borderRadius: BorderRadius.circular(11),
+                  color: CupertinoColors.systemGrey4.resolveFrom(context),
+                  onPressed: canExportSelected ? _commitSelectedExport : null,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(CupertinoIcons.arrow_up_square, size: 17),
+                      const SizedBox(width: 6),
+                      Text(actionLabel),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            minimumSize: Size.zero,
-            onPressed: _busy ? null : _clearCompleted,
-            child: const Text('Clear'),
           ),
         ],
       ),
@@ -1723,6 +1967,77 @@ class _EditorPageState extends State<EditorPage> {
               }
             },
           ),
+          const SizedBox(height: 8),
+          _switchRow(
+            title: 'Keep in AquaRecover',
+            controlKey: const Key('export_keep_local_copy'),
+            value: _exportOptions.keepLocalCopy,
+            styleContext: panelContext,
+            onChanged: _setKeepLocalCopy,
+          ),
+          _switchRow(
+            title: 'Add to Photos',
+            controlKey: const Key('export_add_to_photos'),
+            value: _exportOptions.saveToPhotoLibrary,
+            styleContext: panelContext,
+            onChanged: _setSaveToPhotoLibrary,
+          ),
+          _switchRow(
+            title: 'Export to Files',
+            controlKey: const Key('export_to_files'),
+            value: _exportOptions.saveToFiles,
+            styleContext: panelContext,
+            onChanged: (value) => unawaited(_setSaveToFiles(value)),
+          ),
+          if (_exportOptions.saveToFiles && _exportDirectoryPath != null) ...[
+            Container(
+              key: const Key('export_files_folder'),
+              padding: const EdgeInsets.fromLTRB(11, 8, 8, 8),
+              decoration: BoxDecoration(
+                color: CupertinoColors.white.withValues(alpha: .07),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    CupertinoIcons.folder_fill,
+                    color: CupertinoColors.activeBlue,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      p.basename(_exportDirectoryPath!),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: CupertinoColors.white),
+                    ),
+                  ),
+                  CupertinoButton(
+                    key: const Key('change_export_files_folder'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                    minimumSize: Size.zero,
+                    onPressed: _busy
+                        ? null
+                        : () => unawaited(_chooseExportDirectory()),
+                    child: const Text('Change'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+          const SizedBox(height: 2),
+          Text(
+            'Choose one or more destinations. Photos and Files exports do not appear under Local Exports unless a local copy is enabled.',
+            style: CupertinoTheme.of(panelContext).textTheme.textStyle.copyWith(
+              color: CupertinoColors.systemGrey,
+              fontSize: 12,
+            ),
+          ),
           SettingSlider(
             label: 'JPEG quality',
             value: _settings.jpegQuality.toDouble(),
@@ -1740,16 +2055,6 @@ class _EditorPageState extends State<EditorPage> {
             styleContext: panelContext,
             onChanged: (v) => setState(
               () => _exportOptions = _exportOptions.copyWith(stripMetadata: v),
-            ),
-          ),
-          _switchRow(
-            title: 'Save exports to Photos',
-            value: _exportOptions.saveToPhotoLibrary,
-            styleContext: panelContext,
-            onChanged: (v) => setState(
-              () => _exportOptions = _exportOptions.copyWith(
-                saveToPhotoLibrary: v,
-              ),
             ),
           ),
           _switchRow(
@@ -1863,6 +2168,28 @@ class _EditorPageState extends State<EditorPage> {
                 CupertinoIcons.exclamationmark_triangle_fill,
                 color: CupertinoColors.destructiveRed,
               ),
+            const SizedBox(width: 4),
+            CupertinoButton(
+              key: Key('queue_inline_remove_${job.id}'),
+              padding: const EdgeInsets.all(7),
+              minimumSize: Size.zero,
+              onPressed:
+                  (!_busy || job.status == JobStatus.pending) &&
+                      job.status != JobStatus.processing
+                  ? () => _removeJob(job.id)
+                  : null,
+              child: Icon(
+                CupertinoIcons.trash,
+                semanticLabel:
+                    'Remove ${job.displayName ?? p.basename(job.inputPath)} from queue',
+                size: 18,
+                color:
+                    (!_busy || job.status == JobStatus.pending) &&
+                        job.status != JobStatus.processing
+                    ? CupertinoColors.destructiveRed
+                    : CupertinoColors.systemGrey3.resolveFrom(context),
+              ),
+            ),
           ],
         ),
       ),
@@ -1986,14 +2313,13 @@ class _EditorPageState extends State<EditorPage> {
       _status = 'Inspecting imported media...';
     });
     final now = DateTime.now().microsecondsSinceEpoch;
-    final next = <MediaJob>[];
-    var skipped = 0;
-    for (var i = 0; i < paths.length; i++) {
+    Future<(int, MediaJob?)> inspectAt(int index) async {
       try {
-        final metadata = await _inspectionService.inspect(paths[i]);
-        next.add(
+        final metadata = await _inspectionService.inspect(paths[index]);
+        return (
+          index,
           MediaJob(
-            id: '${now}_$i',
+            id: '${now}_$index',
             inputPath: metadata.path,
             kind: metadata.kind,
             displayName: metadata.fileName,
@@ -2002,9 +2328,28 @@ class _EditorPageState extends State<EditorPage> {
           ),
         );
       } on Object {
-        skipped++;
+        return (index, null);
       }
     }
+
+    final inspected = List<MediaJob?>.filled(paths.length, null);
+    const concurrentInspections = 3;
+    for (var start = 0; start < paths.length; start += concurrentInspections) {
+      final end = (start + concurrentInspections).clamp(0, paths.length);
+      final results = await Future.wait([
+        for (var index = start; index < end; index++) inspectAt(index),
+      ]);
+      for (final result in results) {
+        inspected[result.$1] = result.$2;
+      }
+      if (mounted && end < paths.length) {
+        setState(
+          () => _status = 'Inspecting imported media... $end/${paths.length}',
+        );
+      }
+    }
+    final next = inspected.whereType<MediaJob>().toList(growable: false);
+    final skipped = paths.length - next.length;
     if (!mounted) return;
     if (next.isEmpty) {
       setState(() {
@@ -2013,28 +2358,41 @@ class _EditorPageState extends State<EditorPage> {
       });
       return;
     }
-    final processAutomatically = next.length > 1;
     setState(() {
       final startIndex = _jobs.length;
       _jobs = [..._jobs, ...next];
       _selectedIndex = startIndex;
-      _step = EditorWorkflowStep.edit;
+      _step = widget.reviewExportOnStart
+          ? EditorWorkflowStep.export
+          : EditorWorkflowStep.edit;
       _settings = RestorationPreset.auto.settings;
       _transformSettings = const ImageTransformSettings();
       _selectedToolGroup = widget.initialToolGroup ?? EditorToolGroup.presets;
       _selectedAdjustmentId = 'recovery';
       _toolPanelOpen = true;
       _compareMode = widget.initialCompareMode ?? EditorCompareMode.edited;
-      _exportOptions = _exportOptions.copyWith(
-        saveToPhotoLibrary:
-            processAutomatically && source == MediaSource.photos,
-      );
       _busy = false;
-      _status = processAutomatically
-          ? 'Imported ${next.length} items. Auto recovery is starting...'
-          : 'Imported 1 item${skipped == 0 ? '' : ', skipped $skipped unsupported'} and opened the editor.';
+      _status = next.length > 1
+          ? 'Imported ${next.length} items${skipped == 0 ? '' : ', skipped $skipped unsupported'}. Nothing is saved until you confirm export.'
+          : 'Imported 1 item${skipped == 0 ? '' : ', skipped $skipped unsupported'}. Nothing is saved until you confirm export.';
     });
-    if (processAutomatically) await _processQueue(automatic: true);
+  }
+
+  Future<void> _commitExport() async {
+    if (!await _prepareExportDestinations()) return;
+    await (_jobs.length > 1 ? _processQueue() : _processSelected());
+  }
+
+  Future<void> _commitSelectedExport() async {
+    if (!await _prepareExportDestinations()) return;
+    await _processSelected();
+  }
+
+  Future<bool> _prepareExportDestinations() async {
+    if (!_exportOptions.saveToFiles || _exportDirectoryPath != null) {
+      return true;
+    }
+    return _chooseExportDirectory();
   }
 
   Future<void> _processSelected() async {
@@ -2042,14 +2400,12 @@ class _EditorPageState extends State<EditorPage> {
     await _processJob(_selectedIndex);
   }
 
-  Future<void> _processQueue({bool automatic = false}) async {
+  Future<void> _processQueue() async {
     if (_jobs.isEmpty || _busy) return;
     setState(() {
       _busy = true;
       _cancelRequested = false;
-      _status = automatic
-          ? 'Restoring all selected media automatically...'
-          : 'Exporting queue...';
+      _status = 'Exporting all selected media...';
     });
     for (var i = 0; i < _jobs.length; i++) {
       if (!mounted || _cancelRequested) break;
@@ -2068,7 +2424,7 @@ class _EditorPageState extends State<EditorPage> {
         if (!_cancelRequested) _step = EditorWorkflowStep.export;
         _status = _cancelRequested
             ? 'Queue cancelled.'
-            : 'Automatic batch finished: $complete complete${failed == 0 ? '' : ', $failed failed'}.';
+            : 'Batch export finished: $complete complete${failed == 0 ? '' : ', $failed failed'}.';
       });
     }
   }
@@ -2126,6 +2482,7 @@ class _EditorPageState extends State<EditorPage> {
         ),
       );
     });
+    String? generatedOutput;
     try {
       final trim = _currentTrimSettings();
       job = _jobs[index];
@@ -2154,34 +2511,54 @@ class _EditorPageState extends State<EditorPage> {
           lutProfile: _lutProfile,
         ),
       };
-      await _sidecarService.write(
-        inputPath: job.inputPath,
-        outputPath: output,
-        settings: _settings,
-        exportOptions: _exportOptions,
-        lutProfile: _lutProfile,
-        trim: trim,
-        transform: _transformSettings,
-        rawVideoDescriptor: rawDescriptor,
-      );
+      generatedOutput = output;
+      if (_exportOptions.keepLocalCopy) {
+        await _sidecarService.write(
+          inputPath: job.inputPath,
+          outputPath: output,
+          settings: _settings,
+          exportOptions: _exportOptions,
+          lutProfile: _lutProfile,
+          trim: trim,
+          transform: _transformSettings,
+          rawVideoDescriptor: rawDescriptor,
+        );
+      }
       if (_exportOptions.saveToPhotoLibrary) {
         await _photoLibraryService.saveExport(output, job.kind);
       }
+      if (_exportOptions.saveToFiles) {
+        final directoryPath = _exportDirectoryPath;
+        if (directoryPath == null) {
+          throw StateError('Choose a Files export folder before exporting.');
+        }
+        await _folderExportService.copyToDirectory(
+          sourcePath: output,
+          directoryPath: directoryPath,
+        );
+      }
+      final previewOutput = _exportOptions.keepLocalCopy
+          ? output
+          : await _moveToTemporaryPreview(output);
       if (!mounted) return;
       setState(() {
         _updateJob(
           index,
           (old) => old.copyWith(
             status: JobStatus.complete,
-            outputPath: output,
+            outputPath: previewOutput,
             progress: 1,
             clearError: true,
           ),
         );
         if (!partOfBatch) _step = EditorWorkflowStep.export;
-        _status = 'Exported ${p.basename(output)} with sidecar.';
+        _status =
+            'Exported ${p.basename(output)} to ${_exportDestinationNames().join(', ')}.';
       });
     } on Object catch (error) {
+      if (!_exportOptions.keepLocalCopy && generatedOutput != null) {
+        await _deleteGeneratedOutput(generatedOutput);
+      }
       if (!mounted) return;
       final message = _friendlyError(error);
       setState(() {
@@ -2218,6 +2595,39 @@ class _EditorPageState extends State<EditorPage> {
       lutProfile: _lutProfile,
       transform: _transformSettings,
     );
+  }
+
+  Future<String> _moveToTemporaryPreview(String outputPath) async {
+    final directory = await OutputPaths.intermediateDirectory();
+    final previewPath = p.join(
+      directory.path,
+      'export_preview_${p.basename(outputPath)}',
+    );
+    final source = File(outputPath);
+    final preview = File(previewPath);
+    if (await preview.exists()) await preview.delete();
+    try {
+      await source.rename(previewPath);
+    } on FileSystemException {
+      await source.copy(previewPath);
+      await source.delete();
+    }
+    final sidecar = File('$outputPath.aquarecover.json');
+    if (await sidecar.exists()) await sidecar.delete();
+    return previewPath;
+  }
+
+  Future<void> _deleteGeneratedOutput(String outputPath) async {
+    for (final path in [outputPath, '$outputPath.aquarecover.json']) {
+      final file = File(path);
+      if (await file.exists()) {
+        try {
+          await file.delete();
+        } on FileSystemException {
+          // Best effort: failed Photos-only exports must not be listed locally.
+        }
+      }
+    }
   }
 
   VideoEditSettings _currentTrimSettings() {
@@ -2260,6 +2670,50 @@ class _EditorPageState extends State<EditorPage> {
     });
   }
 
+  Future<void> _showQueueOverview() {
+    if (_jobs.isEmpty) return Future.value();
+    return showCupertinoModalPopup<void>(
+      context: context,
+      builder: (_) => QueueOverviewSheet(
+        jobs: _jobs,
+        selectedJobId: _selectedJob?.id,
+        busy: _busy,
+        onSelected: _selectJob,
+        onRemove: _removeJob,
+      ),
+    );
+  }
+
+  void _selectJob(String id) {
+    final index = _jobs.indexWhere((job) => job.id == id);
+    if (index < 0 || _busy) return;
+    setState(() => _selectedIndex = index);
+  }
+
+  bool _removeJob(String id) {
+    final index = _jobs.indexWhere((job) => job.id == id);
+    if (index < 0) return false;
+    final removed = _jobs[index];
+    if (removed.status == JobStatus.processing ||
+        (_busy && removed.status != JobStatus.pending)) {
+      return false;
+    }
+    final remaining = [..._jobs]..removeAt(index);
+    setState(() {
+      _jobs = remaining;
+      if (remaining.isEmpty) {
+        _selectedIndex = 0;
+        _step = EditorWorkflowStep.import;
+      } else if (index < _selectedIndex) {
+        _selectedIndex--;
+      } else if (_selectedIndex >= remaining.length) {
+        _selectedIndex = remaining.length - 1;
+      }
+      _status = 'Removed ${_friendlyMediaName(removed)} from the queue.';
+    });
+    return true;
+  }
+
   void _cancelProcessing() {
     if (!_canCancelCurrentWork) {
       setState(
@@ -2277,10 +2731,64 @@ class _EditorPageState extends State<EditorPage> {
     setState(() {
       _exportPreset = preset;
       _exportOptions = preset.options.copyWith(
+        keepLocalCopy: _exportOptions.keepLocalCopy,
         saveToPhotoLibrary: _exportOptions.saveToPhotoLibrary,
+        saveToFiles: _exportOptions.saveToFiles,
       );
       _settings = _settings.copyWith(jpegQuality: preset.jpegQuality);
     });
+  }
+
+  void _setKeepLocalCopy(bool value) {
+    setState(() {
+      _exportOptions = _exportOptions.withKeepLocalCopy(value);
+    });
+  }
+
+  void _setSaveToPhotoLibrary(bool value) {
+    setState(() {
+      _exportOptions = _exportOptions.withPhotoLibrary(value);
+    });
+  }
+
+  Future<void> _setSaveToFiles(bool value) async {
+    if (!value) {
+      setState(() {
+        _exportOptions = _exportOptions.withFiles(false);
+        _exportDirectoryPath = null;
+      });
+      return;
+    }
+    await _chooseExportDirectory();
+  }
+
+  Future<bool> _chooseExportDirectory() async {
+    try {
+      final path = await FilePicker.getDirectoryPath(
+        dialogTitle: 'Choose export folder',
+      );
+      if (path == null || !mounted) return false;
+      final directory = Directory(path);
+      if (!await directory.exists()) {
+        throw FileSystemException(
+          'The selected export folder is unavailable.',
+          path,
+        );
+      }
+      setState(() {
+        _exportDirectoryPath = path;
+        _exportOptions = _exportOptions.withFiles(true);
+      });
+      return true;
+    } on Object catch (error) {
+      if (mounted) {
+        await _showAlert(
+          'Folder unavailable',
+          'AquaRecover could not use the selected folder. ${_friendlyError(error)}',
+        );
+      }
+      return false;
+    }
   }
 
   String get _videoUnavailableMessage =>
@@ -2304,6 +2812,12 @@ class _EditorPageState extends State<EditorPage> {
         ],
       ),
     );
+  }
+
+  void _openLocalExports() {
+    Navigator.of(
+      context,
+    ).push(CupertinoPageRoute<void>(builder: (_) => const ExportLibraryPage()));
   }
 
   void _showAbout() {
@@ -2481,6 +2995,7 @@ class _EditorPageState extends State<EditorPage> {
     required String title,
     required bool value,
     required ValueChanged<bool> onChanged,
+    Key? controlKey,
     BuildContext? styleContext,
   }) {
     final resolvedContext = styleContext ?? context;
@@ -2496,7 +3011,11 @@ class _EditorPageState extends State<EditorPage> {
               ).textTheme.textStyle.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
-          CupertinoSwitch(value: value, onChanged: _busy ? null : onChanged),
+          CupertinoSwitch(
+            key: controlKey,
+            value: value,
+            onChanged: _busy ? null : onChanged,
+          ),
         ],
       ),
     );

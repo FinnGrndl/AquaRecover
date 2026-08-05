@@ -35,3 +35,4 @@ flutter:
   uses-material-design: false
   assets:
     - LICENSE
+    - assets/branding/aquarecover_app_icon.png

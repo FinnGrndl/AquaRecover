@@ -18,12 +18,30 @@ class OutputPaths {
     return dir;
   }
 
-  static Future<String> forImage(String inputPath, {String extension = 'jpg'}) {
-    return _forMedia(inputPath, extension: extension, suffix: 'aqua');
+  static Future<String> forImage(
+    String inputPath, {
+    String extension = 'jpg',
+    bool temporary = false,
+  }) {
+    return _forMedia(
+      inputPath,
+      extension: extension,
+      suffix: 'aqua',
+      temporary: temporary,
+    );
   }
 
-  static Future<String> forVideo(String inputPath, {String extension = 'mp4'}) {
-    return _forMedia(inputPath, extension: extension, suffix: 'aqua');
+  static Future<String> forVideo(
+    String inputPath, {
+    String extension = 'mp4',
+    bool temporary = false,
+  }) {
+    return _forMedia(
+      inputPath,
+      extension: extension,
+      suffix: 'aqua',
+      temporary: temporary,
+    );
   }
 
   static Future<String> forIntermediatePng(String inputPath) async {
@@ -49,8 +67,11 @@ class OutputPaths {
     String inputPath, {
     required String extension,
     required String suffix,
+    required bool temporary,
   }) async {
-    final dir = await outputDirectory();
+    final dir = temporary
+        ? await intermediateDirectory()
+        : await outputDirectory();
     final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(
       RegExp(r'[:.]'),
       '-',

@@ -10,6 +10,8 @@ import 'package:aqua_recover/core/models/media_kind.dart';
 import 'package:aqua_recover/core/models/media_metadata.dart';
 import 'package:aqua_recover/core/models/raw_video_descriptor.dart';
 import 'package:aqua_recover/core/models/restoration_settings.dart';
+import 'package:aqua_recover/core/persistence/export_library_service.dart';
+import 'package:aqua_recover/core/persistence/folder_export_service.dart';
 import 'package:aqua_recover/core/processing/image_restoration_service.dart';
 import 'package:aqua_recover/core/processing/image_transform_service.dart';
 import 'package:aqua_recover/core/processing/video_restoration_service.dart';
@@ -23,10 +25,13 @@ import 'package:aqua_recover/features/editor/widgets/adjustment_browser.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_bottom_panel.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_preview_stage.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_tool_rail.dart';
+import 'package:aqua_recover/features/editor/widgets/exported_photo_preview.dart';
 import 'package:aqua_recover/features/editor/widgets/gpu_preview_filter.dart';
 import 'package:aqua_recover/features/editor/widgets/preset_browser.dart';
+import 'package:aqua_recover/features/editor/widgets/queue_overview_sheet.dart';
 import 'package:aqua_recover/features/editor/widgets/restored_image_preview.dart';
 import 'package:aqua_recover/features/editor/widgets/video_frame_preview_tile.dart';
+import 'package:aqua_recover/features/library/export_library_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -303,6 +308,67 @@ void main() {
       expect(settings.jpegQuality, ExportPreset.social.jpegQuality);
     },
   );
+
+  test('export options preserve independent local and Photos destinations', () {
+    const localOnly = ExportOptions();
+    final photosOnly = localOnly.copyWith(
+      keepLocalCopy: false,
+      saveToPhotoLibrary: true,
+    );
+
+    expect(localOnly.keepLocalCopy, isTrue);
+    expect(localOnly.saveToPhotoLibrary, isFalse);
+    expect(photosOnly.keepLocalCopy, isFalse);
+    expect(photosOnly.saveToPhotoLibrary, isTrue);
+    expect(photosOnly.toJson()['keepLocalCopy'], isFalse);
+    expect(photosOnly.toJson()['saveToPhotoLibrary'], isTrue);
+    final normalizedPhotosOnly = localOnly.withKeepLocalCopy(false);
+    expect(normalizedPhotosOnly.keepLocalCopy, isFalse);
+    expect(normalizedPhotosOnly.saveToPhotoLibrary, isTrue);
+    final normalizedLocalOnly = photosOnly.withPhotoLibrary(false);
+    expect(normalizedLocalOnly.keepLocalCopy, isTrue);
+    expect(normalizedLocalOnly.saveToPhotoLibrary, isFalse);
+    final filesOnly = localOnly.withFiles(true).withKeepLocalCopy(false);
+    expect(filesOnly.keepLocalCopy, isFalse);
+    expect(filesOnly.saveToPhotoLibrary, isFalse);
+    expect(filesOnly.saveToFiles, isTrue);
+    expect(filesOnly.toJson()['saveToFiles'], isTrue);
+    expect(filesOnly.withFiles(false).keepLocalCopy, isTrue);
+  });
+
+  test('individual batch export is available unless an item is processing', () {
+    expect(JobStatus.pending.canStartIndividualExport, isTrue);
+    expect(JobStatus.failed.canStartIndividualExport, isTrue);
+    expect(JobStatus.complete.canStartIndividualExport, isTrue);
+    expect(JobStatus.processing.canStartIndividualExport, isFalse);
+  });
+
+  test('folder export copies files and avoids overwriting names', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'aquarecover_folder_export_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final sourceDirectory = Directory('${directory.path}/source')..createSync();
+    final destinationDirectory = Directory('${directory.path}/destination')
+      ..createSync();
+    final source = File('${sourceDirectory.path}/reef.jpg')
+      ..writeAsBytesSync([1, 2, 3, 4]);
+    const service = FolderExportService();
+
+    final first = await service.copyToDirectory(
+      sourcePath: source.path,
+      directoryPath: destinationDirectory.path,
+    );
+    final second = await service.copyToDirectory(
+      sourcePath: source.path,
+      directoryPath: destinationDirectory.path,
+    );
+
+    expect(File(first).readAsBytesSync(), [1, 2, 3, 4]);
+    expect(File(second).readAsBytesSync(), [1, 2, 3, 4]);
+    expect(first, isNot(second));
+    expect(second, endsWith('reef_2.jpg'));
+  });
 
   test(
     'image restoration service applies crop settings before encoding',
@@ -581,6 +647,9 @@ void main() {
     expect(find.text('No media selected'), findsNothing);
     expect(find.text('Import Files'), findsOneWidget);
     expect(find.text('Restore underwater color'), findsOneWidget);
+    expect(find.text('AquaRecover'), findsOneWidget);
+    expect(find.byKey(const Key('start_brand_icon')), findsOneWidget);
+    expect(find.byType(CupertinoSliverNavigationBar), findsNothing);
     expect(find.text('Import. Edit. Export.'), findsNothing);
     expect(find.text('Edit selected'), findsNothing);
   });
@@ -588,7 +657,7 @@ void main() {
   testWidgets('about dialog opens the in-app license list', (tester) async {
     await tester.pumpWidget(const CupertinoApp(home: EditorPage()));
 
-    await tester.tap(find.byIcon(CupertinoIcons.info_circle));
+    await tester.tap(find.byKey(const Key('start_about')));
     await tester.pumpAndSettle();
     expect(find.textContaining('Version 0.4.0'), findsOneWidget);
 
@@ -596,6 +665,189 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AppLicensePage), findsOneWidget);
     expect(find.text('Open-source licenses'), findsOneWidget);
+  });
+
+  testWidgets('queue overview shows thumbnails and removes pending items', (
+    tester,
+  ) async {
+    final removed = <String>[];
+    final jobs = [
+      const MediaJob(
+        id: 'active',
+        inputPath: '/tmp/active.jpg',
+        kind: MediaKind.photo,
+        displayName: 'Active.jpg',
+        status: JobStatus.processing,
+      ),
+      const MediaJob(
+        id: 'pending',
+        inputPath: '/tmp/pending.jpg',
+        kind: MediaKind.photo,
+        displayName: 'Pending.jpg',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: QueueOverviewSheet(
+          jobs: jobs,
+          selectedJobId: 'active',
+          busy: true,
+          onSelected: (_) {},
+          onRemove: (id) {
+            removed.add(id);
+            return true;
+          },
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('queue_overview_list')), findsOneWidget);
+    expect(find.text('2 items in the queue'), findsOneWidget);
+    expect(
+      tester
+          .widget<CupertinoButton>(find.byKey(const Key('queue_remove_active')))
+          .onPressed,
+      isNull,
+    );
+
+    await tester.tap(find.byKey(const Key('queue_remove_pending')));
+    await tester.pump();
+
+    expect(removed, ['pending']);
+    expect(find.text('Pending.jpg'), findsNothing);
+    expect(find.text('1 item in the queue'), findsOneWidget);
+  });
+
+  testWidgets('completed export shows only the saved photo', (tester) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_export_preview_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final exported = File('${directory.path}/exported.png');
+    exported.writeAsBytesSync(img.encodePng(img.Image(width: 40, height: 30)));
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: Center(
+          child: SizedBox(
+            width: 360,
+            height: 380,
+            child: ExportedPhotoPreview(
+              path: exported.path,
+              aspectRatio: 4 / 3,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final preview = find.byKey(const Key('exported_photo_preview'));
+    expect(tester.getSize(preview).width, 360);
+    expect(find.byKey(const Key('exported_photo_image')), findsOneWidget);
+    expect(find.byType(CupertinoSlider), findsNothing);
+    expect(find.text('Before / after'), findsNothing);
+  });
+
+  testWidgets('local export library opens and deletes an export', (
+    tester,
+  ) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_library_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/reef_aqua.png');
+    file.writeAsBytesSync(img.encodePng(img.Image(width: 8, height: 8)));
+    final item = LocalExportItem(
+      path: file.path,
+      kind: MediaKind.photo,
+      sizeBytes: file.lengthSync(),
+      modified: DateTime(2026, 8, 5),
+    );
+    final service = _FakeExportLibraryService([item]);
+
+    await tester.pumpWidget(
+      CupertinoApp(home: ExportLibraryPage(service: service)),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Local Exports'), findsOneWidget);
+    expect(find.text('reef_aqua.png'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('local_export_reef_aqua.png')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(find.byType(ExportDetailPage), findsOneWidget);
+
+    final deleteButton = find
+        .byKey(const Key('delete_local_export'))
+        .hitTestable();
+    expect(deleteButton, findsOneWidget);
+    await tester.tap(deleteButton);
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Delete'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(service.deleted, [item]);
+    expect(find.text('No local exports yet.'), findsOneWidget);
+  });
+
+  testWidgets('local export library batch selects and deletes all exports', (
+    tester,
+  ) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_batch_library_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final items = <LocalExportItem>[];
+    for (var index = 1; index <= 3; index++) {
+      final file = File('${directory.path}/export_$index.png');
+      file.writeAsBytesSync(img.encodePng(img.Image(width: 8, height: 8)));
+      items.add(
+        LocalExportItem(
+          path: file.path,
+          kind: MediaKind.photo,
+          sizeBytes: file.lengthSync(),
+          modified: DateTime(2026, 8, index),
+        ),
+      );
+    }
+    final service = _FakeExportLibraryService(items);
+
+    await tester.pumpWidget(
+      CupertinoApp(home: ExportLibraryPage(service: service)),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await tester.tap(find.byKey(const Key('local_export_selection_mode')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('local_export_export_1.png')));
+    await tester.tap(find.byKey(const Key('local_export_export_2.png')));
+    await tester.pump();
+    expect(find.text('2 selected'), findsOneWidget);
+    expect(find.text('Delete 2'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('delete_selected_local_exports')));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.text('Delete'));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(service.deleted.length, 2);
+    expect(find.text('export_3.png'), findsOneWidget);
+    expect(find.text('Delete all'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('delete_all_local_exports')));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('Delete all local exports?'), findsOneWidget);
+    await tester.tap(find.text('Delete'));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(service.deleted.length, 3);
+    expect(find.text('No local exports yet.'), findsOneWidget);
   });
 
   testWidgets('editor tool rail selects groups and bottom panel closes', (
@@ -917,6 +1169,22 @@ void main() {
       expect(find.text('Light controls'), findsOneWidget);
     },
   );
+}
+
+class _FakeExportLibraryService extends ExportLibraryService {
+  _FakeExportLibraryService(this.items);
+
+  final List<LocalExportItem> items;
+  final List<LocalExportItem> deleted = [];
+
+  @override
+  Future<List<LocalExportItem>> load() async => [...items];
+
+  @override
+  Future<void> delete(LocalExportItem item) async {
+    deleted.add(item);
+    items.remove(item);
+  }
 }
 
 double _meanAbsDelta(img.Image a, img.Image b) {

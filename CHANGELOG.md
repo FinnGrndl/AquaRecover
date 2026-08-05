@@ -25,6 +25,28 @@ source releases; the number after `+` is the mobile build number.
   sidecar persistence.
 - Reduced editor panel height, removed duplicate panel headings, and updated
   the tools to a lighter gray glass treatment.
+- Added a thumbnail overview for imported media with individual queue removal,
+  including removal of ready items before batch export.
+- Added the canonical app icon to the import screen branding.
+- Replaced the separate import card and navigation title with one full-screen
+  branded start surface.
+- Expanded the mobile export settings surface to fill the area directly below
+  the top bar.
+- Multi-selection now creates a ready batch without writing output files;
+  processing and saving begin only after export confirmation.
+- Added local export library and detail pages with preview and deletion of the
+  exported file and its sidecar.
+- Added multi-selection, select-all, batch deletion, and delete-all actions to
+  the local export library.
+- Export destinations can now be local-only, Photos-only, or both. Photos-only
+  exports keep no durable copy or sidecar in AquaRecover.
+- Added Files as an independent export destination. A system folder picker is
+  used once and the same folder receives every item in a batch.
+- Added a separate export action for the currently selected batch item. The
+  full batch action skips items that were already exported individually.
+- Replaced the editor export label with a neutral gray review checkmark.
+- Parallelized import metadata inspection in bounded groups and avoided full
+  pixel decoding when only image dimensions are required.
 
 ### Fixed
 
@@ -32,15 +54,20 @@ source releases; the number after `+` is the mobile build number.
 - Split comparison previews no longer render underneath the editor tools.
 - Split mode reuses rendered previews and keeps the same blurred immersive
   background as the normal edited view.
+- The export background now extends through the top safe area while its controls
+  remain positioned below the status bar.
+- The editor background now extends behind the status bar and Dynamic Island.
+- Completed exports now show the saved photo directly without a comparison
+  slider.
 
 ## 0.4.0 - 2026-08-05
 
 ### Added
 
 - Native iOS Photos picker for single and multiple selection.
-- Automatic processing after a multi-image import.
+- Automatic batch setup after a multi-image import.
 - Editor adjustment browser showing every current image value.
-- Add-only Photos permission for saving automatic iOS exports.
+- Add-only Photos permission for saving iOS exports.
 - iOS privacy manifest, Files sharing, and opening-in-place support.
 - Repeatable iOS Simulator import harness.
 - New iOS app icon set.

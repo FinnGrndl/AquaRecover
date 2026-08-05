@@ -48,6 +48,7 @@ class ImageRestorationService {
     final outputPath = await OutputPaths.forImage(
       inputPath,
       extension: exportOptions.imageFormat.extension,
+      temporary: !exportOptions.keepLocalCopy,
     );
 
     if (_canUseNativeIos(lutProfile)) {
@@ -271,7 +272,9 @@ ExportOptions _exportOptionsFromJson(Map<String, Object?> map) {
   return ExportOptions(
     imageFormat: format,
     stripMetadata: map['stripMetadata'] as bool? ?? true,
+    keepLocalCopy: map['keepLocalCopy'] as bool? ?? true,
     saveToPhotoLibrary: map['saveToPhotoLibrary'] as bool? ?? false,
+    saveToFiles: map['saveToFiles'] as bool? ?? false,
     keepAudio: map['keepAudio'] as bool? ?? true,
   );
 }

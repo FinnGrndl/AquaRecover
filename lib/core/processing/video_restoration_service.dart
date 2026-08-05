@@ -87,7 +87,11 @@ class VideoRestorationService {
     rawDescriptor?.validateForProcessing();
     trim.validate();
 
-    final outputPath = await OutputPaths.forVideo(inputPath, extension: 'mp4');
+    final outputPath = await OutputPaths.forVideo(
+      inputPath,
+      extension: 'mp4',
+      temporary: !exportOptions.keepLocalCopy,
+    );
     await File(outputPath).parent.create(recursive: true);
     final filters = settings
         .ffmpegFilters(extraFilters: LutService.videoFiltersFor(lutProfile))
@@ -162,7 +166,11 @@ class VideoRestorationService {
     }
     trim.validate();
 
-    final outputPath = await OutputPaths.forVideo(inputPath, extension: 'mp4');
+    final outputPath = await OutputPaths.forVideo(
+      inputPath,
+      extension: 'mp4',
+      temporary: !exportOptions.keepLocalCopy,
+    );
     await File(outputPath).parent.create(recursive: true);
     try {
       final exported = await _iosChannel.invokeMethod<String>('restoreVideo', {

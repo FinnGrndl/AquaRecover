@@ -21,12 +21,14 @@ class AquaRecoverApp extends StatelessWidget {
     this.openPhotosOnStart = false,
     this.initialToolGroup,
     this.initialCompareMode,
+    this.reviewExportOnStart = false,
   });
 
   final List<String> initialPaths;
   final bool openPhotosOnStart;
   final EditorToolGroup? initialToolGroup;
   final EditorCompareMode? initialCompareMode;
+  final bool reviewExportOnStart;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +46,7 @@ class AquaRecoverApp extends StatelessWidget {
         openPhotosOnStart: openPhotosOnStart,
         initialToolGroup: initialToolGroup,
         initialCompareMode: initialCompareMode,
+        reviewExportOnStart: reviewExportOnStart,
       ),
     );
   }

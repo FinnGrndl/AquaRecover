@@ -50,10 +50,11 @@ class MediaInspectionService {
     final length = await file.length();
     if (length > maxImageProbeBytes) return null;
     final bytes = await file.readAsBytes();
-    final image = img.decodeImage(bytes);
-    if (image == null) {
+    final decoder = img.findDecoderForData(bytes);
+    final info = decoder?.startDecode(bytes);
+    if (info == null) {
       throw const FormatException('The selected image could not be decoded.');
     }
-    return (image.width, image.height);
+    return (info.width, info.height);
   }
 }
