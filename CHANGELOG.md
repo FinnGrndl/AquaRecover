@@ -7,12 +7,17 @@ source releases; the number after `+` is the mobile build number.
 
 ### Changed
 
-- Clarified that looks replace the complete adjustment profile while Water
-  correction controls only the underwater cast-recovery stage.
+- Presets now open first, keep their identity through manual adjustments, and
+  include an adjustable strength plus a neutral None option.
+- Adjustment bubbles reset their individual value to the active preset base;
+  the global reset action was removed.
+- The preview button now switches between edited and split views. Holding the
+  edited preview temporarily reveals the original.
+- Reworked the import and export surfaces with a more compact native layout,
+  dark export glass, and a bounded split review preview.
 - Added visible explanations and accessibility hints for every image
   adjustment.
-- Replaced the Compare tool panel with an upper-right preview toggle that
-  switches between edited and original views without changing the active tool.
+- The preview toggle no longer changes the active editing tool.
 - Simplified adjustment controls with full-width sliders and a single visible
   value in the adjustment browser.
 

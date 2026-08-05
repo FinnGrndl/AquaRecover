@@ -216,6 +216,10 @@ RestorationSettings _settingsFromJson(Map<String, Object?> map) {
   );
   return RestorationSettings(
     preset: preset,
+    presetStrength: d(
+      'presetStrength',
+      preset == RestorationPreset.none ? 0 : 1,
+    ),
     recovery: d('recovery', 1.18),
     redRecovery: d('redRecovery', 1.24),
     autoWhiteBalance: d('autoWhiteBalance', 0.76),

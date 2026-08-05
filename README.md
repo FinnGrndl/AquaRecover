@@ -76,15 +76,20 @@ white balance, contrast stretch, contrast, gamma, brightness, exposure,
 highlights, shadows, black point, saturation, vibrance, hue, highlight
 protection, haze reduction, clarity, sharpness, vignette, and JPEG quality.
 
-Built-in looks cover natural correction, vivid reefs, deep scenes, shallow and
-green water, macro, red-filter footage, and artificial light. A `.cube` LUT can
-also be applied to still images.
+Built-in presets cover natural correction, vivid reefs, deep scenes, shallow
+and green water, macro, red-filter footage, and artificial light. **None** uses
+neutral values and leaves the image unchanged. A `.cube` LUT can also be
+applied to still images.
 
-A look is a complete starting profile and replaces all nineteen adjustment
-values. **Auto** restores the balanced default profile. **Water correction** is
-only one of those values: it controls the underwater cast-recovery stage but
-does not scale exposure, contrast, saturation, or sharpening. Moving any
-individual adjustment changes the active profile label to **Pro**.
+A preset supplies the starting values for all nineteen adjustments. Its
+strength can be reduced without discarding later manual changes. Individual
+adjustments keep the selected preset as their base; tapping a value bubble
+restores only that value to the preset baseline. **Water correction** controls
+the underwater cast-recovery stage but does not scale exposure, contrast,
+saturation, or sharpening.
+
+The preview button switches between the edited image and a side-by-side split.
+Pressing and holding the normal edited preview temporarily shows the original.
 
 ## Platform support
 

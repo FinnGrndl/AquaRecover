@@ -31,10 +31,9 @@ import 'widgets/before_after_scrubber.dart';
 import 'widgets/editor_bottom_panel.dart';
 import 'widgets/editor_preview_stage.dart';
 import 'widgets/editor_tool_rail.dart';
-import 'widgets/look_browser.dart';
+import 'widgets/preset_browser.dart';
 import 'widgets/photo_library_sheet.dart';
 import 'widgets/raw_video_dialog.dart';
-import 'widgets/restored_image_preview.dart';
 import 'widgets/setting_slider.dart';
 import 'widgets/video_frame_preview_tile.dart';
 import 'widgets/video_preview_tile.dart';
@@ -73,11 +72,11 @@ class _EditorPageState extends State<EditorPage> {
   ExportOptions _exportOptions = ExportPreset.archive.options;
   LutProfile _lutProfile = LutProfile.none;
   bool _trimEnabled = false;
-  EditorToolGroup _selectedToolGroup = EditorToolGroup.light;
+  EditorToolGroup _selectedToolGroup = EditorToolGroup.presets;
   String _selectedAdjustmentId = 'recovery';
   bool _toolPanelOpen = true;
   EditorCompareMode _compareMode = EditorCompareMode.edited;
-  double _previewSplit = .5;
+  bool _holdingOriginal = false;
   bool _busy = false;
   bool _cancelRequested = false;
   String? _status = 'Ready.';
@@ -290,10 +289,7 @@ class _EditorPageState extends State<EditorPage> {
         filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: CupertinoDynamicColor.resolve(
-              CupertinoColors.systemBackground,
-              context,
-            ).withValues(alpha: .91),
+            color: CupertinoColors.black.withValues(alpha: .78),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: CupertinoColors.white.withValues(alpha: .18),
@@ -306,10 +302,18 @@ class _EditorPageState extends State<EditorPage> {
               ),
             ],
           ),
-          child: CupertinoScrollbar(
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, wide ? 18 : 24),
-              children: [_exportStep(showActions: false)],
+          child: CupertinoTheme(
+            data: CupertinoTheme.of(context).copyWith(
+              brightness: Brightness.dark,
+              primaryColor: CupertinoColors.activeBlue,
+            ),
+            child: Builder(
+              builder: (panelContext) => CupertinoScrollbar(
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, wide ? 18 : 24),
+                  children: [_exportStep(panelContext, showActions: false)],
+                ),
+              ),
             ),
           ),
         ),
@@ -347,7 +351,7 @@ class _EditorPageState extends State<EditorPage> {
     return switch (_step) {
       EditorWorkflowStep.import => _importStep(showQueue: !wide),
       EditorWorkflowStep.edit => _editStep(wide: wide),
-      EditorWorkflowStep.export => _exportStep(),
+      EditorWorkflowStep.export => _exportStep(context),
     };
   }
 
@@ -369,51 +373,123 @@ class _EditorPageState extends State<EditorPage> {
   Widget _importHero(MediaJob? job) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: CupertinoTheme.of(context).primaryColor.withValues(alpha: .10),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: CupertinoTheme.of(context).primaryColor.withValues(alpha: .22),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xff0878d7), Color(0xff00a6b8)],
         ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: CupertinoColors.activeBlue.withValues(alpha: .24),
+            blurRadius: 28,
+            offset: const Offset(0, 14),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            CupertinoIcons.photo_on_rectangle,
-            color: CupertinoColors.activeBlue,
-            size: 30,
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: CupertinoColors.white.withValues(alpha: .16),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(
+                  CupertinoIcons.drop_fill,
+                  color: CupertinoColors.white,
+                  size: 24,
+                ),
+              ),
+              const Spacer(),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: CupertinoColors.white.withValues(alpha: .15),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Text(
+                    'On-device',
+                    style: TextStyle(
+                      color: CupertinoColors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 18),
           Text(
-            'Import media',
-            style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+            'Restore underwater color',
+            style: CupertinoTheme.of(context).textTheme.navLargeTitleTextStyle
+                .copyWith(
+                  color: CupertinoColors.white,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 7),
           Text(
-            'Choose one item to edit. Select several and AquaRecover restores them automatically, saving photo selections back to Photos.',
-            style: _secondaryText(context),
+            'Choose one photo or video to edit. Select several and AquaRecover processes the complete selection automatically.',
+            style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+              color: CupertinoColors.white.withValues(alpha: .82),
+              height: 1.35,
+            ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: [
-              CupertinoButton.filled(
+              CupertinoButton(
+                color: CupertinoColors.white,
                 onPressed: _busy ? null : _importFromPhotos,
-                child: const Text('Choose from Photos'),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(CupertinoIcons.photo_on_rectangle, size: 18),
+                    SizedBox(width: 7),
+                    Text('Choose from Photos'),
+                  ],
+                ),
               ),
               CupertinoButton(
+                color: CupertinoColors.white.withValues(alpha: .15),
                 onPressed: _busy ? null : _pickFiles,
-                child: const Text('Import Files'),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      CupertinoIcons.folder,
+                      size: 18,
+                      color: CupertinoColors.white,
+                    ),
+                    SizedBox(width: 7),
+                    Text(
+                      'Import Files',
+                      style: TextStyle(color: CupertinoColors.white),
+                    ),
+                  ],
+                ),
               ),
               if (job != null)
                 CupertinoButton(
+                  color: CupertinoColors.white.withValues(alpha: .15),
                   onPressed: _busy
                       ? null
                       : () => setState(() => _step = EditorWorkflowStep.edit),
-                  child: const Text('Edit selected'),
+                  child: const Text(
+                    'Edit selected',
+                    style: TextStyle(color: CupertinoColors.white),
+                  ),
                 ),
             ],
           ),
@@ -446,14 +522,14 @@ class _EditorPageState extends State<EditorPage> {
         final preferredPanelHeight = compact
             ? switch (activeGroup) {
                 EditorToolGroup.light => 320.0,
-                EditorToolGroup.presets => 300.0,
+                EditorToolGroup.presets => 360.0,
                 EditorToolGroup.effects => 330.0,
                 EditorToolGroup.video => 340.0,
                 _ => 300.0,
               }
             : switch (activeGroup) {
                 EditorToolGroup.light => 340.0,
-                EditorToolGroup.presets => 330.0,
+                EditorToolGroup.presets => 370.0,
                 EditorToolGroup.effects => 360.0,
                 EditorToolGroup.video => 370.0,
                 _ => 330.0,
@@ -465,15 +541,29 @@ class _EditorPageState extends State<EditorPage> {
         return Stack(
           fit: StackFit.expand,
           children: [
-            EditorPreviewStage(
-              job: job,
-              settings: _settings,
-              compareMode: _compareMode,
-              lutProfile: _lutProfile,
-              immersive: true,
-              showHeader: false,
-              borderRadius: 0,
-              immersiveBottomInset: panelOpen ? panelHeight + 102 : 112,
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onLongPressStart: _compareMode == EditorCompareMode.edited
+                  ? (_) => setState(() => _holdingOriginal = true)
+                  : null,
+              onLongPressEnd: _compareMode == EditorCompareMode.edited
+                  ? (_) => setState(() => _holdingOriginal = false)
+                  : null,
+              onLongPressCancel: _compareMode == EditorCompareMode.edited
+                  ? () => setState(() => _holdingOriginal = false)
+                  : null,
+              child: EditorPreviewStage(
+                job: job,
+                settings: _settings,
+                compareMode: _holdingOriginal
+                    ? EditorCompareMode.original
+                    : _compareMode,
+                lutProfile: _lutProfile,
+                immersive: true,
+                showHeader: false,
+                borderRadius: 0,
+                immersiveBottomInset: panelOpen ? panelHeight + 102 : 112,
+              ),
             ),
             Positioned.fill(
               child: DecoratedBox(
@@ -514,6 +604,14 @@ class _EditorPageState extends State<EditorPage> {
                 onPressed: _toggleComparePreview,
               ),
             ),
+            if (_holdingOriginal)
+              Positioned(
+                top: _jobs.length > 1
+                    ? (compact ? 128 : 132)
+                    : (compact ? 76 : 80),
+                left: horizontalPadding,
+                child: _darkPill('Original'),
+              ),
             Positioned(
               left: horizontalPadding,
               right: horizontalPadding,
@@ -564,18 +662,18 @@ class _EditorPageState extends State<EditorPage> {
     required EditorCompareMode mode,
     required VoidCallback onPressed,
   }) {
-    final showingOriginal = mode.isOriginal;
-    final actionLabel = showingOriginal
+    final showingSplit = mode.isSplit;
+    final actionLabel = showingSplit
         ? 'Show edited preview'
-        : 'Show original preview';
-    final background = showingOriginal
+        : 'Show split preview';
+    final background = showingSplit
         ? CupertinoColors.activeBlue.withValues(alpha: .94)
         : CupertinoColors.black.withValues(alpha: .56);
     return Tooltip(
       message: actionLabel,
       child: Semantics(
         button: true,
-        selected: showingOriginal,
+        selected: showingSplit,
         label: actionLabel,
         child: CupertinoButton(
           key: const Key('editor_preview_compare'),
@@ -591,10 +689,10 @@ class _EditorPageState extends State<EditorPage> {
               child: FadeTransition(opacity: animation, child: child),
             ),
             child: Icon(
-              showingOriginal
-                  ? CupertinoIcons.wand_stars
-                  : CupertinoIcons.photo,
-              key: ValueKey(showingOriginal),
+              showingSplit
+                  ? CupertinoIcons.photo
+                  : CupertinoIcons.square_split_2x1,
+              key: ValueKey(showingSplit),
               color: CupertinoColors.white,
               size: 20,
             ),
@@ -605,7 +703,10 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   void _toggleComparePreview() {
-    setState(() => _compareMode = _compareMode.toggled);
+    setState(() {
+      _holdingOriginal = false;
+      _compareMode = _compareMode.toggled;
+    });
   }
 
   Widget _editorTopBar(MediaJob job) {
@@ -867,7 +968,7 @@ class _EditorPageState extends State<EditorPage> {
   Widget _toolPanelContent(EditorToolGroup group) {
     return Builder(
       builder: (panelContext) => switch (group) {
-        EditorToolGroup.presets => LookBrowser(
+        EditorToolGroup.presets => PresetBrowser(
           settings: _settings,
           enabled: !_busy,
           onChanged: (settings) => setState(() => _settings = settings),
@@ -875,11 +976,11 @@ class _EditorPageState extends State<EditorPage> {
         EditorToolGroup.light => AdjustmentBrowser(
           controls: allImageAdjustmentControls,
           settings: _settings,
+          presetSettings: _settings.presetBaseline,
           selectedId: _selectedAdjustmentId,
           enabled: !_busy,
           onSelected: (id) => setState(() => _selectedAdjustmentId = id),
           onChanged: (settings) => setState(() => _settings = settings),
-          onReset: _resetSettings,
         ),
         EditorToolGroup.effects => _lutSection(panelContext),
         EditorToolGroup.color || EditorToolGroup.details => _adjustmentSliders(
@@ -898,22 +999,7 @@ class _EditorPageState extends State<EditorPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Manual adjustments',
-                style: _panelTitle(panelContext),
-              ),
-            ),
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
-              onPressed: _busy ? null : _resetSettings,
-              child: const Text('Reset'),
-            ),
-          ],
-        ),
+        Text('Manual adjustments', style: _panelTitle(panelContext)),
         const SizedBox(height: 6),
         for (final control in controls)
           SettingSlider(
@@ -934,7 +1020,7 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _exportStep({bool showActions = true}) {
+  Widget _exportStep(BuildContext panelContext, {bool showActions = true}) {
     final job = _selectedJob;
     if (job == null) return _noSelectionState();
     final videoUnavailable =
@@ -943,13 +1029,13 @@ class _EditorPageState extends State<EditorPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _selectedMediaHeader(job),
-        const SizedBox(height: 14),
-        _sectionHeader(
-          'Export review',
-          job.kind.isVideo ? 'Frame preview before export' : 'Before and after',
+        _selectedMediaHeader(panelContext, job),
+        const SizedBox(height: 16),
+        Text(
+          'Preview',
+          style: CupertinoTheme.of(panelContext).textTheme.navTitleTextStyle,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _exportPreview(job),
         if (job.status == JobStatus.complete && job.outputPath != null) ...[
           const SizedBox(height: 12),
@@ -960,7 +1046,7 @@ class _EditorPageState extends State<EditorPage> {
           _batchExportReviewPanel(),
           const SizedBox(height: 12),
         ],
-        _exportOptionsSection(),
+        _exportOptionsSection(panelContext),
         if (videoUnavailable) ...[
           const SizedBox(height: 12),
           _noticePanel('Video export unavailable', _videoUnavailableMessage),
@@ -1131,47 +1217,62 @@ class _EditorPageState extends State<EditorPage> {
     return details.join(' - ');
   }
 
-  Widget _selectedMediaHeader(MediaJob job) {
+  Widget _selectedMediaHeader(BuildContext panelContext, MediaJob job) {
     final title = _friendlyMediaName(job);
     final subtitle = _mediaSummary(job);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _pill(job.kind.label),
-            _pill(job.source.label),
-            _pill(job.status.label),
-            if (job.metadata?.sizeLabel != null) _pill(job.metadata!.sizeLabel),
-            if (_lutProfile.isEnabled) _pill('LUT: ${_lutProfile.name}'),
-            if (_trimEnabled && job.kind.isVideo) _pill('Trim enabled'),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Text(
-          title,
-          style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: _secondaryText(context),
-        ),
-        if (job.error != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Text(
-              job.error!,
-              style: _secondaryText(
-                context,
-              ).copyWith(color: CupertinoColors.destructiveRed),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CupertinoColors.white.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: CupertinoColors.white.withValues(alpha: .14)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: CupertinoColors.activeBlue.withValues(alpha: .18),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(
+              job.kind.isVideo ? CupertinoIcons.film : CupertinoIcons.photo,
+              color: CupertinoColors.activeBlue,
+              size: 21,
             ),
           ),
-      ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CupertinoTheme.of(
+                    panelContext,
+                  ).textTheme.textStyle.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: CupertinoTheme.of(panelContext).textTheme.textStyle
+                      .copyWith(
+                        color: CupertinoColors.systemGrey,
+                        fontSize: 12,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _darkPill(job.status.label),
+        ],
+      ),
     );
   }
 
@@ -1179,159 +1280,28 @@ class _EditorPageState extends State<EditorPage> {
     if (job.status == JobStatus.complete &&
         job.outputPath != null &&
         job.kind.isImage) {
-      return BeforeAfterScrubber(
-        originalPath: job.inputPath,
-        restoredPath: job.outputPath!,
-        kind: job.kind,
-        aspectRatio: _previewAspectRatio(job),
-      );
-    }
-    if (job.kind == MediaKind.photo) {
-      return _liveBeforeAfterPreview(job);
-    }
-    if (job.kind == MediaKind.video) {
-      return _videoFrameComparison(job, exportReview: true);
-    }
-    if (job.status == JobStatus.complete && job.outputPath != null) {
-      return _mediaCard(
-        title: 'Exported file',
-        path: job.outputPath!,
-        kind: job.kind,
-      );
-    }
-    return _mediaCard(title: 'Preview', path: job.inputPath, kind: job.kind);
-  }
-
-  Widget _videoFrameComparison(MediaJob job, {bool exportReview = false}) {
-    final caption = exportReview ? 'Export frame' : 'Preview frame';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _splitCards(
-          left: _videoFrameCard(
-            title: 'Before frame',
-            path: job.inputPath,
-            caption: caption,
-          ),
-          right: _videoFrameCard(
-            title: 'After frame',
-            path: job.inputPath,
-            caption: caption,
-            settings: _settings,
+      return SizedBox(
+        height: 220,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BeforeAfterScrubber(
+            originalPath: job.inputPath,
+            restoredPath: job.outputPath!,
+            kind: job.kind,
+            aspectRatio: _previewAspectRatio(job),
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Video preview uses a representative frame; full video export depends on the active video backend.',
-          style: _secondaryText(context),
-        ),
-      ],
-    );
-  }
-
-  Widget _videoFrameCard({
-    required String title,
-    required String path,
-    required String caption,
-    RestorationSettings? settings,
-  }) {
-    return _previewCard(
-      title: title,
-      trailing: settings == null ? 'original' : 'adjusted',
-      child: SizedBox(
-        height: 236,
-        width: double.infinity,
-        child: VideoFramePreviewTile(
-          path: path,
-          settings: settings,
-          caption: caption,
-        ),
-      ),
-      footer: path,
-    );
-  }
-
-  Widget _liveBeforeAfterPreview(MediaJob job) {
-    return _previewCard(
-      title: 'Before / after',
-      trailing: 'Live render',
-      minHeight: 0,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        child: Column(
-          children: [
-            AspectRatio(
-              aspectRatio: _previewAspectRatio(job),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: ColoredBox(
-                  color: CupertinoColors.black,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          RestoredImagePreview(
-                            path: job.inputPath,
-                            settings: _settings,
-                            lutProfile: _lutProfile,
-                          ),
-                          Positioned(
-                            left: 0,
-                            top: 0,
-                            bottom: 0,
-                            width: constraints.maxWidth * _previewSplit,
-                            child: ClipRect(
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: SizedBox(
-                                  width: constraints.maxWidth,
-                                  height: constraints.maxHeight,
-                                  child: Image.file(
-                                    File(job.inputPath),
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (_, _, _) =>
-                                        _placeholder(job.kind),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment((_previewSplit * 2) - 1, 0),
-                            child: Container(
-                              width: 2,
-                              color: CupertinoColors.white.withValues(
-                                alpha: .86,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            left: 10,
-                            top: 10,
-                            child: _darkPill('Original'),
-                          ),
-                          Positioned(
-                            right: 10,
-                            top: 10,
-                            child: _darkPill('Restored'),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            CupertinoSlider(
-              value: _previewSplit,
-              min: 0,
-              max: 1,
-              onChanged: (value) => setState(() => _previewSplit = value),
-            ),
-          ],
-        ),
+      );
+    }
+    return SizedBox(
+      height: 220,
+      child: EditorPreviewStage(
+        job: job,
+        settings: _settings,
+        compareMode: EditorCompareMode.split,
+        lutProfile: _lutProfile,
+        showHeader: false,
+        borderRadius: 16,
       ),
     );
   }
@@ -1637,13 +1607,30 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _exportOptionsSection() {
-    return _sectionBox(
+  Widget _exportOptionsSection(BuildContext panelContext) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CupertinoColors.white.withValues(alpha: .07),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: CupertinoColors.white.withValues(alpha: .13)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader('Options', 'Format and privacy'),
-          const SizedBox(height: 8),
+          Text(
+            'Export settings',
+            style: CupertinoTheme.of(panelContext).textTheme.navTitleTextStyle,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'Format, quality, and destination',
+            style: CupertinoTheme.of(panelContext).textTheme.textStyle.copyWith(
+              color: CupertinoColors.systemGrey,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
           CupertinoSlidingSegmentedControl<ExportPreset>(
             groupValue: _exportPreset,
             children: {
@@ -1687,12 +1674,13 @@ class _EditorPageState extends State<EditorPage> {
             divisions: 30,
             format: (v) => v.round().toString(),
             onChanged: (v) => setState(
-              () => _settings = _settings.asPro(jpegQuality: v.round()),
+              () => _settings = _settings.copyWith(jpegQuality: v.round()),
             ),
           ),
           _switchRow(
             title: 'Strip metadata',
             value: _exportOptions.stripMetadata,
+            styleContext: panelContext,
             onChanged: (v) => setState(
               () => _exportOptions = _exportOptions.copyWith(stripMetadata: v),
             ),
@@ -1700,6 +1688,7 @@ class _EditorPageState extends State<EditorPage> {
           _switchRow(
             title: 'Save exports to Photos',
             value: _exportOptions.saveToPhotoLibrary,
+            styleContext: panelContext,
             onChanged: (v) => setState(
               () => _exportOptions = _exportOptions.copyWith(
                 saveToPhotoLibrary: v,
@@ -1709,6 +1698,7 @@ class _EditorPageState extends State<EditorPage> {
           _switchRow(
             title: 'Keep video audio',
             value: _exportOptions.keepAudio,
+            styleContext: panelContext,
             onChanged: (v) => setState(
               () => _exportOptions = _exportOptions.copyWith(keepAudio: v),
             ),
@@ -1973,10 +1963,11 @@ class _EditorPageState extends State<EditorPage> {
       _selectedIndex = startIndex;
       _step = EditorWorkflowStep.edit;
       _settings = RestorationPreset.auto.settings;
-      _selectedToolGroup = EditorToolGroup.light;
+      _selectedToolGroup = EditorToolGroup.presets;
       _selectedAdjustmentId = 'recovery';
       _toolPanelOpen = true;
       _compareMode = EditorCompareMode.edited;
+      _holdingOriginal = false;
       _exportOptions = _exportOptions.copyWith(
         saveToPhotoLibrary:
             processAutomatically && source == MediaSource.photos,
@@ -2208,9 +2199,6 @@ class _EditorPageState extends State<EditorPage> {
     });
   }
 
-  void _resetSettings() =>
-      setState(() => _settings = RestorationPreset.auto.settings);
-
   void _cancelProcessing() {
     if (!_canCancelCurrentWork) {
       setState(
@@ -2393,28 +2381,6 @@ class _EditorPageState extends State<EditorPage> {
                   CupertinoColors.label,
                   resolvedContext,
                 ),
-        ),
-      ),
-    );
-  }
-
-  Widget _pill(String label) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: CupertinoTheme.of(context).primaryColor.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(
-          color: CupertinoTheme.of(context).primaryColor.withValues(alpha: .28),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: CupertinoTheme.of(context).primaryColor,
-          ),
         ),
       ),
     );

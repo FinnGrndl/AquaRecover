@@ -80,7 +80,7 @@ them to the generated Xcode targets.
 ## Video
 
 iOS standard video export runs through AVFoundation and Core Image. It supports
-trim bounds, optional audio, metadata removal, built-in looks, and the current
+trim bounds, optional audio, metadata removal, built-in presets, and the current
 restoration settings.
 
 macOS can use an `ffmpeg` executable already installed on the machine. Arguments

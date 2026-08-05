@@ -49,6 +49,7 @@ class UnderwaterProcessor {
     RestorationRenderQuality quality = RestorationRenderQuality.export,
   }) {
     _validateImageSize(source);
+    if (settings.isIdentity) return source.clone();
     final stats = _ImageStats.from(source);
     final output = img.Image(
       width: source.width,
@@ -77,6 +78,7 @@ class UnderwaterProcessor {
       settings.autoWhiteBalance * (blueNotDominant ? 0.26 : 0.62),
     );
     final recovery = settings.recovery.clamp(0.0, 1.5).toDouble();
+    final correctionScale = (recovery / 1.18).clamp(0.0, 1.3).toDouble();
     final redRecovery = settings.redRecovery.clamp(0.0, 2.5).toDouble();
     final requestedContrastStretch = settings.contrastStretch
         .clamp(0.0, 1.0)
@@ -113,7 +115,8 @@ class UnderwaterProcessor {
     final darkBlueSceneLift =
         (((55.0 - stats.lowMidLuma) / 30.0).clamp(0.0, 1.0) *
                 ((blueGreenRatio - 1.25) / 0.20).clamp(0.0, 1.0) *
-                ((0.14 - redGreenRatio) / 0.14).clamp(0.0, 1.0))
+                ((0.14 - redGreenRatio) / 0.14).clamp(0.0, 1.0) *
+                correctionScale)
             .toDouble();
     final shallowCyanHighlightLift = blueNotDominant
         ? severeGlobalRedLoss && stats.lowMidLuma < 82
@@ -121,12 +124,14 @@ class UnderwaterProcessor {
     final shallowCyanWaterLift =
         blueNotDominant && severeGlobalRedLoss && stats.lowMidLuma < 82
         ? (((82.0 - stats.lowMidLuma) / 30.0).clamp(0.0, 1.0) *
-                  ((1.20 - blueGreenRatio) / 0.25).clamp(0.0, 1.0))
+                  ((1.20 - blueGreenRatio) / 0.25).clamp(0.0, 1.0) *
+                  correctionScale)
               .toDouble()
         : 0.0;
     final brightShallowCyanDim = blueNotDominant && severeGlobalRedLoss
         ? (((stats.lowMidLuma - 76.0) / 36.0).clamp(0.0, 1.0) *
-                  ((1.20 - blueGreenRatio) / 0.25).clamp(0.0, 1.0))
+                  ((1.20 - blueGreenRatio) / 0.25).clamp(0.0, 1.0) *
+                  correctionScale)
               .toDouble()
         : 0.0;
     final centerX = (source.width - 1) / 2.0;
@@ -255,9 +260,10 @@ class UnderwaterProcessor {
           g += lift * 1.04;
           b += lift * 0.88;
         }
-        if (shallowCyanHighlightLift) {
+        if (shallowCyanHighlightLift && correctionScale > 0.001) {
           final toneNow = _unit(0.2126 * r + 0.7152 * g + 0.0722 * b);
-          final lift = 10.0 * math.pow(toneNow, 2.2).toDouble();
+          final lift =
+              10.0 * correctionScale * math.pow(toneNow, 2.2).toDouble();
           r += lift * 1.04;
           g += lift;
           b += lift;

@@ -301,6 +301,7 @@ img.Image _resizeForPreview(img.Image source, int maxDimension) {
 
 Map<String, Object?> _settingsToMap(RestorationSettings s) => {
   'preset': s.preset.index,
+  'presetStrength': s.presetStrength,
   'recovery': s.recovery,
   'redRecovery': s.redRecovery,
   'autoWhiteBalance': s.autoWhiteBalance,
@@ -327,6 +328,7 @@ RestorationSettings _settingsFromMap(Map<String, Object?> map) {
   double d(String key) => (map[key] as num).toDouble();
   return RestorationSettings(
     preset: RestorationPreset.values[(map['preset'] as num).toInt()],
+    presetStrength: d('presetStrength'),
     recovery: d('recovery'),
     redRecovery: d('redRecovery'),
     autoWhiteBalance: d('autoWhiteBalance'),

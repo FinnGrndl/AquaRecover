@@ -21,7 +21,7 @@ import 'package:aqua_recover/features/editor/widgets/editor_bottom_panel.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_preview_stage.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_tool_rail.dart';
 import 'package:aqua_recover/features/editor/widgets/gpu_preview_filter.dart';
-import 'package:aqua_recover/features/editor/widgets/look_browser.dart';
+import 'package:aqua_recover/features/editor/widgets/preset_browser.dart';
 import 'package:aqua_recover/features/editor/widgets/restored_image_preview.dart';
 import 'package:aqua_recover/features/editor/widgets/video_frame_preview_tile.dart';
 import 'package:flutter/cupertino.dart';
@@ -68,6 +68,42 @@ void main() {
     expect(after.r, greaterThan(before.r));
     expect(after.r, lessThan(after.b));
     expect(after.r, lessThan(after.g * 1.15));
+  });
+
+  test('None preset leaves pixels unchanged', () {
+    final source = img.Image(width: 4, height: 4, numChannels: 4);
+    for (var y = 0; y < source.height; y++) {
+      for (var x = 0; x < source.width; x++) {
+        source.setPixelRgba(x, y, 18 + x, 120 + y, 210 - x, 255);
+      }
+    }
+
+    final output = const UnderwaterProcessor().restoreImage(
+      source,
+      RestorationPreset.none.settings,
+    );
+    for (var y = 0; y < source.height; y++) {
+      for (var x = 0; x < source.width; x++) {
+        final before = source.getPixel(x, y);
+        final after = output.getPixel(x, y);
+        expect(
+          (after.r, after.g, after.b, after.a),
+          (before.r, before.g, before.b, before.a),
+        );
+      }
+    }
+  });
+
+  test('preset strength preserves later manual offsets', () {
+    final full = RestorationPreset.deep.settings;
+    final manual = full.copyWith(contrast: full.contrast + .12);
+    final half = manual.withPresetStrength(.5);
+    final halfBase = RestorationPreset.deep.settingsAtStrength(.5);
+
+    expect(half.preset, RestorationPreset.deep);
+    expect(half.presetStrength, .5);
+    expect(half.recovery, closeTo(full.recovery * .5, .0001));
+    expect(half.contrast, closeTo(halfBase.contrast + .12, .0001));
   });
 
   test(
@@ -344,8 +380,8 @@ void main() {
       isNot(contains(EditorToolGroup.video)),
     );
     expect(activeEditorToolGroupsFor(MediaKind.photo), [
-      EditorToolGroup.light,
       EditorToolGroup.presets,
+      EditorToolGroup.light,
       EditorToolGroup.effects,
     ]);
     expect(
@@ -371,7 +407,7 @@ void main() {
       (control) => control.id == 'red_recovery',
     );
     final updated = redRecovery.apply(RestorationPreset.auto.settings, 1.8);
-    expect(updated.preset, RestorationPreset.pro);
+    expect(updated.preset, RestorationPreset.auto);
     expect(updated.redRecovery, 1.8);
 
     expect(allImageAdjustmentControls, hasLength(19));
@@ -395,22 +431,22 @@ void main() {
 
   test('editor presets and compare mode use existing app state values', () {
     expect(editorPresetChoices, contains(RestorationPreset.auto));
+    expect(editorPresetChoices.first, RestorationPreset.none);
     expect(editorPresetChoices, contains(RestorationPreset.deep));
-    expect(editorPresetChoices, isNot(contains(RestorationPreset.pro)));
     expect(
       RestorationPreset.deep.settings.redRecovery,
       greaterThan(RestorationPreset.auto.settings.redRecovery),
     );
 
-    expect(EditorCompareMode.edited.toggled, EditorCompareMode.original);
-    expect(EditorCompareMode.original.toggled, EditorCompareMode.edited);
-    expect(EditorCompareMode.split.toggled, EditorCompareMode.original);
+    expect(EditorCompareMode.edited.toggled, EditorCompareMode.split);
+    expect(EditorCompareMode.original.toggled, EditorCompareMode.split);
+    expect(EditorCompareMode.split.toggled, EditorCompareMode.edited);
   });
 
   test('gpu preview matrix responds to color and hue settings', () {
     final base = GpuPreviewFilter.matrixFor(RestorationPreset.auto.settings);
     final tuned = GpuPreviewFilter.matrixFor(
-      RestorationPreset.auto.settings.asPro(saturation: 1.8, hue: .12),
+      RestorationPreset.auto.settings.copyWith(saturation: 1.8, hue: .12),
     );
 
     expect(base, hasLength(20));
@@ -430,7 +466,7 @@ void main() {
       }
     }
     await file.writeAsBytes(img.encodeJpg(image, quality: 96));
-    final settings = RestorationPreset.deep.settings.asPro(
+    final settings = RestorationPreset.deep.settings.copyWith(
       recovery: 1.5,
       redRecovery: 2.5,
       autoWhiteBalance: 1,
@@ -466,7 +502,7 @@ void main() {
 
     expect(find.text('No media selected'), findsNothing);
     expect(find.text('Import Files'), findsOneWidget);
-    expect(find.text('Import media'), findsOneWidget);
+    expect(find.text('Restore underwater color'), findsOneWidget);
     expect(find.text('Import. Edit. Export.'), findsNothing);
     expect(find.text('Edit selected'), findsNothing);
   });
@@ -524,7 +560,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Looks panel'), findsOneWidget);
+    expect(find.text('Presets panel'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('editor_tool_light')));
     await tester.pumpAndSettle();
@@ -553,10 +589,10 @@ void main() {
               child: AdjustmentBrowser(
                 controls: allImageAdjustmentControls,
                 settings: RestorationPreset.auto.settings,
+                presetSettings: RestorationPreset.auto.settings,
                 selectedId: 'recovery',
                 onSelected: (_) {},
                 onChanged: (_) {},
-                onReset: () {},
               ),
             ),
           ),
@@ -570,14 +606,41 @@ void main() {
     },
   );
 
-  testWidgets('looks explain that they replace individual adjustments', (
+  testWidgets('adjustment bubble resets only its value to the preset base', (
+    tester,
+  ) async {
+    final preset = RestorationPreset.deep.settingsAtStrength(.5);
+    var settings = preset.copyWith(contrast: 1.4, saturation: 1.5);
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: StatefulBuilder(
+          builder: (context, setState) => AdjustmentBrowser(
+            controls: allImageAdjustmentControls,
+            settings: settings,
+            presetSettings: preset,
+            selectedId: 'recovery',
+            onSelected: (_) {},
+            onChanged: (value) => setState(() => settings = value),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('adjustment_contrast')));
+    await tester.pumpAndSettle();
+    expect(settings.contrast, preset.contrast);
+    expect(settings.saturation, 1.5);
+    expect(settings.preset, RestorationPreset.deep);
+  });
+
+  testWidgets('presets scroll and keep their identity through adjustments', (
     tester,
   ) async {
     var settings = RestorationPreset.auto.settings;
     await tester.pumpWidget(
       CupertinoApp(
         home: StatefulBuilder(
-          builder: (context, setState) => LookBrowser(
+          builder: (context, setState) => PresetBrowser(
             settings: settings,
             onChanged: (value) => setState(() => settings = value),
           ),
@@ -585,17 +648,27 @@ void main() {
       ),
     );
 
-    expect(find.textContaining('A look replaces all 19'), findsOneWidget);
+    expect(
+      find.textContaining('Presets provide the starting values'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('preset_list')), findsOneWidget);
+    expect(find.byKey(const Key('preset_none')), findsOneWidget);
     expect(find.text('Auto Fix'), findsNothing);
     expect(find.text('Color correction'), findsNothing);
 
-    await tester.tap(find.byKey(const Key('look_deep')));
+    await tester.tap(find.byKey(const Key('preset_deep')));
     await tester.pumpAndSettle();
     expect(settings.preset, RestorationPreset.deep);
     expect(
       find.textContaining('Deep dive: Stronger red recovery'),
       findsOneWidget,
     );
+
+    settings = allImageAdjustmentControls
+        .firstWhere((control) => control.id == 'contrast')
+        .apply(settings, 1.2);
+    expect(settings.preset, RestorationPreset.deep);
   });
 
   testWidgets('immersive split preview reserves space for editor tools', (
@@ -633,6 +706,54 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('preview toggle keeps Presets active and hold reveals original', (
+    tester,
+  ) async {
+    final dir = await Directory.systemTemp.createTemp('aqua_editor_ui_test_');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/preview.jpg');
+    final image = img.Image(width: 12, height: 16, numChannels: 4);
+    for (var y = 0; y < image.height; y++) {
+      for (var x = 0; x < image.width; x++) {
+        image.setPixelRgba(x, y, 24, 130, 190, 255);
+      }
+    }
+    await file.writeAsBytes(img.encodeJpg(image));
+
+    await tester.pumpWidget(
+      CupertinoApp(home: EditorPage(initialPaths: [file.path])),
+    );
+    await tester.pumpAndSettle();
+
+    EditorPreviewStage stage() =>
+        tester.widget<EditorPreviewStage>(find.byType(EditorPreviewStage));
+    expect(find.text('Presets'), findsWidgets);
+    expect(stage().compareMode, EditorCompareMode.edited);
+
+    await tester.tap(find.byKey(const Key('editor_preview_compare')));
+    await tester.pumpAndSettle();
+    expect(find.text('Presets'), findsWidgets);
+    expect(stage().compareMode, EditorCompareMode.split);
+
+    await tester.tap(find.byKey(const Key('editor_preview_compare')));
+    await tester.pumpAndSettle();
+    final stageRect = tester.getRect(find.byType(EditorPreviewStage));
+    final gesture = await tester.startGesture(
+      Offset(stageRect.center.dx, stageRect.top + 120),
+    );
+    await tester.pump(const Duration(milliseconds: 650));
+    expect(stage().compareMode, EditorCompareMode.original);
+    expect(find.text('Original'), findsOneWidget);
+
+    await gesture.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(stage().compareMode, EditorCompareMode.edited);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   testWidgets(

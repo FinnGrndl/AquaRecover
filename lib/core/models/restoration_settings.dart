@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 enum RestorationPreset {
+  none,
   auto,
   natural,
   vivid,
@@ -10,11 +11,11 @@ enum RestorationPreset {
   greenWater,
   redFilter,
   artificialLight,
-  pro,
 }
 
 extension RestorationPresetX on RestorationPreset {
   String get label => switch (this) {
+    RestorationPreset.none => 'None',
     RestorationPreset.auto => 'Auto',
     RestorationPreset.natural => 'Natural',
     RestorationPreset.vivid => 'Vivid reef',
@@ -24,10 +25,10 @@ extension RestorationPresetX on RestorationPreset {
     RestorationPreset.greenWater => 'Green water',
     RestorationPreset.redFilter => 'Red filter',
     RestorationPreset.artificialLight => 'Artificial light',
-    RestorationPreset.pro => 'Pro',
   };
 
   String get help => switch (this) {
+    RestorationPreset.none => 'Leaves the image unchanged.',
     RestorationPreset.auto =>
       'Balanced one-tap correction for common blue-green water.',
     RestorationPreset.natural =>
@@ -43,10 +44,32 @@ extension RestorationPresetX on RestorationPreset {
       'Compensates footage shot with a red dive filter.',
     RestorationPreset.artificialLight =>
       'Protects highlights from torches and strobes.',
-    RestorationPreset.pro => 'Manual values.',
   };
 
   RestorationSettings get settings => switch (this) {
+    RestorationPreset.none => const RestorationSettings(
+      preset: RestorationPreset.none,
+      presetStrength: 0,
+      recovery: 0,
+      redRecovery: 0,
+      autoWhiteBalance: 0,
+      contrastStretch: 0,
+      contrast: 1,
+      gamma: 1,
+      saturation: 1,
+      vibrance: 0,
+      clarity: 0,
+      sharpness: 0,
+      hazeReduction: 0,
+      highlightProtection: 0,
+      hue: 0,
+      brightness: 0,
+      exposure: 0,
+      highlights: 0,
+      shadows: 0,
+      blackPoint: 0,
+      vignette: 0,
+    ),
     RestorationPreset.auto => const RestorationSettings(),
     RestorationPreset.natural => const RestorationSettings(
       preset: RestorationPreset.natural,
@@ -160,15 +183,60 @@ extension RestorationPresetX on RestorationPreset {
       highlights: -.18,
       shadows: .04,
     ),
-    RestorationPreset.pro => const RestorationSettings(
-      preset: RestorationPreset.pro,
-    ),
   };
+
+  RestorationSettings settingsAtStrength(double strength) {
+    if (this == RestorationPreset.none) return settings;
+    final amount = strength.clamp(0.0, 1.0).toDouble();
+    final neutral = RestorationPreset.none.settings;
+    final target = settings;
+    return RestorationSettings(
+      preset: this,
+      presetStrength: amount,
+      recovery: _mix(neutral.recovery, target.recovery, amount),
+      redRecovery: _mix(neutral.redRecovery, target.redRecovery, amount),
+      autoWhiteBalance: _mix(
+        neutral.autoWhiteBalance,
+        target.autoWhiteBalance,
+        amount,
+      ),
+      contrastStretch: _mix(
+        neutral.contrastStretch,
+        target.contrastStretch,
+        amount,
+      ),
+      contrast: _mix(neutral.contrast, target.contrast, amount),
+      gamma: _mix(neutral.gamma, target.gamma, amount),
+      saturation: _mix(neutral.saturation, target.saturation, amount),
+      vibrance: _mix(neutral.vibrance, target.vibrance, amount),
+      clarity: _mix(neutral.clarity, target.clarity, amount),
+      sharpness: _mix(neutral.sharpness, target.sharpness, amount),
+      hazeReduction: _mix(neutral.hazeReduction, target.hazeReduction, amount),
+      highlightProtection: _mix(
+        neutral.highlightProtection,
+        target.highlightProtection,
+        amount,
+      ),
+      hue: _mix(neutral.hue, target.hue, amount),
+      brightness: _mix(neutral.brightness, target.brightness, amount),
+      exposure: _mix(neutral.exposure, target.exposure, amount),
+      highlights: _mix(neutral.highlights, target.highlights, amount),
+      shadows: _mix(neutral.shadows, target.shadows, amount),
+      blackPoint: _mix(neutral.blackPoint, target.blackPoint, amount),
+      vignette: _mix(neutral.vignette, target.vignette, amount),
+      jpegQuality: target.jpegQuality,
+    );
+  }
+
+  static double _mix(double start, double end, double amount) {
+    return start + (end - start) * amount;
+  }
 }
 
 class RestorationSettings {
   const RestorationSettings({
     this.preset = RestorationPreset.auto,
+    this.presetStrength = 1,
     this.recovery = 1.18,
     this.redRecovery = 1.24,
     this.autoWhiteBalance = 0.76,
@@ -192,6 +260,7 @@ class RestorationSettings {
   });
 
   final RestorationPreset preset;
+  final double presetStrength;
   final double recovery;
   final double redRecovery;
   final double autoWhiteBalance;
@@ -215,6 +284,7 @@ class RestorationSettings {
 
   RestorationSettings copyWith({
     RestorationPreset? preset,
+    double? presetStrength,
     double? recovery,
     double? redRecovery,
     double? autoWhiteBalance,
@@ -238,6 +308,7 @@ class RestorationSettings {
   }) {
     return RestorationSettings(
       preset: preset ?? this.preset,
+      presetStrength: presetStrength ?? this.presetStrength,
       recovery: recovery ?? this.recovery,
       redRecovery: redRecovery ?? this.redRecovery,
       autoWhiteBalance: autoWhiteBalance ?? this.autoWhiteBalance,
@@ -261,54 +332,73 @@ class RestorationSettings {
     );
   }
 
-  RestorationSettings asPro({
-    double? recovery,
-    double? redRecovery,
-    double? autoWhiteBalance,
-    double? contrastStretch,
-    double? contrast,
-    double? gamma,
-    double? saturation,
-    double? vibrance,
-    double? clarity,
-    double? sharpness,
-    double? hazeReduction,
-    double? highlightProtection,
-    double? hue,
-    double? brightness,
-    double? exposure,
-    double? highlights,
-    double? shadows,
-    double? blackPoint,
-    double? vignette,
-    int? jpegQuality,
-  }) {
+  RestorationSettings get presetBaseline => preset.settingsAtStrength(
+    preset == RestorationPreset.none ? 0 : presetStrength,
+  );
+
+  RestorationSettings withPresetStrength(double strength) {
+    if (preset == RestorationPreset.none) return this;
+    final amount = strength.clamp(0.0, 1.0).toDouble();
+    final oldBase = presetBaseline;
+    final newBase = preset.settingsAtStrength(amount);
     return copyWith(
-      preset: RestorationPreset.pro,
-      recovery: recovery,
-      redRecovery: redRecovery,
-      autoWhiteBalance: autoWhiteBalance,
-      contrastStretch: contrastStretch,
-      contrast: contrast,
-      gamma: gamma,
-      saturation: saturation,
-      vibrance: vibrance,
-      clarity: clarity,
-      sharpness: sharpness,
-      hazeReduction: hazeReduction,
-      highlightProtection: highlightProtection,
-      hue: hue,
-      brightness: brightness,
-      exposure: exposure,
-      highlights: highlights,
-      shadows: shadows,
-      blackPoint: blackPoint,
-      vignette: vignette,
-      jpegQuality: jpegQuality,
+      presetStrength: amount,
+      recovery: newBase.recovery + recovery - oldBase.recovery,
+      redRecovery: newBase.redRecovery + redRecovery - oldBase.redRecovery,
+      autoWhiteBalance:
+          newBase.autoWhiteBalance +
+          autoWhiteBalance -
+          oldBase.autoWhiteBalance,
+      contrastStretch:
+          newBase.contrastStretch + contrastStretch - oldBase.contrastStretch,
+      contrast: newBase.contrast + contrast - oldBase.contrast,
+      gamma: newBase.gamma + gamma - oldBase.gamma,
+      saturation: newBase.saturation + saturation - oldBase.saturation,
+      vibrance: newBase.vibrance + vibrance - oldBase.vibrance,
+      clarity: newBase.clarity + clarity - oldBase.clarity,
+      sharpness: newBase.sharpness + sharpness - oldBase.sharpness,
+      hazeReduction:
+          newBase.hazeReduction + hazeReduction - oldBase.hazeReduction,
+      highlightProtection:
+          newBase.highlightProtection +
+          highlightProtection -
+          oldBase.highlightProtection,
+      hue: newBase.hue + hue - oldBase.hue,
+      brightness: newBase.brightness + brightness - oldBase.brightness,
+      exposure: newBase.exposure + exposure - oldBase.exposure,
+      highlights: newBase.highlights + highlights - oldBase.highlights,
+      shadows: newBase.shadows + shadows - oldBase.shadows,
+      blackPoint: newBase.blackPoint + blackPoint - oldBase.blackPoint,
+      vignette: newBase.vignette + vignette - oldBase.vignette,
     );
   }
 
+  bool get isIdentity {
+    final neutral = RestorationPreset.none.settings;
+    bool same(double a, double b) => (a - b).abs() < 0.0000001;
+    return same(recovery, neutral.recovery) &&
+        same(redRecovery, neutral.redRecovery) &&
+        same(autoWhiteBalance, neutral.autoWhiteBalance) &&
+        same(contrastStretch, neutral.contrastStretch) &&
+        same(contrast, neutral.contrast) &&
+        same(gamma, neutral.gamma) &&
+        same(saturation, neutral.saturation) &&
+        same(vibrance, neutral.vibrance) &&
+        same(clarity, neutral.clarity) &&
+        same(sharpness, neutral.sharpness) &&
+        same(hazeReduction, neutral.hazeReduction) &&
+        same(highlightProtection, neutral.highlightProtection) &&
+        same(hue, neutral.hue) &&
+        same(brightness, neutral.brightness) &&
+        same(exposure, neutral.exposure) &&
+        same(highlights, neutral.highlights) &&
+        same(shadows, neutral.shadows) &&
+        same(blackPoint, neutral.blackPoint) &&
+        same(vignette, neutral.vignette);
+  }
+
   List<String> ffmpegFilters({List<String> extraFilters = const []}) {
+    if (isIdentity) return [...extraFilters, 'format=yuv420p'];
     final safeRecovery = recovery.clamp(0.0, 1.5).toDouble();
     final red = (0.040 * safeRecovery * redRecovery)
         .clamp(-0.18, 0.18)
@@ -351,6 +441,7 @@ class RestorationSettings {
 
   Map<String, Object> toJson() => {
     'preset': preset.name,
+    'presetStrength': presetStrength,
     'recovery': recovery,
     'redRecovery': redRecovery,
     'autoWhiteBalance': autoWhiteBalance,

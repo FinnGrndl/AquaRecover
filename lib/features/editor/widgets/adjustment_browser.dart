@@ -11,19 +11,19 @@ class AdjustmentBrowser extends StatelessWidget {
     super.key,
     required this.controls,
     required this.settings,
+    required this.presetSettings,
     required this.selectedId,
     required this.onSelected,
     required this.onChanged,
-    required this.onReset,
     this.enabled = true,
   });
 
   final List<AdjustmentControl> controls;
   final RestorationSettings settings;
+  final RestorationSettings presetSettings;
   final String selectedId;
   final ValueChanged<String> onSelected;
   final ValueChanged<RestorationSettings> onChanged;
-  final VoidCallback onReset;
   final bool enabled;
 
   @override
@@ -50,11 +50,15 @@ class AdjustmentBrowser extends StatelessWidget {
                 ),
               ),
             ),
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
-              onPressed: enabled ? onReset : null,
-              child: const Text('Reset'),
+            Text(
+              'Tap a value to reset',
+              style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                color: CupertinoDynamicColor.resolve(
+                  CupertinoColors.secondaryLabel,
+                  context,
+                ),
+                fontSize: 11,
+              ),
             ),
           ],
         ),
@@ -75,7 +79,12 @@ class AdjustmentBrowser extends StatelessWidget {
                 value: control.value(settings),
                 selected: selected,
                 enabled: enabled,
-                onPressed: () => onSelected(control.id),
+                onPressed: () {
+                  onSelected(control.id);
+                  onChanged(
+                    control.apply(settings, control.value(presetSettings)),
+                  );
+                },
               );
             },
           ),

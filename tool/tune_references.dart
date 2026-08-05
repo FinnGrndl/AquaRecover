@@ -97,7 +97,7 @@ List<RestorationSettings> _expandColor(RestorationSettings base) {
       for (final autoWhiteBalance in autoWhiteBalances) {
         for (final contrastStretch in contrastStretches) {
           candidates.add(
-            base.asPro(
+            base.copyWith(
               recovery: recovery,
               redRecovery: redRecovery,
               autoWhiteBalance: autoWhiteBalance,
@@ -124,7 +124,7 @@ List<RestorationSettings> _expandTone(RestorationSettings base) {
         for (final vibrance in vibrances) {
           for (final hazeReduction in hazeReductions) {
             candidates.add(
-              base.asPro(
+              base.copyWith(
                 contrast: contrast,
                 gamma: gamma,
                 saturation: saturation,
@@ -151,7 +151,7 @@ List<RestorationSettings> _expandLight(RestorationSettings base) {
       for (final highlightsValue in highlights) {
         for (final blackPoint in blackPoints) {
           candidates.add(
-            base.asPro(
+            base.copyWith(
               exposure: exposure,
               shadows: shadowsValue,
               highlights: highlightsValue,
