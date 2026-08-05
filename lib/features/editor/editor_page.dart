@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Tooltip;
+import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/media/media_classifier.dart';
@@ -22,10 +25,13 @@ import '../../core/processing/video_restoration_service.dart';
 import '../../core/workflow/editor_workflow.dart';
 import '../../shared/widgets/glass_panel.dart';
 import 'editor_tools.dart';
+import 'widgets/adjustment_browser.dart';
+import 'widgets/app_license_page.dart';
 import 'widgets/before_after_scrubber.dart';
 import 'widgets/editor_bottom_panel.dart';
 import 'widgets/editor_preview_stage.dart';
 import 'widgets/editor_tool_rail.dart';
+import 'widgets/look_browser.dart';
 import 'widgets/photo_library_sheet.dart';
 import 'widgets/raw_video_dialog.dart';
 import 'widgets/restored_image_preview.dart';
@@ -34,7 +40,14 @@ import 'widgets/video_frame_preview_tile.dart';
 import 'widgets/video_preview_tile.dart';
 
 class EditorPage extends StatefulWidget {
-  const EditorPage({super.key});
+  const EditorPage({
+    super.key,
+    this.initialPaths = const [],
+    this.openPhotosOnStart = false,
+  });
+
+  final List<String> initialPaths;
+  final bool openPhotosOnStart;
 
   @override
   State<EditorPage> createState() => _EditorPageState();
@@ -47,6 +60,7 @@ class _EditorPageState extends State<EditorPage> {
   final _photoLibraryService = const PhotoLibraryService();
   final _sidecarService = const SidecarService();
   final _inspectionService = const MediaInspectionService();
+  final _imagePicker = ImagePicker();
   final _trimStartController = TextEditingController(text: '0');
   final _trimEndController = TextEditingController();
 
@@ -59,7 +73,8 @@ class _EditorPageState extends State<EditorPage> {
   ExportOptions _exportOptions = ExportPreset.archive.options;
   LutProfile _lutProfile = LutProfile.none;
   bool _trimEnabled = false;
-  EditorToolGroup _selectedToolGroup = EditorToolGroup.presets;
+  EditorToolGroup _selectedToolGroup = EditorToolGroup.light;
+  String _selectedAdjustmentId = 'recovery';
   bool _toolPanelOpen = true;
   EditorCompareMode _compareMode = EditorCompareMode.edited;
   double _previewSplit = .5;
@@ -80,6 +95,21 @@ class _EditorPageState extends State<EditorPage> {
     return _jobs.any(
       (job) => job.status == JobStatus.processing && job.kind.isVideo,
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialPaths.isNotEmpty || widget.openPhotosOnStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (widget.initialPaths.isNotEmpty) {
+          unawaited(_addPaths(widget.initialPaths, MediaSource.photos));
+        } else {
+          unawaited(_importFromPhotos());
+        }
+      });
+    }
   }
 
   @override
@@ -288,7 +318,9 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _workflowPane({required bool wide}) {
-    final content = GlassPanel(child: _stepBody(wide: wide));
+    final content = _step == EditorWorkflowStep.import
+        ? _stepBody(wide: wide)
+        : GlassPanel(child: _stepBody(wide: wide));
     if (!wide) return content;
     return CupertinoScrollbar(
       child: ListView(padding: const EdgeInsets.all(20), children: [content]),
@@ -335,7 +367,6 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _importHero(MediaJob? job) {
-    final hasBatch = _jobs.length > 1;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -361,7 +392,7 @@ class _EditorPageState extends State<EditorPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Choose photos or videos first. AquaRecover opens the editor as soon as readable media is imported.',
+            'Choose one item to edit. Select several and AquaRecover restores them automatically, saving photo selections back to Photos.',
             style: _secondaryText(context),
           ),
           const SizedBox(height: 14),
@@ -370,12 +401,12 @@ class _EditorPageState extends State<EditorPage> {
             runSpacing: 10,
             children: [
               CupertinoButton.filled(
-                onPressed: _busy ? null : _pickFiles,
-                child: const Text('Import Files'),
+                onPressed: _busy ? null : _importFromPhotos,
+                child: const Text('Choose from Photos'),
               ),
               CupertinoButton(
-                onPressed: _busy ? null : _importFromPhotos,
-                child: const Text('Import from Photos'),
+                onPressed: _busy ? null : _pickFiles,
+                child: const Text('Import Files'),
               ),
               if (job != null)
                 CupertinoButton(
@@ -383,11 +414,6 @@ class _EditorPageState extends State<EditorPage> {
                       ? null
                       : () => setState(() => _step = EditorWorkflowStep.edit),
                   child: const Text('Edit selected'),
-                ),
-              if (hasBatch)
-                CupertinoButton(
-                  onPressed: _busy ? null : _processQueue,
-                  child: const Text('Export batch'),
                 ),
             ],
           ),
@@ -417,12 +443,24 @@ class _EditorPageState extends State<EditorPage> {
         final reservedChrome = compact ? 174.0 : 182.0;
         final availablePanelHeight =
             constraints.maxHeight - reservedPreview - reservedChrome;
-        final panelHeight = availablePanelHeight <= 96
+        final preferredPanelHeight = compact
+            ? switch (activeGroup) {
+                EditorToolGroup.light => 320.0,
+                EditorToolGroup.presets => 300.0,
+                EditorToolGroup.effects => 330.0,
+                EditorToolGroup.video => 340.0,
+                _ => 300.0,
+              }
+            : switch (activeGroup) {
+                EditorToolGroup.light => 340.0,
+                EditorToolGroup.presets => 330.0,
+                EditorToolGroup.effects => 360.0,
+                EditorToolGroup.video => 370.0,
+                _ => 330.0,
+              };
+        final panelHeight = availablePanelHeight <= 120
             ? 0.0
-            : availablePanelHeight.clamp(
-                compact ? 176.0 : 210.0,
-                compact ? 270.0 : 340.0,
-              );
+            : availablePanelHeight.clamp(0.0, preferredPanelHeight).toDouble();
         final panelOpen = _toolPanelOpen && panelHeight > 0;
         return Stack(
           fit: StackFit.expand,
@@ -435,6 +473,7 @@ class _EditorPageState extends State<EditorPage> {
               immersive: true,
               showHeader: false,
               borderRadius: 0,
+              immersiveBottomInset: panelOpen ? panelHeight + 102 : 112,
             ),
             Positioned.fill(
               child: DecoratedBox(
@@ -466,41 +505,107 @@ class _EditorPageState extends State<EditorPage> {
                 child: _editorBatchStrip(job, compact: compact),
               ),
             Positioned(
+              top: _jobs.length > 1
+                  ? (compact ? 122 : 126)
+                  : (compact ? 70 : 74),
+              right: horizontalPadding,
+              child: _previewCompareButton(
+                mode: _compareMode,
+                onPressed: _toggleComparePreview,
+              ),
+            ),
+            Positioned(
               left: horizontalPadding,
               right: horizontalPadding,
               bottom: bottomPadding,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_jobs.length <= 1) _editorSingleStatusStrip(job),
-                  if (_jobs.length <= 1) const SizedBox(height: 8),
-                  EditorBottomPanel(
-                    group: activeGroup,
-                    open: panelOpen,
-                    height: panelHeight,
-                    onClose: () => setState(() => _toolPanelOpen = false),
-                    child: _toolPanelContent(job, activeGroup),
-                  ),
-                  if (panelOpen) const SizedBox(height: 2),
-                  if (!panelOpen)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: _collapsedPanelHint(activeGroup),
+              child: CupertinoTheme(
+                data: CupertinoTheme.of(context).copyWith(
+                  brightness: Brightness.dark,
+                  primaryColor: CupertinoColors.activeBlue,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    EditorBottomPanel(
+                      group: activeGroup,
+                      open: panelOpen,
+                      height: panelHeight,
+                      onClose: () => setState(() => _toolPanelOpen = false),
+                      child: _toolPanelContent(activeGroup),
                     ),
-                  if (!panelOpen) const SizedBox(height: 2),
-                  EditorToolRail(
-                    groups: groups,
-                    selectedGroup: activeGroup,
-                    panelOpen: panelOpen,
-                    onSelected: _selectToolGroup,
-                  ),
-                ],
+                    if (panelOpen) const SizedBox(height: 2),
+                    if (!panelOpen)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: EditorCollapsedPanelButton(
+                          group: activeGroup,
+                          onPressed: () =>
+                              setState(() => _toolPanelOpen = true),
+                        ),
+                      ),
+                    if (!panelOpen) const SizedBox(height: 2),
+                    EditorToolRail(
+                      groups: groups,
+                      selectedGroup: activeGroup,
+                      panelOpen: panelOpen,
+                      onSelected: _selectToolGroup,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         );
       },
     );
+  }
+
+  Widget _previewCompareButton({
+    required EditorCompareMode mode,
+    required VoidCallback onPressed,
+  }) {
+    final showingOriginal = mode.isOriginal;
+    final actionLabel = showingOriginal
+        ? 'Show edited preview'
+        : 'Show original preview';
+    final background = showingOriginal
+        ? CupertinoColors.activeBlue.withValues(alpha: .94)
+        : CupertinoColors.black.withValues(alpha: .56);
+    return Tooltip(
+      message: actionLabel,
+      child: Semantics(
+        button: true,
+        selected: showingOriginal,
+        label: actionLabel,
+        child: CupertinoButton(
+          key: const Key('editor_preview_compare'),
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(42, 42),
+          borderRadius: BorderRadius.circular(99),
+          color: background,
+          onPressed: onPressed,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 160),
+            transitionBuilder: (child, animation) => ScaleTransition(
+              scale: animation,
+              child: FadeTransition(opacity: animation, child: child),
+            ),
+            child: Icon(
+              showingOriginal
+                  ? CupertinoIcons.wand_stars
+                  : CupertinoIcons.photo,
+              key: ValueKey(showingOriginal),
+              color: CupertinoColors.white,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _toggleComparePreview() {
+    setState(() => _compareMode = _compareMode.toggled);
   }
 
   Widget _editorTopBar(MediaJob job) {
@@ -525,7 +630,7 @@ class _EditorPageState extends State<EditorPage> {
                   color: CupertinoColors.white,
                 ),
                 SizedBox(width: 4),
-                Text('Import', style: TextStyle(color: CupertinoColors.white)),
+                Text('Library', style: TextStyle(color: CupertinoColors.white)),
               ],
             ),
           ),
@@ -546,7 +651,7 @@ class _EditorPageState extends State<EditorPage> {
                       ),
                 ),
                 Text(
-                  '${job.kind.label} - ${job.status.label}',
+                  '${_settings.preset.label} - ${job.kind.label}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
@@ -584,6 +689,7 @@ class _EditorPageState extends State<EditorPage> {
     final videoUnavailable =
         job.kind.isVideo &&
         !VideoRestorationService.isBackendAvailableOnCurrentPlatform;
+    final complete = job.status == JobStatus.complete;
     return _floatingGlass(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       borderRadius: 22,
@@ -614,7 +720,7 @@ class _EditorPageState extends State<EditorPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Export',
+                  complete ? 'Complete' : 'Export',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
@@ -642,8 +748,18 @@ class _EditorPageState extends State<EditorPage> {
           CupertinoButton.filled(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             minimumSize: Size.zero,
-            onPressed: (_busy || videoUnavailable) ? null : _processSelected,
-            child: Text(_busy ? 'Exporting...' : 'Export'),
+            onPressed: (_busy || videoUnavailable)
+                ? null
+                : complete
+                ? () => setState(() => _step = EditorWorkflowStep.import)
+                : _processSelected,
+            child: Text(
+              _busy
+                  ? 'Exporting...'
+                  : complete
+                  ? 'Done'
+                  : 'Export',
+            ),
           ),
         ],
       ),
@@ -710,82 +826,6 @@ class _EditorPageState extends State<EditorPage> {
                 ? null
                 : () => setState(() => _selectedIndex++),
           ),
-          const SizedBox(width: 8),
-          CupertinoButton.filled(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            minimumSize: Size.zero,
-            onPressed: _busy ? null : _processQueue,
-            child: Text(compact ? 'All' : 'Export all'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _editorSingleStatusStrip(MediaJob job) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: _floatingGlass(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        borderRadius: 99,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              CupertinoIcons.wand_stars,
-              color: CupertinoColors.white,
-              size: 16,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              _settings.preset.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                color: CupertinoColors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              job.kind == MediaKind.video
-                  ? '${_compareMode.label} frame'
-                  : _compareMode.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                color: CupertinoColors.white.withValues(alpha: .74),
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _collapsedPanelHint(EditorToolGroup group) {
-    return _floatingGlass(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      borderRadius: 99,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            group.label,
-            style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-              color: CupertinoColors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(width: 6),
-          const Icon(
-            CupertinoIcons.chevron_up,
-            color: CupertinoColors.white,
-            size: 14,
-          ),
         ],
       ),
     );
@@ -824,32 +864,48 @@ class _EditorPageState extends State<EditorPage> {
     });
   }
 
-  Widget _toolPanelContent(MediaJob job, EditorToolGroup group) {
-    return switch (group) {
-      EditorToolGroup.presets => _presetSection(),
-      EditorToolGroup.light ||
-      EditorToolGroup.color ||
-      EditorToolGroup.details => _adjustmentSliders(group.adjustments),
-      EditorToolGroup.effects => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _adjustmentSliders(group.adjustments),
-          _panelDivider(),
-          _lutSection(),
-        ],
-      ),
-      EditorToolGroup.compare => _compareSection(job),
-      EditorToolGroup.video => _videoSection(),
-    };
+  Widget _toolPanelContent(EditorToolGroup group) {
+    return Builder(
+      builder: (panelContext) => switch (group) {
+        EditorToolGroup.presets => LookBrowser(
+          settings: _settings,
+          enabled: !_busy,
+          onChanged: (settings) => setState(() => _settings = settings),
+        ),
+        EditorToolGroup.light => AdjustmentBrowser(
+          controls: allImageAdjustmentControls,
+          settings: _settings,
+          selectedId: _selectedAdjustmentId,
+          enabled: !_busy,
+          onSelected: (id) => setState(() => _selectedAdjustmentId = id),
+          onChanged: (settings) => setState(() => _settings = settings),
+          onReset: _resetSettings,
+        ),
+        EditorToolGroup.effects => _lutSection(panelContext),
+        EditorToolGroup.color || EditorToolGroup.details => _adjustmentSliders(
+          panelContext,
+          group.adjustments,
+        ),
+        EditorToolGroup.video => _videoSection(panelContext),
+      },
+    );
   }
 
-  Widget _adjustmentSliders(List<AdjustmentControl> controls) {
+  Widget _adjustmentSliders(
+    BuildContext panelContext,
+    List<AdjustmentControl> controls,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Expanded(child: Text('Manual adjustments', style: _panelTitle())),
+            Expanded(
+              child: Text(
+                'Manual adjustments',
+                style: _panelTitle(panelContext),
+              ),
+            ),
             CupertinoButton(
               padding: EdgeInsets.zero,
               minimumSize: Size.zero,
@@ -875,49 +931,6 @@ class _EditorPageState extends State<EditorPage> {
                   ),
           ),
       ],
-    );
-  }
-
-  Widget _compareSection(MediaJob job) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Preview mode', style: _panelTitle()),
-        const SizedBox(height: 10),
-        CupertinoSlidingSegmentedControl<EditorCompareMode>(
-          groupValue: _compareMode,
-          children: {
-            for (final mode in EditorCompareMode.values)
-              mode: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text(mode.label),
-              ),
-          },
-          onValueChanged: (value) {
-            if (value != null) setState(() => _compareMode = value);
-          },
-        ),
-        const SizedBox(height: 12),
-        Text(
-          job.kind == MediaKind.video
-              ? 'Video uses a representative frame while you tune settings.'
-              : 'Split shows original and adjusted previews side by side.',
-          style: _secondaryText(context),
-        ),
-      ],
-    );
-  }
-
-  Widget _panelDivider() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Container(
-        height: 1,
-        color: CupertinoDynamicColor.resolve(
-          CupertinoColors.separator,
-          context,
-        ),
-      ),
     );
   }
 
@@ -1436,7 +1449,7 @@ class _EditorPageState extends State<EditorPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Batch export', style: _panelTitle()),
+                Text('Automatic batch', style: _panelTitle()),
                 const SizedBox(height: 3),
                 Text(
                   '$pending pending - $complete complete${failed == 0 ? '' : ' - $failed failed'}',
@@ -1453,12 +1466,6 @@ class _EditorPageState extends State<EditorPage> {
             minimumSize: Size.zero,
             onPressed: _busy ? null : _clearCompleted,
             child: const Text('Clear'),
-          ),
-          CupertinoButton.filled(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            minimumSize: Size.zero,
-            onPressed: _busy ? null : _processQueue,
-            child: const Text('Export all'),
           ),
         ],
       ),
@@ -1515,113 +1522,22 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _presetSection() {
+  Widget _videoSection(BuildContext panelContext) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(child: Text('One-tap correction', style: _panelTitle())),
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
-              onPressed: _busy ? null : _resetSettings,
-              child: const Text('Reset'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Balanced underwater correction with adjustable strength.',
-          style: _secondaryText(context),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: CupertinoButton.filled(
-                onPressed: _busy
-                    ? null
-                    : () => setState(
-                        () => _settings = RestorationPreset.auto.settings,
-                      ),
-                child: const Text('Auto Fix'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: CupertinoButton(
-                onPressed: _busy
-                    ? null
-                    : () => setState(
-                        () => _compareMode =
-                            _compareMode == EditorCompareMode.split
-                            ? EditorCompareMode.edited
-                            : EditorCompareMode.split,
-                      ),
-                child: Text(
-                  _compareMode == EditorCompareMode.split
-                      ? 'Edited view'
-                      : 'Before / after',
-                ),
-              ),
-            ),
-          ],
-        ),
-        SettingSlider(
-          label: 'Color correction',
-          value: _settings.recovery,
-          min: 0,
-          max: 1.25,
-          divisions: 25,
-          format: (value) => '${(value * 100).round()}%',
-          onChanged: _busy
-              ? null
-              : (value) => setState(
-                  () => _settings = _settings.asPro(recovery: value),
-                ),
-        ),
-        _panelDivider(),
-        Text('Looks', style: _panelTitle()),
-        const SizedBox(height: 4),
-        Text(_settings.preset.help, style: _secondaryText(context)),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final preset in editorPresetChoices) ...[
-                _choicePill(
-                  label: preset.label,
-                  selected: _settings.preset == preset,
-                  onPressed: _busy
-                      ? null
-                      : () => setState(() => _settings = preset.settings),
-                ),
-                const SizedBox(width: 8),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _videoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Video timing', style: _panelTitle()),
+        Text('Video timing', style: _panelTitle(panelContext)),
         const SizedBox(height: 4),
         Text(
           'Frame preview updates with the same color settings; full video export depends on the backend.',
-          style: _secondaryText(context),
+          style: _secondaryText(panelContext),
         ),
         const SizedBox(height: 8),
         _switchRow(
           title: 'Trim video',
           value: _trimEnabled,
           onChanged: (v) => setState(() => _trimEnabled = v),
+          styleContext: panelContext,
         ),
         Row(
           children: [
@@ -1630,6 +1546,7 @@ class _EditorPageState extends State<EditorPage> {
                 label: 'Start seconds',
                 controller: _trimStartController,
                 enabled: _trimEnabled,
+                styleContext: panelContext,
               ),
             ),
             const SizedBox(width: 10),
@@ -1639,6 +1556,7 @@ class _EditorPageState extends State<EditorPage> {
                 controller: _trimEndController,
                 enabled: _trimEnabled,
                 placeholder: 'Optional',
+                styleContext: panelContext,
               ),
             ),
           ],
@@ -1665,11 +1583,11 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _lutSection() {
+  Widget _lutSection(BuildContext panelContext) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('LUT', style: _panelTitle()),
+        Text('LUT', style: _panelTitle(panelContext)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -1679,6 +1597,7 @@ class _EditorPageState extends State<EditorPage> {
               _choicePill(
                 label: profile.name,
                 selected: _lutProfile.kind == profile.kind,
+                styleContext: panelContext,
                 onPressed: _busy
                     ? null
                     : () => setState(
@@ -1692,6 +1611,7 @@ class _EditorPageState extends State<EditorPage> {
                 label: p.basename(_lutProfile.path!),
                 selected: true,
                 onPressed: null,
+                styleContext: panelContext,
               ),
           ],
         ),
@@ -1814,24 +1734,12 @@ class _EditorPageState extends State<EditorPage> {
             children: [
               for (var i = 0; i < _jobs.length; i++) _queueRow(i, _jobs[i]),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: CupertinoButton(
-                      onPressed: _busy ? null : _clearCompleted,
-                      child: const Text('Clear completed'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: CupertinoButton(
-                      onPressed: (_jobs.isEmpty || _busy)
-                          ? null
-                          : _processQueue,
-                      child: const Text('Export queue'),
-                    ),
-                  ),
-                ],
+              Align(
+                alignment: Alignment.centerRight,
+                child: CupertinoButton(
+                  onPressed: _busy ? null : _clearCompleted,
+                  child: const Text('Clear completed'),
+                ),
               ),
             ],
           ),
@@ -1974,10 +1882,33 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Future<void> _importFromPhotos() async {
-    final paths = await showCupertinoModalPopup<List<String>>(
-      context: context,
-      builder: (_) => PhotoLibrarySheet(service: _photoLibraryService),
-    );
+    List<String>? paths;
+    if (Platform.isIOS) {
+      setState(() {
+        _busy = true;
+        _status = 'Waiting for your Photos selection...';
+      });
+      try {
+        final picked = await _imagePicker.pickMultipleMedia(
+          requestFullMetadata: false,
+        );
+        paths = picked.map((file) => file.path).toList(growable: false);
+      } on Object catch (error) {
+        if (!mounted) return;
+        setState(() {
+          _busy = false;
+          _status = 'Photos import failed: ${_friendlyError(error)}';
+        });
+        await _showAlert('Photos import failed', _friendlyError(error));
+        return;
+      }
+      if (mounted) setState(() => _busy = false);
+    } else {
+      paths = await showCupertinoModalPopup<List<String>>(
+        context: context,
+        builder: (_) => PhotoLibrarySheet(service: _photoLibraryService),
+      );
+    }
     if (paths == null || paths.isEmpty) {
       if (mounted) {
         setState(() => _status = 'No local Photos items were imported.');
@@ -2035,18 +1966,27 @@ class _EditorPageState extends State<EditorPage> {
       });
       return;
     }
+    final processAutomatically = next.length > 1;
     setState(() {
       final startIndex = _jobs.length;
       _jobs = [..._jobs, ...next];
       _selectedIndex = startIndex;
       _step = EditorWorkflowStep.edit;
-      _selectedToolGroup = EditorToolGroup.presets;
+      _settings = RestorationPreset.auto.settings;
+      _selectedToolGroup = EditorToolGroup.light;
+      _selectedAdjustmentId = 'recovery';
       _toolPanelOpen = true;
       _compareMode = EditorCompareMode.edited;
+      _exportOptions = _exportOptions.copyWith(
+        saveToPhotoLibrary:
+            processAutomatically && source == MediaSource.photos,
+      );
       _busy = false;
-      _status =
-          'Imported ${next.length} item${next.length == 1 ? '' : 's'}${skipped == 0 ? '' : ', skipped $skipped unsupported'} and opened the editor.';
+      _status = processAutomatically
+          ? 'Imported ${next.length} items. Auto recovery is starting...'
+          : 'Imported 1 item${skipped == 0 ? '' : ', skipped $skipped unsupported'} and opened the editor.';
     });
+    if (processAutomatically) await _processQueue(automatic: true);
   }
 
   Future<void> _processSelected() async {
@@ -2054,12 +1994,14 @@ class _EditorPageState extends State<EditorPage> {
     await _processJob(_selectedIndex);
   }
 
-  Future<void> _processQueue() async {
+  Future<void> _processQueue({bool automatic = false}) async {
     if (_jobs.isEmpty || _busy) return;
     setState(() {
       _busy = true;
       _cancelRequested = false;
-      _status = 'Exporting queue...';
+      _status = automatic
+          ? 'Restoring all selected media automatically...'
+          : 'Exporting queue...';
     });
     for (var i = 0; i < _jobs.length; i++) {
       if (!mounted || _cancelRequested) break;
@@ -2067,11 +2009,18 @@ class _EditorPageState extends State<EditorPage> {
       await _processJob(i, partOfBatch: true);
     }
     if (mounted) {
+      final complete = _jobs
+          .where((job) => job.status == JobStatus.complete)
+          .length;
+      final failed = _jobs
+          .where((job) => job.status == JobStatus.failed)
+          .length;
       setState(() {
         _busy = false;
+        if (!_cancelRequested) _step = EditorWorkflowStep.export;
         _status = _cancelRequested
             ? 'Queue cancelled.'
-            : 'Queue export finished.';
+            : 'Automatic batch finished: $complete complete${failed == 0 ? '' : ', $failed failed'}.';
       });
     }
   }
@@ -2179,7 +2128,7 @@ class _EditorPageState extends State<EditorPage> {
             clearError: true,
           ),
         );
-        _step = EditorWorkflowStep.export;
+        if (!partOfBatch) _step = EditorWorkflowStep.export;
         _status = 'Exported ${p.basename(output)} with sidecar.';
       });
     } on Object catch (error) {
@@ -2316,10 +2265,22 @@ class _EditorPageState extends State<EditorPage> {
         content: const Padding(
           padding: EdgeInsets.only(top: 8),
           child: Text(
-            'On-device underwater color recovery for photos, RAW stills, videos, LUTs, and local exports.',
+            'Version 0.4.0\n\nOn-device underwater color recovery for photos, RAW stills, videos, LUTs, and local exports.',
           ),
         ),
         actions: [
+          CupertinoDialogAction(
+            onPressed: () {
+              final navigator = Navigator.of(context);
+              navigator.pop();
+              navigator.push(
+                CupertinoPageRoute<void>(
+                  builder: (_) => const AppLicensePage(),
+                ),
+              );
+            },
+            child: const Text('Licenses'),
+          ),
           CupertinoDialogAction(
             isDefaultAction: true,
             onPressed: () => Navigator.of(context).pop(),
@@ -2407,15 +2368,19 @@ class _EditorPageState extends State<EditorPage> {
     required String label,
     required bool selected,
     required VoidCallback? onPressed,
+    BuildContext? styleContext,
   }) {
+    final resolvedContext = styleContext ?? context;
     return CupertinoButton(
       minimumSize: Size.zero,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       color: selected
-          ? CupertinoTheme.of(context).primaryColor.withValues(alpha: .16)
+          ? CupertinoTheme.of(
+              resolvedContext,
+            ).primaryColor.withValues(alpha: .16)
           : CupertinoDynamicColor.resolve(
               CupertinoColors.systemBackground,
-              context,
+              resolvedContext,
             ),
       borderRadius: BorderRadius.circular(99),
       onPressed: onPressed,
@@ -2423,8 +2388,11 @@ class _EditorPageState extends State<EditorPage> {
         label,
         style: TextStyle(
           color: selected
-              ? CupertinoTheme.of(context).primaryColor
-              : CupertinoDynamicColor.resolve(CupertinoColors.label, context),
+              ? CupertinoTheme.of(resolvedContext).primaryColor
+              : CupertinoDynamicColor.resolve(
+                  CupertinoColors.label,
+                  resolvedContext,
+                ),
         ),
       ),
     );
@@ -2486,7 +2454,9 @@ class _EditorPageState extends State<EditorPage> {
     required String title,
     required bool value,
     required ValueChanged<bool> onChanged,
+    BuildContext? styleContext,
   }) {
+    final resolvedContext = styleContext ?? context;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -2495,7 +2465,7 @@ class _EditorPageState extends State<EditorPage> {
             child: Text(
               title,
               style: CupertinoTheme.of(
-                context,
+                resolvedContext,
               ).textTheme.textStyle.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
@@ -2510,11 +2480,13 @@ class _EditorPageState extends State<EditorPage> {
     required TextEditingController controller,
     required bool enabled,
     String? placeholder,
+    BuildContext? styleContext,
   }) {
+    final resolvedContext = styleContext ?? context;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: _secondaryText(context)),
+        Text(label, style: _secondaryText(resolvedContext)),
         const SizedBox(height: 4),
         CupertinoTextField(
           enabled: enabled && !_busy,
@@ -2572,9 +2544,10 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  TextStyle _panelTitle() {
+  TextStyle _panelTitle([BuildContext? styleContext]) {
+    final resolvedContext = styleContext ?? context;
     return CupertinoTheme.of(
-      context,
+      resolvedContext,
     ).textTheme.textStyle.copyWith(fontWeight: FontWeight.w700);
   }
 

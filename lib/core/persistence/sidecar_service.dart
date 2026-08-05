@@ -31,11 +31,14 @@ class SidecarService {
       'export': exportOptions.toJson(),
       'lut': lutProfile.toJson(),
       'trim': trim.toJson(),
-      if (rawVideoDescriptor != null) 'rawVideoDescriptor': rawVideoDescriptor.toJson(),
+      if (rawVideoDescriptor != null)
+        'rawVideoDescriptor': rawVideoDescriptor.toJson(),
     };
     final file = File(sidecarPath);
     await file.parent.create(recursive: true);
-    await file.writeAsString(const JsonEncoder.withIndent('  ').convert(payload));
+    await file.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(payload),
+    );
     return sidecarPath;
   }
 }

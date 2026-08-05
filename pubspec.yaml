@@ -1,7 +1,7 @@
 name: aqua_recover
 description: Cross-platform on-device underwater photo and video color recovery app for Android, iOS, and macOS.
 publish_to: 'none'
-version: 0.3.1+5
+version: 0.4.0+6
 
 environment:
   sdk: '>=3.8.0 <4.0.0'
@@ -15,19 +15,23 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  file_picker: ^11.0.2
+  file_picker: ^11.0.3
+  image_picker: ^1.2.3
   image: ^4.8.0
   path: ^1.9.0
-  path_provider: ^2.1.5
-  photo_manager: ^3.9.0
-  video_player: ^2.11.1
+  path_provider: ^2.1.6
+  photo_manager: ^3.11.0
+  video_player: ^2.13.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   config:
     enable-lldb-debugging: false
   uses-material-design: false
+  assets:
+    - LICENSE

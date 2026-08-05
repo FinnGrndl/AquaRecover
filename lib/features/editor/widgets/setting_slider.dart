@@ -11,6 +11,7 @@ class SettingSlider extends StatelessWidget {
     this.divisions,
     this.help,
     this.format,
+    this.showHeader = true,
   });
   final String label;
   final double value;
@@ -20,6 +21,8 @@ class SettingSlider extends StatelessWidget {
   final String? help;
   final ValueChanged<double>? onChanged;
   final String Function(double value)? format;
+  final bool showHeader;
+
   @override
   Widget build(BuildContext context) {
     final valueText = format?.call(value) ?? value.toStringAsFixed(2);
@@ -28,42 +31,62 @@ class SettingSlider extends StatelessWidget {
       context,
     );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.only(top: showHeader ? 8 : 4, bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
+          if (showHeader) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: CupertinoTheme.of(
+                      context,
+                    ).textTheme.textStyle.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Text(
+                  valueText,
                   style: CupertinoTheme.of(
                     context,
-                  ).textTheme.textStyle.copyWith(fontWeight: FontWeight.w600),
+                  ).textTheme.textStyle.copyWith(color: secondary),
                 ),
-              ),
-              Text(
-                valueText,
-                style: CupertinoTheme.of(
-                  context,
-                ).textTheme.textStyle.copyWith(color: secondary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          CupertinoSlider(
-            value: value.clamp(min, max).toDouble(),
-            min: min,
-            max: max,
-            divisions: divisions,
-            onChanged: onChanged,
+              ],
+            ),
+            const SizedBox(height: 4),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: CupertinoSlider(
+              value: value.clamp(min, max).toDouble(),
+              min: min,
+              max: max,
+              divisions: divisions,
+              onChanged: onChanged,
+            ),
           ),
           if (help != null)
-            Text(
-              help!,
-              style: CupertinoTheme.of(
-                context,
-              ).textTheme.textStyle.copyWith(fontSize: 12, color: secondary),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Icon(
+                    CupertinoIcons.info_circle,
+                    size: 14,
+                    color: secondary,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    help!,
+                    style: CupertinoTheme.of(context).textTheme.textStyle
+                        .copyWith(fontSize: 12, color: secondary),
+                  ),
+                ),
+              ],
             ),
         ],
       ),

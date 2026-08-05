@@ -42,7 +42,13 @@ class PhotoLibraryService {
   }
 
   Future<void> saveExport(String outputPath, MediaKind kind) async {
-    final permission = await requestPermission();
+    final permission = await PhotoManager.requestPermissionExtend(
+      requestOption: Platform.isIOS
+          ? const PermissionRequestOption(
+              iosAccessLevel: IosAccessLevel.addOnly,
+            )
+          : const PermissionRequestOption(),
+    );
     if (!permission.hasAccess) {
       throw StateError('Photos permission was not granted.');
     }

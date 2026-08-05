@@ -172,7 +172,7 @@ class RestorationSettings {
     this.recovery = 1.18,
     this.redRecovery = 1.24,
     this.autoWhiteBalance = 0.76,
-    this.contrastStretch = 0.58,
+    this.contrastStretch = 0.52,
     this.contrast = 1.04,
     this.gamma = 0.98,
     this.saturation = 0.88,

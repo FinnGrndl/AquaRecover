@@ -4,6 +4,72 @@ import 'package:flutter/cupertino.dart';
 
 import '../editor_tools.dart';
 
+class EditorCollapsedPanelButton extends StatelessWidget {
+  const EditorCollapsedPanelButton({
+    super.key,
+    required this.group,
+    required this.onPressed,
+  });
+
+  final EditorToolGroup group;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Open ${group.label} tools',
+      child: CupertinoButton(
+        key: const Key('editor_tool_panel_open'),
+        padding: EdgeInsets.zero,
+        minimumSize: Size.zero,
+        onPressed: onPressed,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: CupertinoColors.black.withValues(alpha: .52),
+                borderRadius: BorderRadius.circular(99),
+                border: Border.all(
+                  color: CupertinoColors.white.withValues(alpha: .20),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 9,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Open ${group.label}',
+                      style: CupertinoTheme.of(context).textTheme.textStyle
+                          .copyWith(
+                            color: CupertinoColors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      CupertinoIcons.chevron_up,
+                      color: CupertinoColors.white,
+                      size: 14,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class EditorBottomPanel extends StatelessWidget {
   const EditorBottomPanel({
     super.key,

@@ -15,10 +15,13 @@ import 'package:aqua_recover/core/processing/underwater_processor.dart';
 import 'package:aqua_recover/core/workflow/editor_workflow.dart';
 import 'package:aqua_recover/features/editor/editor_page.dart';
 import 'package:aqua_recover/features/editor/editor_tools.dart';
+import 'package:aqua_recover/features/editor/widgets/app_license_page.dart';
+import 'package:aqua_recover/features/editor/widgets/adjustment_browser.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_bottom_panel.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_preview_stage.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_tool_rail.dart';
 import 'package:aqua_recover/features/editor/widgets/gpu_preview_filter.dart';
+import 'package:aqua_recover/features/editor/widgets/look_browser.dart';
 import 'package:aqua_recover/features/editor/widgets/restored_image_preview.dart';
 import 'package:aqua_recover/features/editor/widgets/video_frame_preview_tile.dart';
 import 'package:flutter/cupertino.dart';
@@ -26,6 +29,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
 void main() {
+  final localReferencePairIndices = _referencePairIndices();
+
   test('red channel is recovered for blue-green cast images', () {
     final source = img.Image(width: 12, height: 12, numChannels: 4);
     for (var y = 0; y < source.height; y++) {
@@ -69,9 +74,8 @@ void main() {
     'auto recovery moves reference pairs toward provided after images',
     () async {
       final processor = const UnderwaterProcessor();
-      final pairIndices = _referencePairIndices();
-      expect(pairIndices, isNotEmpty);
-      for (final i in pairIndices) {
+      var relativeDeltaSum = 0.0;
+      for (final i in localReferencePairIndices) {
         final before = img.decodeImage(
           await File('test/img/before$i.webp').readAsBytes(),
         );
@@ -99,13 +103,22 @@ void main() {
 
         final beforeDelta = _meanAbsDelta(resizedBefore, resizedTarget);
         final restoredDelta = _meanAbsDelta(restored, resizedTarget);
+        relativeDeltaSum += restoredDelta / beforeDelta;
         expect(
           restoredDelta,
-          lessThan(beforeDelta * 0.75),
+          lessThan(beforeDelta * 0.65),
           reason: 'reference pair $i should move closer to the target after',
         );
       }
+      expect(
+        relativeDeltaSum / localReferencePairIndices.length,
+        lessThan(0.38),
+        reason: 'auto recovery should stay close across the complete set',
+      );
     },
+    skip: localReferencePairIndices.isEmpty
+        ? 'Private local reference images are not installed.'
+        : false,
   );
 
   test('video auto filter uses conservative red lift', () {
@@ -330,6 +343,11 @@ void main() {
       activeEditorToolGroupsFor(MediaKind.photo),
       isNot(contains(EditorToolGroup.video)),
     );
+    expect(activeEditorToolGroupsFor(MediaKind.photo), [
+      EditorToolGroup.light,
+      EditorToolGroup.presets,
+      EditorToolGroup.effects,
+    ]);
     expect(
       activeEditorToolGroupsFor(MediaKind.video),
       contains(EditorToolGroup.video),
@@ -355,6 +373,24 @@ void main() {
     final updated = redRecovery.apply(RestorationPreset.auto.settings, 1.8);
     expect(updated.preset, RestorationPreset.pro);
     expect(updated.redRecovery, 1.8);
+
+    expect(allImageAdjustmentControls, hasLength(19));
+    expect(
+      allImageAdjustmentControls.map((control) => control.id).toSet(),
+      hasLength(19),
+    );
+    final waterCorrection = allImageAdjustmentControls.firstWhere(
+      (control) => control.id == 'recovery',
+    );
+    expect(waterCorrection.label, 'Water correction');
+    expect(waterCorrection.max, 1.5);
+    expect(waterCorrection.help, contains('does not scale exposure'));
+    expect(
+      allImageAdjustmentControls.every(
+        (control) => control.help?.isNotEmpty ?? false,
+      ),
+      isTrue,
+    );
   });
 
   test('editor presets and compare mode use existing app state values', () {
@@ -366,11 +402,9 @@ void main() {
       greaterThan(RestorationPreset.auto.settings.redRecovery),
     );
 
-    var mode = EditorCompareMode.edited;
-    mode = EditorCompareMode.original;
-    expect(mode.label, 'Original');
-    mode = EditorCompareMode.split;
-    expect(mode.label, 'Split');
+    expect(EditorCompareMode.edited.toggled, EditorCompareMode.original);
+    expect(EditorCompareMode.original.toggled, EditorCompareMode.edited);
+    expect(EditorCompareMode.split.toggled, EditorCompareMode.original);
   });
 
   test('gpu preview matrix responds to color and hue settings', () {
@@ -437,6 +471,19 @@ void main() {
     expect(find.text('Edit selected'), findsNothing);
   });
 
+  testWidgets('about dialog opens the in-app license list', (tester) async {
+    await tester.pumpWidget(const CupertinoApp(home: EditorPage()));
+
+    await tester.tap(find.byIcon(CupertinoIcons.info_circle));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Version 0.4.0'), findsOneWidget);
+
+    await tester.tap(find.text('Licenses'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppLicensePage), findsOneWidget);
+    expect(find.text('Open-source licenses'), findsOneWidget);
+  });
+
   testWidgets('editor tool rail selects groups and bottom panel closes', (
     tester,
   ) async {
@@ -458,6 +505,11 @@ void main() {
                     open = true;
                   }),
                 ),
+                if (!open)
+                  EditorCollapsedPanelButton(
+                    group: selected,
+                    onPressed: () => setState(() => open = true),
+                  ),
                 EditorBottomPanel(
                   group: selected,
                   open: open,
@@ -472,15 +524,115 @@ void main() {
       ),
     );
 
-    expect(find.text('Presets panel'), findsOneWidget);
+    expect(find.text('Looks panel'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('editor_tool_color')));
+    await tester.tap(find.byKey(const Key('editor_tool_light')));
     await tester.pumpAndSettle();
-    expect(find.text('Color panel'), findsOneWidget);
+    expect(find.text('Adjust panel'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('editor_tool_panel_close')));
     await tester.pumpAndSettle();
-    expect(find.text('Color panel'), findsNothing);
+    expect(find.text('Adjust panel'), findsNothing);
+    expect(find.byKey(const Key('editor_tool_panel_open')), findsOneWidget);
+    expect(find.text('Open Adjust'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('editor_tool_panel_open')));
+    await tester.pumpAndSettle();
+    expect(find.text('Adjust panel'), findsOneWidget);
+  });
+
+  testWidgets(
+    'adjustment browser shows the active value once and uses a full-width slider',
+    (tester) async {
+      const width = 360.0;
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: Center(
+            child: SizedBox(
+              width: width,
+              child: AdjustmentBrowser(
+                controls: allImageAdjustmentControls,
+                settings: RestorationPreset.auto.settings,
+                selectedId: 'recovery',
+                onSelected: (_) {},
+                onChanged: (_) {},
+                onReset: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Water correction'), findsOneWidget);
+      expect(find.text('118%'), findsOneWidget);
+      final sliderWidth = tester.getSize(find.byType(CupertinoSlider)).width;
+      expect(sliderWidth, width);
+    },
+  );
+
+  testWidgets('looks explain that they replace individual adjustments', (
+    tester,
+  ) async {
+    var settings = RestorationPreset.auto.settings;
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: StatefulBuilder(
+          builder: (context, setState) => LookBrowser(
+            settings: settings,
+            onChanged: (value) => setState(() => settings = value),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.textContaining('A look replaces all 19'), findsOneWidget);
+    expect(find.text('Auto Fix'), findsNothing);
+    expect(find.text('Color correction'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('look_deep')));
+    await tester.pumpAndSettle();
+    expect(settings.preset, RestorationPreset.deep);
+    expect(
+      find.textContaining('Deep dive: Stronger red recovery'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('immersive split preview reserves space for editor tools', (
+    tester,
+  ) async {
+    const inset = 220.0;
+    final job = MediaJob(
+      id: 'split-stage',
+      inputPath: '/tmp/split-stage.raw',
+      kind: MediaKind.photo,
+      displayName: 'split-stage.raw',
+    );
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: SizedBox(
+          width: 393,
+          height: 760,
+          child: EditorPreviewStage(
+            job: job,
+            settings: RestorationPreset.auto.settings,
+            compareMode: EditorCompareMode.split,
+            immersive: true,
+            immersiveBottomInset: inset,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Padding &&
+            widget.padding == const EdgeInsets.fromLTRB(10, 54, 10, inset),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -555,11 +707,13 @@ double _meanAbsDelta(img.Image a, img.Image b) {
 }
 
 List<int> _referencePairIndices() {
+  final fixtureDirectory = Directory('test/img');
+  if (!fixtureDirectory.existsSync()) return const [];
   final beforePattern = RegExp(r'^before(\d+)\.webp$');
   final afterPattern = RegExp(r'^after(\d+)\.webp$');
   final before = <int>{};
   final after = <int>{};
-  for (final file in Directory('test/img').listSync().whereType<File>()) {
+  for (final file in fixtureDirectory.listSync().whereType<File>()) {
     final name = file.uri.pathSegments.last;
     final beforeMatch = beforePattern.firstMatch(name);
     if (beforeMatch != null) {

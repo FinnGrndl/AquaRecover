@@ -3,7 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT_NAME="${PROJECT_NAME:-aqua_recover}"
-ORG="${AQUA_ORG:-${ORG:-com.example}}"
+ORG="${AQUA_ORG:-${ORG:-io.github.finngrndl}}"
+APP_ID="${AQUA_APP_ID:-$ORG.aquarecover}"
 
 if ! command -v flutter >/dev/null 2>&1; then
   echo "Flutter SDK is required. Install Flutter, then rerun this script." >&2
@@ -25,29 +26,59 @@ rsync -a "$TMP_DIR/$PROJECT_NAME/ios/" "$ROOT/ios/"
 rsync -a "$TMP_DIR/$PROJECT_NAME/macos/" "$ROOT/macos/"
 
 if [ -f "$ROOT/android/app/build.gradle.kts" ]; then
-  perl -0pi -e 's/minSdk = flutter\.minSdkVersion/minSdk = 24/g' "$ROOT/android/app/build.gradle.kts"
+  AQUA_APP_ID="$APP_ID" perl -0pi -e '
+    s/minSdk = flutter\.minSdkVersion/minSdk = 24/g;
+    s/namespace = "[^"]+"/namespace = "$ENV{AQUA_APP_ID}"/g;
+    s/applicationId = "[^"]+"/applicationId = "$ENV{AQUA_APP_ID}"/g;
+  ' "$ROOT/android/app/build.gradle.kts"
 fi
 if [ -f "$ROOT/android/app/build.gradle" ]; then
-  perl -0pi -e 's/minSdkVersion flutter\.minSdkVersion/minSdkVersion 24/g; s/minSdkVersion = flutter\.minSdkVersion/minSdkVersion = 24/g' "$ROOT/android/app/build.gradle"
+  AQUA_APP_ID="$APP_ID" perl -0pi -e '
+    s/minSdkVersion flutter\.minSdkVersion/minSdkVersion 24/g;
+    s/minSdkVersion = flutter\.minSdkVersion/minSdkVersion = 24/g;
+    s/namespace\s+["\x27][^"\x27]+["\x27]/namespace "$ENV{AQUA_APP_ID}"/g;
+    s/applicationId\s+["\x27][^"\x27]+["\x27]/applicationId "$ENV{AQUA_APP_ID}"/g;
+  ' "$ROOT/android/app/build.gradle"
 fi
 IOS_PROJECT="$ROOT/ios/Runner.xcodeproj/project.pbxproj"
 if [ -f "$IOS_PROJECT" ]; then
-  perl -0pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;/IPHONEOS_DEPLOYMENT_TARGET = 14.0;/g' "$IOS_PROJECT"
+  AQUA_APP_ID="$APP_ID" perl -0pi -e '
+    s/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;/IPHONEOS_DEPLOYMENT_TARGET = 14.0;/g;
+    s/PRODUCT_BUNDLE_IDENTIFIER = [^;]+\.RunnerTests;/PRODUCT_BUNDLE_IDENTIFIER = $ENV{AQUA_APP_ID}.RunnerTests;/g;
+    s/PRODUCT_BUNDLE_IDENTIFIER = (?![^;]*RunnerTests)[^;]+;/PRODUCT_BUNDLE_IDENTIFIER = $ENV{AQUA_APP_ID};/g;
+    s/^\s*DEVELOPMENT_TEAM = [^;]+;\n//mg;
+  ' "$IOS_PROJECT"
 fi
 
-ANDROID_PACKAGE="$ORG.$PROJECT_NAME"
+ANDROID_PACKAGE="$APP_ID"
 ANDROID_PACKAGE_PATH="${ANDROID_PACKAGE//./\/}"
 ANDROID_DEST="$ROOT/android/app/src/main/kotlin/$ANDROID_PACKAGE_PATH"
 mkdir -p "$ANDROID_DEST"
-sed "s/^package .*/package $ANDROID_PACKAGE/" "$ROOT/platform_overrides/android/app/src/main/kotlin/com/example/aqua_recover/MainActivity.kt" > "$ANDROID_DEST/MainActivity.kt"
+sed "s/^package .*/package $ANDROID_PACKAGE/" "$ROOT/platform_overrides/android/app/src/main/kotlin/io/github/finngrndl/aquarecover/MainActivity.kt" > "$ANDROID_DEST/MainActivity.kt"
+GENERATED_ANDROID_PACKAGE_PATH="${ORG//./\/}/$PROJECT_NAME"
+GENERATED_ANDROID_MAIN="$ROOT/android/app/src/main/kotlin/$GENERATED_ANDROID_PACKAGE_PATH/MainActivity.kt"
+if [ "$GENERATED_ANDROID_MAIN" != "$ANDROID_DEST/MainActivity.kt" ]; then
+  rm -f "$GENERATED_ANDROID_MAIN"
+fi
+DEFAULT_ANDROID_MAIN="$ROOT/android/app/src/main/kotlin/io/github/finngrndl/aquarecover/MainActivity.kt"
+if [ "$DEFAULT_ANDROID_MAIN" != "$ANDROID_DEST/MainActivity.kt" ]; then
+  rm -f "$DEFAULT_ANDROID_MAIN"
+fi
 
 ANDROID_MANIFEST="$ROOT/android/app/src/main/AndroidManifest.xml"
 if [ -f "$ANDROID_MANIFEST" ]; then
   python3 - "$ANDROID_MANIFEST" <<'PY'
 from pathlib import Path
+import re
 import sys
 path = Path(sys.argv[1])
 text = path.read_text()
+text = re.sub(
+    r'android:label="[^"]+"',
+    'android:label="AquaRecover"',
+    text,
+    count=1,
+)
 perms = [
     '    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />',
     '    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />',
@@ -63,6 +94,27 @@ fi
 
 rsync -a "$ROOT/platform_overrides/ios/" "$ROOT/ios/"
 rsync -a "$ROOT/platform_overrides/macos/" "$ROOT/macos/"
+
+MAC_APP_INFO="$ROOT/macos/Runner/Configs/AppInfo.xcconfig"
+if [ -f "$MAC_APP_INFO" ]; then
+  AQUA_APP_ID="$APP_ID" perl -0pi -e '
+    s/PRODUCT_NAME = .*/PRODUCT_NAME = AquaRecover/g;
+    s/PRODUCT_BUNDLE_IDENTIFIER = .*/PRODUCT_BUNDLE_IDENTIFIER = $ENV{AQUA_APP_ID}/g;
+    s/PRODUCT_COPYRIGHT = .*/PRODUCT_COPYRIGHT = Copyright © 2026 AquaRecover contributors. MIT licensed./g;
+  ' "$MAC_APP_INFO"
+fi
+
+MAC_PROJECT="$ROOT/macos/Runner.xcodeproj/project.pbxproj"
+MAC_SCHEME="$ROOT/macos/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme"
+for file in "$MAC_PROJECT" "$MAC_SCHEME"; do
+  if [ -f "$file" ]; then
+    AQUA_PROJECT_NAME="$PROJECT_NAME" AQUA_APP_ID="$APP_ID" perl -0pi -e '
+      s/\Q$ENV{AQUA_PROJECT_NAME}\E\.app/AquaRecover.app/g;
+      s#(BUNDLE_EXECUTABLE_FOLDER_PATH\)/)\Q$ENV{AQUA_PROJECT_NAME}\E"#$1AquaRecover"#g;
+      s/PRODUCT_BUNDLE_IDENTIFIER = [^;]+\.RunnerTests;/PRODUCT_BUNDLE_IDENTIFIER = $ENV{AQUA_APP_ID}.RunnerTests;/g;
+    ' "$file"
+  fi
+done
 
 python3 - "$ROOT/ios/Runner.xcodeproj/project.pbxproj:RawBridge.swift:AppDelegate.swift" "$ROOT/ios/Runner.xcodeproj/project.pbxproj:IosVideoProcessor.swift:RawBridge.swift" "$ROOT/macos/Runner.xcodeproj/project.pbxproj:RawBridge.swift:MainFlutterWindow.swift" <<'PY'
 from pathlib import Path
@@ -111,8 +163,58 @@ def add_swift_source(spec):
 
     project_path.write_text(text)
 
+def add_runner_resource(
+    project_path,
+    resource_file,
+    group_anchor,
+    phase_anchor,
+    resource_path=None,
+):
+    if not project_path.exists():
+        return
+    text = project_path.read_text()
+    if f'/* {resource_file} in Resources */' in text:
+        return
+
+    file_ref = unique_id(text, f'{project_path}:{resource_file}:file')
+    build_ref = unique_id(text + file_ref, f'{project_path}:{resource_file}:build')
+    build_line = f'\t\t{build_ref} /* {resource_file} in Resources */ = {{isa = PBXBuildFile; fileRef = {file_ref} /* {resource_file} */; }};\n'
+    path = resource_path or resource_file
+    file_line = f'\t\t{file_ref} /* {resource_file} */ = {{isa = PBXFileReference; lastKnownFileType = text.xml; path = {path}; sourceTree = "<group>"; }};\n'
+
+    text = insert_before(text, '/* End PBXBuildFile section */', build_line, 'PBXBuildFile section')
+    text = insert_before(text, '/* End PBXFileReference section */', file_line, 'PBXFileReference section')
+
+    child_pattern = re.compile(rf'(\n\t\t\t\t[0-9A-F]{{24}} /\* {re.escape(group_anchor)} \*/,\n)')
+    text, child_count = child_pattern.subn(rf'\1\t\t\t\t{file_ref} /* {resource_file} */,\n', text, count=1)
+    if child_count == 0:
+        raise RuntimeError(f'Could not add {resource_file} to the Runner group.')
+
+    resource_pattern = re.compile(rf'(\n\t\t\t\t[0-9A-F]{{24}} /\* {re.escape(phase_anchor)} in Resources \*/,\n)')
+    text, resource_count = resource_pattern.subn(rf'\1\t\t\t\t{build_ref} /* {resource_file} in Resources */,\n', text, count=1)
+    if resource_count == 0:
+        raise RuntimeError(f'Could not add {resource_file} to the Resources build phase.')
+
+    project_path.write_text(text)
+
 for spec in sys.argv[1:]:
     add_swift_source(spec)
+
+ios_project = Path(sys.argv[1].rsplit(':', 2)[0])
+add_runner_resource(
+    ios_project,
+    'PrivacyInfo.xcprivacy',
+    'Info.plist',
+    'Assets.xcassets',
+)
+mac_project = Path(sys.argv[3].rsplit(':', 2)[0])
+add_runner_resource(
+    mac_project,
+    'PrivacyInfo.xcprivacy',
+    'Info.plist',
+    'Assets.xcassets',
+    'Runner/PrivacyInfo.xcprivacy',
+)
 PY
 
 python3 - "$ROOT/ios/Runner.xcodeproj/project.pbxproj" "$ROOT/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme" <<'PY'
@@ -174,12 +276,16 @@ with path.open('rb') as f:
     plist = plistlib.load(f)
 changed = False
 entries = {
+    'CFBundleName': 'AquaRecover',
+    'CFBundleDisplayName': 'AquaRecover',
     'NSPhotoLibraryUsageDescription': 'AquaRecover imports selected dive photos and videos for on-device restoration.',
     'NSPhotoLibraryAddUsageDescription': 'AquaRecover can save restored exports back to your photo library.',
     'PHPhotoLibraryPreventAutomaticLimitedAccessAlert': True,
+    'LSSupportsOpeningDocumentsInPlace': True,
+    'UIFileSharingEnabled': True,
 }
 for key, value in entries.items():
-    if key not in plist:
+    if plist.get(key) != value:
         plist[key] = value
         changed = True
 if changed:
@@ -214,6 +320,7 @@ fi
 
 cd "$ROOT"
 flutter pub get
+dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
 
 echo "Bootstrap complete. Try: flutter run -d macos"
 echo "For iPhone signing, open ios/Runner.xcworkspace and select your Apple team."

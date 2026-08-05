@@ -22,6 +22,7 @@ class EditorPreviewStage extends StatelessWidget {
     this.immersive = false,
     this.showHeader = true,
     this.borderRadius = 18,
+    this.immersiveBottomInset = 154,
   });
 
   final MediaJob job;
@@ -31,6 +32,7 @@ class EditorPreviewStage extends StatelessWidget {
   final bool immersive;
   final bool showHeader;
   final double borderRadius;
+  final double immersiveBottomInset;
 
   @override
   Widget build(BuildContext context) {
@@ -144,12 +146,20 @@ class EditorPreviewStage extends StatelessWidget {
     required Widget original,
     required Widget edited,
   }) {
-    return Row(
+    final split = Row(
       children: [
         Expanded(child: _labeledHalf(context, 'Original', original)),
         Container(width: 1, color: CupertinoColors.white.withValues(alpha: .5)),
         Expanded(child: _labeledHalf(context, 'Edited', edited)),
       ],
+    );
+    if (!immersive) return split;
+    return ColoredBox(
+      color: CupertinoColors.black,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(10, 54, 10, immersiveBottomInset),
+        child: split,
+      ),
     );
   }
 
@@ -198,7 +208,7 @@ class EditorPreviewStage extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(10, 54, 10, 154),
+          padding: EdgeInsets.fromLTRB(10, 54, 10, immersiveBottomInset),
           child: Center(child: foreground),
         ),
       ],

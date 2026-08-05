@@ -1,9 +1,4 @@
-enum MediaKind {
-  photo,
-  rawPhoto,
-  video,
-  rawVideo,
-}
+enum MediaKind { photo, rawPhoto, video, rawVideo }
 
 extension MediaKindLabels on MediaKind {
   String get label {

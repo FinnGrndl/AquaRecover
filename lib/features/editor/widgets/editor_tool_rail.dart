@@ -21,7 +21,7 @@ class EditorToolRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 76,
+      height: 68,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
         child: BackdropFilter(
@@ -40,21 +40,22 @@ class EditorToolRail extends StatelessWidget {
                 ).withValues(alpha: .52),
               ),
             ),
-            child: CupertinoScrollbar(
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                itemBuilder: (context, index) {
-                  final group = groups[index];
-                  return _ToolButton(
-                    key: Key('editor_tool_${group.name}'),
-                    group: group,
-                    selected: group == selectedGroup && panelOpen,
-                    onPressed: () => onSelected(group),
-                  );
-                },
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemCount: groups.length,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  for (var index = 0; index < groups.length; index++) ...[
+                    if (index > 0) const SizedBox(width: 8),
+                    Expanded(
+                      child: _ToolButton(
+                        key: Key('editor_tool_${groups[index].name}'),
+                        group: groups[index],
+                        selected: groups[index] == selectedGroup && panelOpen,
+                        onPressed: () => onSelected(groups[index]),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
@@ -92,13 +93,13 @@ class _ToolButton extends StatelessWidget {
       color: background,
       onPressed: onPressed,
       child: SizedBox(
-        width: 92,
-        height: 60,
+        width: double.infinity,
+        height: 52,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(_iconFor(group), size: 20, color: foreground),
-            const SizedBox(height: 5),
+            const SizedBox(height: 3),
             Text(
               group.label,
               maxLines: 1,
@@ -121,7 +122,6 @@ class _ToolButton extends StatelessWidget {
     EditorToolGroup.color => CupertinoIcons.color_filter,
     EditorToolGroup.details => CupertinoIcons.slider_horizontal_3,
     EditorToolGroup.effects => CupertinoIcons.sparkles,
-    EditorToolGroup.compare => CupertinoIcons.square_split_1x2,
     EditorToolGroup.video => CupertinoIcons.film,
   };
 }

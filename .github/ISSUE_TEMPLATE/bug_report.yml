@@ -1,0 +1,73 @@
+name: Bug report
+description: Report a reproducible problem in AquaRecover
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not attach private media, credentials, or a security vulnerability.
+        Security reports belong in the private channel described in SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: AquaRecover version
+      placeholder: 0.4.0+6 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - iOS
+        - macOS
+        - Android
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Device and operating system
+      placeholder: iPhone 16, iOS 26.0
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include media type and dimensions, but not private media.
+      placeholder: |
+        1. Import ...
+        2. Change ...
+        3. Export ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Remove local paths, account names, and media names first.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched for an existing issue.
+          required: true
+        - label: I removed private data from this report.
+          required: true

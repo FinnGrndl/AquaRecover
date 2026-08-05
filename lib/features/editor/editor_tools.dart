@@ -5,26 +5,24 @@ typedef SettingValueReader = double Function(RestorationSettings settings);
 typedef SettingValueWriter =
     RestorationSettings Function(RestorationSettings settings, double value);
 
-enum EditorToolGroup { presets, light, color, details, effects, compare, video }
+enum EditorToolGroup { presets, light, color, details, effects, video }
 
 extension EditorToolGroupX on EditorToolGroup {
   String get label => switch (this) {
-    EditorToolGroup.presets => 'Presets',
-    EditorToolGroup.light => 'Light',
+    EditorToolGroup.presets => 'Looks',
+    EditorToolGroup.light => 'Adjust',
     EditorToolGroup.color => 'Color',
     EditorToolGroup.details => 'Details',
-    EditorToolGroup.effects => 'Effects',
-    EditorToolGroup.compare => 'Compare',
+    EditorToolGroup.effects => 'Finish',
     EditorToolGroup.video => 'Video',
   };
 
   String get subtitle => switch (this) {
     EditorToolGroup.presets => 'One-tap underwater looks',
-    EditorToolGroup.light => 'Exposure, contrast, and tone',
+    EditorToolGroup.light => 'All image adjustments',
     EditorToolGroup.color => 'Water cast and color balance',
     EditorToolGroup.details => 'Haze, clarity, and sharpening',
-    EditorToolGroup.effects => 'Vignette and LUT finishing',
-    EditorToolGroup.compare => 'Original and adjusted preview',
+    EditorToolGroup.effects => 'LUT and finishing options',
     EditorToolGroup.video => 'Trim and raw frame settings',
   };
 
@@ -36,13 +34,15 @@ extension EditorToolGroupX on EditorToolGroup {
     EditorToolGroup.light => [
       AdjustmentControl(
         id: 'recovery',
-        label: 'Overall strength',
+        label: 'Water correction',
         value: (settings) => settings.recovery,
         apply: (settings, value) => settings.asPro(recovery: value),
         min: 0,
-        max: 1.25,
-        divisions: 25,
-        help: 'Higher values add stronger water-cast correction.',
+        max: 1.5,
+        divisions: 30,
+        help:
+            'Controls the underwater cast-recovery stage only. It strengthens color recovery and local neutralization, but does not scale exposure, contrast, saturation, or sharpening.',
+        format: (value) => '${(value * 100).round()}%',
       ),
       AdjustmentControl(
         id: 'contrast_stretch',
@@ -52,6 +52,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: 0,
         max: 1,
         divisions: 20,
+        help:
+            'Expands the measured dark-to-bright range. High values can make murky scenes punchier but may clip detail.',
       ),
       AdjustmentControl(
         id: 'contrast',
@@ -61,6 +63,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: .7,
         max: 1.6,
         divisions: 45,
+        help:
+            'Changes separation around the midtones without re-running the underwater color recovery.',
       ),
       AdjustmentControl(
         id: 'gamma',
@@ -70,6 +74,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: .75,
         max: 1.35,
         divisions: 30,
+        help:
+            'Moves midtone brightness while keeping the black and white endpoints mostly fixed.',
       ),
       AdjustmentControl(
         id: 'brightness',
@@ -79,6 +85,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: -.5,
         max: .5,
         divisions: 40,
+        help:
+            'Adds or removes a uniform amount of light after the main correction.',
       ),
       AdjustmentControl(
         id: 'exposure',
@@ -88,6 +96,10 @@ extension EditorToolGroupX on EditorToolGroup {
         min: -.5,
         max: .5,
         divisions: 40,
+        help:
+            'Multiplies scene brightness like a small exposure adjustment. It affects shadows and highlights together.',
+        format: (value) =>
+            '${value >= 0 ? '+' : ''}${value.toStringAsFixed(2)} EV',
       ),
       AdjustmentControl(
         id: 'highlights',
@@ -97,6 +109,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: -.6,
         max: .6,
         divisions: 48,
+        help:
+            'Brightens or darkens the lightest parts while protecting the rest of the tonal range.',
       ),
       AdjustmentControl(
         id: 'shadows',
@@ -106,6 +120,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: -.6,
         max: .6,
         divisions: 48,
+        help:
+            'Opens or deepens darker areas without applying a full-image brightness change.',
       ),
       AdjustmentControl(
         id: 'black_point',
@@ -115,6 +131,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: 0,
         max: .5,
         divisions: 30,
+        help:
+            'Deepens the darkest tones. Increase carefully to avoid losing shadow detail.',
       ),
     ],
     EditorToolGroup.color => [
@@ -126,7 +144,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: 0,
         max: 1.8,
         divisions: 36,
-        help: 'Restores colors absorbed by depth.',
+        help:
+            'Targets warm colors absorbed by water. Its result is multiplied by Water correction, so both controls work together.',
       ),
       AdjustmentControl(
         id: 'auto_white_balance',
@@ -136,6 +155,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: 0,
         max: 1,
         divisions: 20,
+        help:
+            'Balances the average red, green, and blue levels within safe bounds. Lower it when intentional lighting should stay warm or cool.',
       ),
       AdjustmentControl(
         id: 'saturation',
@@ -145,6 +166,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: .6,
         max: 1.8,
         divisions: 48,
+        help:
+            'Changes the intensity of all colors equally. High values can exaggerate color noise and water tint.',
       ),
       AdjustmentControl(
         id: 'vibrance',
@@ -154,6 +177,7 @@ extension EditorToolGroupX on EditorToolGroup {
         min: 0,
         max: 1,
         divisions: 20,
+        help: 'Boosts muted colors more than colors that are already strong.',
       ),
       AdjustmentControl(
         id: 'hue',
@@ -174,6 +198,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: 0,
         max: 1,
         divisions: 20,
+        help:
+            'Reduces correction in the brightest areas to preserve strobes, the sun, and reflective equipment.',
       ),
     ],
     EditorToolGroup.details => [
@@ -185,6 +211,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: 0,
         max: 1,
         divisions: 20,
+        help:
+            'Reduces blue-green veil and increases separation in low-contrast water.',
       ),
       AdjustmentControl(
         id: 'clarity',
@@ -194,6 +222,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: 0,
         max: 1,
         divisions: 20,
+        help:
+            'Adds local midtone contrast to reveal texture. It is gentler than sharpening edges directly.',
       ),
       AdjustmentControl(
         id: 'sharpness',
@@ -203,6 +233,8 @@ extension EditorToolGroupX on EditorToolGroup {
         min: 0,
         max: 1,
         divisions: 20,
+        help:
+            'Strengthens fine edges during export. Too much can emphasize noise or compression artifacts.',
       ),
     ],
     EditorToolGroup.effects => [
@@ -214,6 +246,7 @@ extension EditorToolGroupX on EditorToolGroup {
         min: 0,
         max: 1,
         divisions: 20,
+        help: 'Darkens the image edges to guide attention toward the center.',
       ),
     ],
     _ => const [],
@@ -228,6 +261,11 @@ extension EditorCompareModeX on EditorCompareMode {
     EditorCompareMode.original => 'Original',
     EditorCompareMode.split => 'Split',
   };
+
+  bool get isOriginal => this == EditorCompareMode.original;
+
+  EditorCompareMode get toggled =>
+      isOriginal ? EditorCompareMode.edited : EditorCompareMode.original;
 }
 
 class AdjustmentControl {
@@ -256,10 +294,19 @@ class AdjustmentControl {
 
 List<EditorToolGroup> activeEditorToolGroupsFor(MediaKind kind) {
   return [
-    for (final group in EditorToolGroup.values)
-      if (group.isAvailableFor(kind)) group,
+    EditorToolGroup.light,
+    EditorToolGroup.presets,
+    EditorToolGroup.effects,
+    if (kind.isVideo) EditorToolGroup.video,
   ];
 }
+
+List<AdjustmentControl> get allImageAdjustmentControls => [
+  ...EditorToolGroup.light.adjustments,
+  ...EditorToolGroup.color.adjustments,
+  ...EditorToolGroup.details.adjustments,
+  ...EditorToolGroup.effects.adjustments,
+];
 
 const editorPresetChoices = [
   RestorationPreset.auto,

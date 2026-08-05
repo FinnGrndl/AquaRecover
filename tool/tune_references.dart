@@ -67,11 +67,13 @@ Future<List<_Pair>> _loadPairs() async {
 }
 
 List<int> _referencePairIndices() {
+  final fixtureDirectory = Directory('test/img');
+  if (!fixtureDirectory.existsSync()) return const [];
   final beforePattern = RegExp(r'^before(\d+)\.webp$');
   final afterPattern = RegExp(r'^after(\d+)\.webp$');
   final before = <int>{};
   final after = <int>{};
-  for (final file in Directory('test/img').listSync().whereType<File>()) {
+  for (final file in fixtureDirectory.listSync().whereType<File>()) {
     final name = p.basename(file.path);
     final beforeMatch = beforePattern.firstMatch(name);
     if (beforeMatch != null) {

@@ -7,13 +7,19 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
 Future<void> main(List<String> args) async {
+  final fixtureDirectory = Directory('test/img');
+  if (!fixtureDirectory.existsSync()) {
+    stderr.writeln(
+      'No local test media found in test/img. See docs/LOCAL_TEST_MEDIA.md.',
+    );
+    exitCode = 2;
+    return;
+  }
   final maxDimension = args.isEmpty ? 1280 : int.parse(args.first);
   final quality = args.length > 1 && args[1] == 'preview'
       ? RestorationRenderQuality.preview
       : RestorationRenderQuality.export;
-  final inputs = Directory('test/img').listSync().whereType<File>().where((
-    file,
-  ) {
+  final inputs = fixtureDirectory.listSync().whereType<File>().where((file) {
     final ext = p.extension(file.path).toLowerCase();
     return ext == '.jpg' || ext == '.jpeg' || ext == '.webp';
   }).toList()..sort((a, b) => a.path.compareTo(b.path));

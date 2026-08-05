@@ -1,4 +1,4 @@
-package com.example.aqua_recover
+package io.github.finngrndl.aquarecover
 
 import android.graphics.Bitmap
 import android.graphics.ColorSpace
