@@ -56,13 +56,21 @@ class RawVideoDescriptor {
       throw const FormatException('RAW video dimensions are too small.');
     }
     if (width > maxDimension || height > maxDimension) {
-      throw FormatException('RAW video dimensions must be at most ${maxDimension}x$maxDimension.');
+      throw FormatException(
+        'RAW video dimensions must be at most ${maxDimension}x$maxDimension.',
+      );
     }
     if (width * height > maxPixels) {
-      throw FormatException('RAW video frames are too large. Maximum is $maxPixels pixels per frame.');
+      throw FormatException(
+        'RAW video frames are too large. Maximum is $maxPixels pixels per frame.',
+      );
     }
-    if (!frameRate.isFinite || frameRate < minFrameRate || frameRate > maxFrameRate) {
-      throw FormatException('Frame rate must be between $minFrameRate and $maxFrameRate fps.');
+    if (!frameRate.isFinite ||
+        frameRate < minFrameRate ||
+        frameRate > maxFrameRate) {
+      throw FormatException(
+        'Frame rate must be between $minFrameRate and $maxFrameRate fps.',
+      );
     }
   }
 
@@ -81,9 +89,9 @@ class RawVideoDescriptor {
   }
 
   Map<String, Object> toJson() => {
-        'width': width,
-        'height': height,
-        'frameRate': frameRate,
-        'pixelFormat': pixelFormat,
-      };
+    'width': width,
+    'height': height,
+    'frameRate': frameRate,
+    'pixelFormat': pixelFormat,
+  };
 }

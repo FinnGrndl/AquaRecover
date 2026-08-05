@@ -78,7 +78,9 @@ class UnderwaterProcessor {
     );
     final recovery = settings.recovery.clamp(0.0, 1.5).toDouble();
     final redRecovery = settings.redRecovery.clamp(0.0, 2.5).toDouble();
-    final contrastStretch = settings.contrastStretch.clamp(0.0, 1.0).toDouble();
+    final requestedContrastStretch = settings.contrastStretch
+        .clamp(0.0, 1.0)
+        .toDouble();
     final sat = settings.saturation.clamp(0.0, 3.0).toDouble();
     final vibrance = settings.vibrance.clamp(0.0, 1.0).toDouble();
     final contrast = settings.contrast.clamp(0.1, 3.0).toDouble();
@@ -100,6 +102,14 @@ class UnderwaterProcessor {
     final vignette = settings.vignette.clamp(0.0, 1.0).toDouble();
     final redGreenRatio = stats.meanR / math.max(1.0, stats.meanG);
     final blueGreenRatio = stats.meanB / math.max(1.0, stats.meanG);
+    final deepBlueContrast = ((blueGreenRatio - 1.20) / 0.18)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    final contrastStretch = _mix(
+      requestedContrastStretch,
+      math.min(1.0, requestedContrastStretch + 0.06),
+      deepBlueContrast,
+    );
     final darkBlueSceneLift =
         (((55.0 - stats.lowMidLuma) / 30.0).clamp(0.0, 1.0) *
                 ((blueGreenRatio - 1.25) / 0.20).clamp(0.0, 1.0) *
@@ -562,6 +572,9 @@ class UnderwaterProcessor {
     final blueScene = ((blueGreenRatio - 1.08) / 0.34)
         .clamp(0.0, 1.0)
         .toDouble();
+    final darkBlueDepth = ((58.0 - stats.lowMidLuma) / 27.0)
+        .clamp(0.0, 1.0)
+        .toDouble();
     final redLossScene = ((0.22 - redGreenRatio) / 0.20)
         .clamp(0.0, 1.0)
         .toDouble();
@@ -610,8 +623,10 @@ class UnderwaterProcessor {
             .clamp(0.0, 255.0)
             .toDouble();
 
-        final targetRg = _mix(1.00, 0.96, blueScene);
-        final targetBg = _mix(0.96, 1.02, blueScene);
+        // Deep blue scenes still need to look underwater. Keep a controlled
+        // cool separation instead of forcing textured subjects toward gray.
+        final targetRg = _mix(1.00, _mix(0.90, 0.84, darkBlueDepth), blueScene);
+        final targetBg = _mix(0.96, _mix(1.08, 1.15, darkBlueDepth), blueScene);
         final targetG =
             targetLuma /
             math.max(0.001, 0.2126 * targetRg + 0.7152 + 0.0722 * targetBg);
@@ -657,9 +672,11 @@ class UnderwaterProcessor {
             (material * (0.32 + texture * 0.68) * _mix(0.48, 1.0, redLossScene))
                 .clamp(0.0, 1.0)
                 .toDouble();
-        retinexR *= 1.0 + warmBias * _mix(0.08, 0.13, blueScene);
+        final deepWarmRed = _mix(0.10, 0.085, darkBlueDepth);
+        final deepWarmBlue = _mix(0.055, 0.045, darkBlueDepth);
+        retinexR *= 1.0 + warmBias * _mix(0.08, deepWarmRed, blueScene);
         retinexG *= 1.0 - warmBias * 0.015;
-        retinexB *= 1.0 - warmBias * _mix(0.04, 0.08, blueScene);
+        retinexB *= 1.0 - warmBias * _mix(0.04, deepWarmBlue, blueScene);
         final retinexLuma =
             0.2126 * retinexR + 0.7152 * retinexG + 0.0722 * retinexB;
         if (retinexLuma > 1.0) {
@@ -712,9 +729,9 @@ class UnderwaterProcessor {
                 .toDouble();
         if (blueMaterialWarm > 0.001) {
           final preserveLuma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-          r *= 1.0 + blueMaterialWarm * 0.46;
-          g *= 1.0 + blueMaterialWarm * 0.07;
-          b *= 1.0 - blueMaterialWarm * 0.32;
+          r *= 1.0 + blueMaterialWarm * _mix(0.36, 0.28, darkBlueDepth);
+          g *= 1.0 + blueMaterialWarm * _mix(0.05, 0.04, darkBlueDepth);
+          b *= 1.0 - blueMaterialWarm * _mix(0.24, 0.17, darkBlueDepth);
           final warmedLuma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
           if (warmedLuma > 1.0) {
             final scale = preserveLuma / warmedLuma;

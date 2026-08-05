@@ -90,4 +90,5 @@ GoogleService-Info.plist
 *.cer
 *.certSigningRequest
 
-test/image/*.mov
+# Private local processor fixtures. Keep these on the development machine only.
+test/img/

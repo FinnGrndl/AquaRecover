@@ -28,7 +28,10 @@ class OutputPaths {
 
   static Future<String> forIntermediatePng(String inputPath) async {
     final dir = await intermediateDirectory();
-    final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(RegExp(r'[:.]'), '-');
+    final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(
+      RegExp(r'[:.]'),
+      '-',
+    );
     final stem = _safeStem(inputPath);
     return p.join(dir.path, '${stem}_raw_decode_$stamp.png');
   }
@@ -48,7 +51,10 @@ class OutputPaths {
     required String suffix,
   }) async {
     final dir = await outputDirectory();
-    final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(RegExp(r'[:.]'), '-');
+    final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(
+      RegExp(r'[:.]'),
+      '-',
+    );
     final stem = _safeStem(inputPath);
     final safeExtension = _safeExtension(extension);
     return p.join(dir.path, '${stem}_${suffix}_$stamp.$safeExtension');
@@ -57,8 +63,12 @@ class OutputPaths {
   static String _safeStem(String inputPath) {
     final rawStem = p.basenameWithoutExtension(inputPath).trim();
     final sanitized = rawStem.replaceAll(_unsafeStemCharacters, '_').trim();
-    final compact = sanitized.replaceAll(RegExp(r'_+'), '_').replaceAll(_edgeStemCharacters, '');
-    final nonEmpty = compact.replaceAll(_emptyStemCharacters, '').isEmpty ? 'media' : compact;
+    final compact = sanitized
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(_edgeStemCharacters, '');
+    final nonEmpty = compact.replaceAll(_emptyStemCharacters, '').isEmpty
+        ? 'media'
+        : compact;
     return nonEmpty.length > 80 ? nonEmpty.substring(0, 80) : nonEmpty;
   }
 

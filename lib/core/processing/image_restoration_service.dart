@@ -219,7 +219,7 @@ RestorationSettings _settingsFromJson(Map<String, Object?> map) {
     recovery: d('recovery', 1.18),
     redRecovery: d('redRecovery', 1.24),
     autoWhiteBalance: d('autoWhiteBalance', 0.76),
-    contrastStretch: d('contrastStretch', 0.58),
+    contrastStretch: d('contrastStretch', 0.52),
     contrast: d('contrast', 1.04),
     gamma: d('gamma', 0.98),
     saturation: d('saturation', 0.88),

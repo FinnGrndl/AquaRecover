@@ -1,0 +1,13 @@
+* text=auto eol=lf
+
+*.bat text eol=crlf
+*.pbxproj text eol=lf
+*.plist text eol=lf
+*.xcconfig text eol=lf
+
+*.jpg binary
+*.JPG binary
+*.jpeg binary
+*.png binary
+*.webp binary
+*.jar binary

@@ -12,10 +12,7 @@ class MediaClassifier {
     'tiff',
   };
 
-  static const platformDecodedImageExtensions = <String>{
-    'heic',
-    'heif',
-  };
+  static const platformDecodedImageExtensions = <String>{'heic', 'heif'};
 
   static const imageExtensions = <String>{
     ...dartDecodedImageExtensions,
@@ -53,19 +50,14 @@ class MediaClassifier {
     'm2ts',
   };
 
-  static const rawVideoExtensions = <String>{
-    'raw',
-    'yuv',
-    'rgb',
-    'rgba',
-  };
+  static const rawVideoExtensions = <String>{'raw', 'yuv', 'rgb', 'rgba'};
 
   static List<String> get allExtensions => [
-        ...imageExtensions,
-        ...rawPhotoExtensions,
-        ...videoExtensions,
-        ...rawVideoExtensions,
-      ]..sort();
+    ...imageExtensions,
+    ...rawPhotoExtensions,
+    ...videoExtensions,
+    ...rawVideoExtensions,
+  ]..sort();
 
   static MediaKind classify(String path) {
     final ext = extensionOf(path);
