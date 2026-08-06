@@ -104,6 +104,11 @@ That push builds four release outputs in parallel:
 - macOS disk image (`.dmg`), optionally signed and notarized;
 - signed iOS IPA, validated and uploaded to TestFlight.
 
+The workflow can also be retried manually from GitHub Actions. Select the exact
+`release/X.Y.Z` branch when dispatching it. The same cherry-pick, version, tag,
+and successful-CI checks run before any release build starts, so the manual
+entry point cannot bypass the release gate.
+
 The desktop and Android packages remain available as GitHub Actions artifacts
 for 30 days. The IPA is retained for 14 days. No private test media is included.
 
