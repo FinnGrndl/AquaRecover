@@ -5,7 +5,8 @@ AquaRecover separates continuous checks from distributable builds.
 - Pull requests and `main` run formatting, analysis, tests, and debug builds.
 - Pushes to `main` use git-cliff to calculate the next semantic version,
   synchronize the Flutter build number and visible version strings, regenerate
-  `CHANGELOG.md`, and commit the result when a version changed.
+  `CHANGELOG.md`, and commit the result when a version changed. The workflow
+  then dispatches CI for that exact synchronized commit.
 - Only a verified `git cherry-pick -x` on `release/**` can start release builds.
   The workflow rejects direct commits, merge commits, cherry-picks from outside
   `main`, and release trees that differ from the source commit.
@@ -25,10 +26,10 @@ the in-app version constants, the issue template, README, and dependency notice
 together. Flutter passes the same version and build number to Android, Apple,
 and Windows builds.
 
-The version workflow needs repository `contents: write` permission. If `main`
-is protected, allow the GitHub Actions bot to write the generated
-`chore(release): prepare vX.Y.Z` commit or replace the direct push with a
-required version pull request.
+The version workflow needs repository `contents: write` and `actions: write`
+permissions. If `main` is protected, allow the GitHub Actions bot to write the
+generated `chore(release): prepare vX.Y.Z` commit or replace the direct push
+with a required version pull request.
 
 ## Required secrets
 

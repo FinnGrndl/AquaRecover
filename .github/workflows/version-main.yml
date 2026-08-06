@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
 
 concurrency:
@@ -59,11 +60,13 @@ jobs:
       - run: flutter analyze
       - run: flutter test
       - name: Commit synchronized version
+        id: commit
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           if git diff --quiet; then
             echo "Version $VERSION is already synchronized."
+            echo "created=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "github-actions[bot]"
@@ -71,3 +74,9 @@ jobs:
           git add CHANGELOG.md README.md THIRD_PARTY_NOTICES.md pubspec.yaml lib/core/app_version.dart .github/ISSUE_TEMPLATE/bug_report.yml
           git commit -m "chore(release): prepare v$VERSION"
           git push origin HEAD:main
+          echo "created=true" >> "$GITHUB_OUTPUT"
+      - name: Validate the synchronized commit
+        if: steps.commit.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --ref main
