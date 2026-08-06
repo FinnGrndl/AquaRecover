@@ -24,4 +24,5 @@ semantic versioning; the number after `+` is the platform build number.
 ### Fixed
 
 - Restore file picker build compatibility
+- Authenticate private validation fetch
 
