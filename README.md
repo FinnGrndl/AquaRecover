@@ -9,8 +9,10 @@ It is written in Flutter, uses native Apple media APIs where they are useful,
 and does not require an account or a processing server.
 
 Version 1.0.0 is the first stable open-source release. The photo workflow is
-usable on iOS, macOS, and Android; video and RAW support vary by platform as
-described below.
+usable on iOS, macOS, Android, and Windows; video and RAW support vary by
+platform as described below.
+
+Current source version: `1.0.0+7`.
 
 ## How the app behaves
 
@@ -118,14 +120,14 @@ selection and intensity live in the dedicated **LUT** tab.
 
 ## Platform support
 
-| Capability | iOS | macOS | Android |
-| --- | --- | --- | --- |
-| JPEG/PNG/WebP photo correction | Yes | Yes | Yes |
-| System photo-library import | Native picker | Local browser | Local browser |
-| HEIC/HEIF decode | Native | Native | Platform dependent |
-| Supported RAW still decode | Core Image | Core Image | ImageDecoder on API 28+ |
-| Standard video export | AVFoundation/Core Image | Requires local `ffmpeg` | Not available |
-| Raw frame-stream export | No | Requires local `ffmpeg` | No |
+| Capability | iOS | macOS | Android | Windows |
+| --- | --- | --- | --- | --- |
+| JPEG/PNG/WebP photo correction | Yes | Yes | Yes | Yes |
+| Media import | Native Photos picker and Files | Local photo browser and Files | Local photo browser and Files | Files |
+| HEIC/HEIF decode | Native | Native | Platform dependent | Platform dependent |
+| Supported RAW still decode | Core Image | Core Image | ImageDecoder on API 28+ | Not available |
+| Standard video export | AVFoundation/Core Image | Requires local `ffmpeg` | Not available | Not available |
+| Raw frame-stream export | No | Requires local `ffmpeg` | No | No |
 
 The first store release should be treated as photo-first. Custom `.cube` LUTs
 are not supported by the native iOS video path. Proprietary formats such as
@@ -160,6 +162,7 @@ Run the app on an available target:
 flutter run -d macos
 flutter run -d <ios-simulator-id>
 flutter run -d <android-device-id>
+flutter run -d windows
 ```
 
 The committed platform projects use the application identifier
@@ -200,33 +203,35 @@ flutter build ios --release --no-codesign --no-pub
 flutter build macos --debug --no-pub
 ```
 
-GitHub Actions runs formatting, analysis, tests, an Android debug build, and
-Apple debug builds for pushes and pull requests. Standard hosted runners do not
-add a charge while the repository is public.
+GitHub Actions runs formatting, analysis, tests, and Android, Apple, and Windows
+debug builds for pushes and pull requests. Release packages are restricted to
+verified cherry-picks on `release/**`. Read
+[Release automation](docs/RELEASE_AUTOMATION.md) for the branch flow, signing
+secrets, TestFlight upload, and tagging behavior.
 
 ## Local reference images
 
-`test/img` is ignored by Git. It can contain private before/after pairs and large
-camera files for local evaluation, but none of those files belong in commits,
-CI artifacts, or releases. See
-[Local test media](docs/LOCAL_TEST_MEDIA.md) for the expected layout.
+`test/img` is ignored by Git. It can contain numbered `before*.webp` and
+`after*.webp` pairs plus camera files for local evaluation, but none of those
+files belong in commits, CI artifacts, or releases. A fresh checkout works
+without them; private-media tests are skipped while synthetic tests still run.
 
 ## Repository layout
 
 ```text
 lib/core/                    media, models, processing, persistence, platform bridges
 lib/features/editor/         Cupertino editor and import/export workflow
-ios/ macos/ android/         platform runners
+ios/ macos/ android/ windows/ platform runners
 platform_overrides/          native files restored by the bootstrap script
 assets/branding/             canonical app icon shared by every platform
 test/                        unit, widget, and processor regression tests
 tool/                        optional local evaluator, tuner, benchmark, simulator harness
-docs/                        architecture, privacy, audit, and release notes
+docs/                        public architecture, privacy, and release automation
 ```
 
-More detail is available in [Architecture](docs/ARCHITECTURE.md),
-[Security review](docs/BUG_SECURITY_AUDIT.md), and the
-[release checklist](docs/RELEASE_CHECKLIST.md).
+More detail is available in [Architecture](docs/ARCHITECTURE.md), the
+[on-device privacy model](docs/ON_DEVICE_PRIVACY.md), and
+[Release automation](docs/RELEASE_AUTOMATION.md).
 
 ## Contributing and support
 

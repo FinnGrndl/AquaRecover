@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../core/app_version.dart';
+
 class AppLicensePage extends StatefulWidget {
   const AppLicensePage({super.key});
 
@@ -45,7 +47,7 @@ class _AppLicensePageState extends State<AppLicensePage> {
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
                     child: Text(
-                      'AquaRecover 1.0.0 includes the following software. '
+                      'AquaRecover $aquaRecoverVersion includes the following software. '
                       'Select a component to read its license text.',
                       style: CupertinoTheme.of(context).textTheme.textStyle
                           .copyWith(

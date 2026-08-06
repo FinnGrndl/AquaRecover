@@ -86,9 +86,16 @@ GoogleService-Info.plist
 *.jks
 *.keystore
 *.p12
+*.p8
 *.mobileprovision
 *.cer
 *.certSigningRequest
 
 # Private local processor fixtures. Keep these on the development machine only.
 test/img/
+
+# Maintainer-only planning, audit notes, and release checklists.
+.local/
+
+# Local packaging output.
+dist/

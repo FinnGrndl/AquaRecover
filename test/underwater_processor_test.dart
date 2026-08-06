@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:aqua_recover/core/app_version.dart';
 import 'package:aqua_recover/core/media/media_inspection_service.dart';
 import 'package:aqua_recover/core/media/media_classifier.dart';
 import 'package:aqua_recover/core/models/export_options.dart';
@@ -721,7 +722,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('start_about')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Version 1.0.0'), findsOneWidget);
+    expect(find.textContaining('Version $aquaRecoverVersion'), findsOneWidget);
 
     await tester.tap(find.text('Licenses'));
     await tester.pumpAndSettle();

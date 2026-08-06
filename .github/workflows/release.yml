@@ -1,0 +1,410 @@
+name: Release builds
+
+on:
+  push:
+    branches:
+      - 'release/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release cherry-pick
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      source_sha: ${{ steps.release.outputs.source_sha }}
+      version: ${{ steps.release.outputs.version }}
+      build_number: ${{ steps.release.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact tested main tree
+        id: release
+        run: |
+          git fetch origin main --tags
+          source_sha="$(scripts/verify_release_cherry_pick.sh HEAD origin/main)"
+          version_with_build="$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml)"
+          version="${version_with_build%%+*}"
+          build_number="${version_with_build##*+}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || [[ ! "$build_number" =~ ^[0-9]+$ ]]; then
+            echo "Invalid Flutter version: $version_with_build" >&2
+            exit 1
+          fi
+          {
+            echo "source_sha=$source_sha"
+            echo "version=$version"
+            echo "build_number=$build_number"
+          } >> "$GITHUB_OUTPUT"
+
+  android:
+    name: Android APK
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-flutter
+      - name: Install Android upload key
+        run: |
+          required=(ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD)
+          for name in "${required[@]}"; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing GitHub Actions secret: $name" >&2
+              exit 1
+            fi
+          done
+          keystore="$RUNNER_TEMP/aquarecover-release.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          echo "ANDROID_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
+      - name: Build signed APK
+        run: |
+          flutter build apk --release --no-pub \
+            --build-name "${{ needs.validate.outputs.version }}" \
+            --build-number "${{ needs.validate.outputs.build_number }}"
+          apksigner verify --verbose build/app/outputs/flutter-apk/app-release.apk
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "dist/AquaRecover-Android-${{ needs.validate.outputs.version }}.apk"
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: AquaRecover-Android-${{ needs.validate.outputs.version }}
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+  windows:
+    name: Windows installer
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-flutter
+      - name: Build Windows application
+        shell: bash
+        run: |
+          flutter build windows --release --no-pub \
+            --build-name "${{ needs.validate.outputs.version }}" \
+            --build-number "${{ needs.validate.outputs.build_number }}"
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --no-progress -y
+      - name: Create installer
+        shell: bash
+        env:
+          AQUA_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          mkdir -p dist
+          AQUA_WINDOWS_BUILD_DIR="$(pwd -W)\\build\\windows\\x64\\runner\\Release"
+          AQUA_INSTALLER_OUTPUT_DIR="$(pwd -W)\\dist"
+          export AQUA_WINDOWS_BUILD_DIR AQUA_INSTALLER_OUTPUT_DIR
+          iscc='/c/Program Files (x86)/Inno Setup 6/ISCC.exe'
+          if [[ ! -x "$iscc" ]]; then
+            echo "Inno Setup compiler was not found." >&2
+            exit 1
+          fi
+          "$iscc" windows/installer/AquaRecover.iss
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: AquaRecover-Windows-${{ needs.validate.outputs.version }}
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+  macos:
+    name: macOS DMG
+    needs: validate
+    runs-on: macos-15
+    timeout-minutes: 55
+    env:
+      MACOS_DEVELOPER_ID_CERTIFICATE_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+      MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-flutter
+      - name: Build macOS application
+        run: |
+          flutter build macos --release --no-pub \
+            --build-name "${{ needs.validate.outputs.version }}" \
+            --build-number "${{ needs.validate.outputs.build_number }}"
+      - name: Optionally sign macOS application
+        id: mac-sign
+        run: |
+          if [[ -z "$MACOS_DEVELOPER_ID_CERTIFICATE_BASE64" ]]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### macOS signing"
+              echo "The DMG is unsigned because no Developer ID certificate secret is configured."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [[ -z "$MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD" ]]; then
+            echo "MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD is required with the certificate." >&2
+            exit 1
+          fi
+          keychain="$RUNNER_TEMP/aquarecover-macos.keychain-db"
+          certificate="$RUNNER_TEMP/aquarecover-developer-id.p12"
+          keychain_password="$(openssl rand -hex 24)"
+          printf '%s' "$MACOS_DEVELOPER_ID_CERTIFICATE_BASE64" | openssl base64 -d -A -out "$certificate"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$keychain"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
+          identity="$(security find-identity -v -p codesigning "$keychain" | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | head -n 1)"
+          if [[ -z "$identity" ]]; then
+            echo "No Developer ID Application identity was found in the certificate." >&2
+            exit 1
+          fi
+          codesign --deep --force --verbose \
+            --options runtime --timestamp \
+            --entitlements macos/Runner/Release.entitlements \
+            --keychain "$keychain" --sign "$identity" \
+            build/macos/Build/Products/Release/AquaRecover.app
+          codesign --verify --deep --strict --verbose=2 build/macos/Build/Products/Release/AquaRecover.app
+          {
+            echo "signed=true"
+            echo "keychain=$keychain"
+            echo "identity=$identity"
+          } >> "$GITHUB_OUTPUT"
+      - name: Create DMG
+        run: |
+          staging="$RUNNER_TEMP/aquarecover-dmg"
+          mkdir -p "$staging" dist
+          ditto build/macos/Build/Products/Release/AquaRecover.app "$staging/AquaRecover.app"
+          ln -s /Applications "$staging/Applications"
+          hdiutil create -volname AquaRecover -srcfolder "$staging" -ov -format UDZO \
+            "dist/AquaRecover-macOS-${{ needs.validate.outputs.version }}.dmg"
+      - name: Sign and optionally notarize DMG
+        if: steps.mac-sign.outputs.signed == 'true'
+        run: |
+          dmg="dist/AquaRecover-macOS-${{ needs.validate.outputs.version }}.dmg"
+          codesign --force --timestamp --keychain "${{ steps.mac-sign.outputs.keychain }}" \
+            --sign "${{ steps.mac-sign.outputs.identity }}" "$dmg"
+          if [[ -z "$APP_STORE_CONNECT_KEY_ID" || -z "$APP_STORE_CONNECT_ISSUER_ID" || -z "$APP_STORE_CONNECT_PRIVATE_KEY_BASE64" ]]; then
+            echo "### macOS notarization" >> "$GITHUB_STEP_SUMMARY"
+            echo "The signed DMG was not notarized because App Store Connect API secrets are missing." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          api_key="$RUNNER_TEMP/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY_BASE64" | openssl base64 -d -A -out "$api_key"
+          xcrun notarytool submit "$dmg" --wait \
+            --key "$api_key" \
+            --key-id "$APP_STORE_CONNECT_KEY_ID" \
+            --issuer "$APP_STORE_CONNECT_ISSUER_ID"
+          xcrun stapler staple "$dmg"
+      - name: Upload DMG
+        uses: actions/upload-artifact@v7
+        with:
+          name: AquaRecover-macOS-${{ needs.validate.outputs.version }}
+          path: dist/*.dmg
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove temporary keychain
+        if: always() && steps.mac-sign.outputs.keychain != ''
+        run: security delete-keychain "${{ steps.mac-sign.outputs.keychain }}" || true
+
+  testflight:
+    name: iOS archive and TestFlight upload
+    needs: [validate, android, windows, macos]
+    runs-on: macos-15
+    timeout-minutes: 70
+    environment: testflight
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+      IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-flutter
+      - name: Validate iOS signing secrets
+        run: |
+          required=(
+            APPLE_TEAM_ID
+            IOS_DISTRIBUTION_CERTIFICATE_BASE64
+            IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+            IOS_PROVISIONING_PROFILE_BASE64
+            APP_STORE_CONNECT_KEY_ID
+            APP_STORE_CONNECT_ISSUER_ID
+            APP_STORE_CONNECT_PRIVATE_KEY_BASE64
+          )
+          for name in "${required[@]}"; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing testflight environment secret: $name" >&2
+              exit 1
+            fi
+          done
+      - name: Install iOS signing identity and profile
+        id: ios-sign
+        run: |
+          keychain="$RUNNER_TEMP/aquarecover-ios.keychain-db"
+          certificate="$RUNNER_TEMP/aquarecover-distribution.p12"
+          profile="$RUNNER_TEMP/aquarecover.mobileprovision"
+          profile_plist="$RUNNER_TEMP/aquarecover-profile.plist"
+          keychain_password="$(openssl rand -hex 24)"
+          printf '%s' "$IOS_DISTRIBUTION_CERTIFICATE_BASE64" | openssl base64 -d -A -out "$certificate"
+          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | openssl base64 -d -A -out "$profile"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$keychain"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
+          security cms -D -i "$profile" > "$profile_plist"
+          profile_uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$profile_plist")"
+          profile_name="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$profile_plist")"
+          profile_team="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$profile_plist")"
+          profile_app="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$profile_plist")"
+          if [[ "$profile_team" != "$APPLE_TEAM_ID" ]]; then
+            echo "Provisioning profile team does not match APPLE_TEAM_ID." >&2
+            exit 1
+          fi
+          if [[ "$profile_app" != "$APPLE_TEAM_ID.io.github.finngrndl.aquarecover" ]]; then
+            echo "Provisioning profile does not cover io.github.finngrndl.aquarecover." >&2
+            exit 1
+          fi
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$profile" "$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+          echo "keychain=$keychain" >> "$GITHUB_OUTPUT"
+          echo "profile_name=$profile_name" >> "$GITHUB_OUTPUT"
+      - name: Prepare Flutter iOS release
+        run: |
+          flutter build ios --release --no-codesign --no-pub \
+            --build-name "${{ needs.validate.outputs.version }}" \
+            --build-number "${{ needs.validate.outputs.build_number }}"
+      - name: Archive signed iOS app
+        run: |
+          xcodebuild archive \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/AquaRecover.xcarchive" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY='Apple Distribution' \
+            PROVISIONING_PROFILE_SPECIFIER='${{ steps.ios-sign.outputs.profile_name }}' \
+            OTHER_CODE_SIGN_FLAGS='--keychain ${{ steps.ios-sign.outputs.keychain }}'
+      - name: Export IPA
+        run: |
+          export_options="$RUNNER_TEMP/ExportOptions.plist"
+          cat > "$export_options" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>destination</key><string>export</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>method</key><string>app-store-connect</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>io.github.finngrndl.aquarecover</key>
+              <string>${{ steps.ios-sign.outputs.profile_name }}</string>
+            </dict>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          mkdir -p dist/ios
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/AquaRecover.xcarchive" \
+            -exportPath dist/ios \
+            -exportOptionsPlist "$export_options"
+          ipa="$(find dist/ios -maxdepth 1 -name '*.ipa' -print -quit)"
+          if [[ -z "$ipa" ]]; then
+            echo "Xcode did not export an IPA." >&2
+            exit 1
+          fi
+          mv "$ipa" "dist/ios/AquaRecover-iOS-${{ needs.validate.outputs.version }}.ipa"
+      - name: Validate and upload to TestFlight
+        run: |
+          private_keys="$RUNNER_TEMP/private_keys"
+          mkdir -p "$private_keys"
+          api_key="$private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY_BASE64" | openssl base64 -d -A -out "$api_key"
+          export API_PRIVATE_KEYS_DIR="$private_keys"
+          ipa="dist/ios/AquaRecover-iOS-${{ needs.validate.outputs.version }}.ipa"
+          xcrun altool --validate-app -f "$ipa" -t ios \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          xcrun altool --upload-app -f "$ipa" -t ios \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+      - name: Upload IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: AquaRecover-iOS-${{ needs.validate.outputs.version }}
+          path: dist/ios/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove temporary keychain
+        if: always() && steps.ios-sign.outputs.keychain != ''
+        run: security delete-keychain "${{ steps.ios-sign.outputs.keychain }}" || true
+
+  tag:
+    name: Tag tested source
+    needs: [validate, android, windows, macos, testflight]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: main
+      - name: Create version tag on the tested main commit
+        env:
+          SOURCE_SHA: ${{ needs.validate.outputs.source_sha }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          git fetch origin main --tags
+          tag="v$VERSION"
+          if git show-ref --verify --quiet "refs/tags/$tag"; then
+            existing="$(git rev-list -n 1 "$tag")"
+            if [[ "$existing" != "$SOURCE_SHA" ]]; then
+              echo "$tag already points to $existing instead of $SOURCE_SHA." >&2
+              exit 1
+            fi
+            echo "$tag already identifies the tested source commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" "$SOURCE_SHA" -m "AquaRecover $VERSION"
+          git push origin "refs/tags/$tag"

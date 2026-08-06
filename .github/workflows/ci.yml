@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -13,45 +13,21 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  FLUTTER_VERSION: 3.44.1
-  FLUTTER_ROOT: ${{ runner.temp }}/flutter
-
 jobs:
   checks:
     name: Format, analyze, test, and Android build
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Cache Flutter SDK
-        id: flutter-cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.FLUTTER_ROOT }}
-          key: flutter-${{ runner.os }}-${{ env.FLUTTER_VERSION }}
-      - name: Install Flutter SDK
-        if: steps.flutter-cache.outputs.cache-hit != 'true'
-        run: git clone --branch "$FLUTTER_VERSION" --depth 1 https://github.com/flutter/flutter.git "$FLUTTER_ROOT"
-      - name: Cache pub packages
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
-          restore-keys: pub-${{ runner.os }}-
-      - name: Configure Flutter
-        run: |
-          echo "$FLUTTER_ROOT/bin" >> "$GITHUB_PATH"
-          "$FLUTTER_ROOT/bin/flutter" config --no-analytics
-          "$FLUTTER_ROOT/bin/flutter" --version
-      - run: flutter pub get
+      - uses: ./.github/actions/setup-flutter
       - name: Verify generated app icons
         run: |
           dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
-          if [ -n "$(git status --porcelain -- android/app/src/main/res ios/Runner/Assets.xcassets/AppIcon.appiconset macos/Runner/Assets.xcassets/AppIcon.appiconset)" ]; then
-            git status --short -- android/app/src/main/res ios/Runner/Assets.xcassets/AppIcon.appiconset macos/Runner/Assets.xcassets/AppIcon.appiconset
+          if [ -n "$(git status --porcelain -- android/app/src/main/res ios/Runner/Assets.xcassets/AppIcon.appiconset macos/Runner/Assets.xcassets/AppIcon.appiconset windows/runner/resources/app_icon.ico)" ]; then
+            git status --short -- android/app/src/main/res ios/Runner/Assets.xcassets/AppIcon.appiconset macos/Runner/Assets.xcassets/AppIcon.appiconset windows/runner/resources/app_icon.ico
             exit 1
           fi
       - run: dart format --output=none --set-exit-if-changed lib test tool
@@ -62,31 +38,23 @@ jobs:
   apple-builds:
     name: Apple debug builds
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 50
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Cache Flutter SDK
-        id: flutter-cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.FLUTTER_ROOT }}
-          key: flutter-${{ runner.os }}-${{ env.FLUTTER_VERSION }}
-      - name: Install Flutter SDK
-        if: steps.flutter-cache.outputs.cache-hit != 'true'
-        run: git clone --branch "$FLUTTER_VERSION" --depth 1 https://github.com/flutter/flutter.git "$FLUTTER_ROOT"
-      - name: Cache pub packages
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
-          restore-keys: pub-${{ runner.os }}-
-      - name: Configure Flutter
-        run: |
-          echo "$FLUTTER_ROOT/bin" >> "$GITHUB_PATH"
-          "$FLUTTER_ROOT/bin/flutter" config --no-analytics
-          "$FLUTTER_ROOT/bin/flutter" --version
-      - run: flutter pub get
+      - uses: ./.github/actions/setup-flutter
       - run: flutter build ios --simulator --debug --no-pub
       - run: flutter build macos --debug --no-pub
+
+  windows-build:
+    name: Windows debug build
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter build windows --debug --no-pub
+        shell: bash

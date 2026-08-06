@@ -32,7 +32,7 @@ dart run tool/benchmark_processor.dart
 ```
 
 Private reference files stay in the ignored `test/img` directory and must not be
-attached to a pull request. See `docs/LOCAL_TEST_MEDIA.md`.
+attached to a pull request. A clean checkout must pass without those files.
 
 ## Test media
 
@@ -42,6 +42,8 @@ fixtures are never part of the repository.
 
 ## Pull requests
 
+- Use Conventional Commit subjects (`feat:`, `fix:`, `docs:`, `refactor:` and
+  similar) so git-cliff can calculate the next semantic version.
 - Keep a pull request limited to one problem.
 - Add tests for behavior changes where practical.
 - Update the README, changelog, or architecture notes when behavior changes.

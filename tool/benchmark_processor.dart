@@ -10,7 +10,7 @@ Future<void> main(List<String> args) async {
   final fixtureDirectory = Directory('test/img');
   if (!fixtureDirectory.existsSync()) {
     stderr.writeln(
-      'No local test media found in test/img. See docs/LOCAL_TEST_MEDIA.md.',
+      'No local test media found in test/img. See README.md#local-reference-images.',
     );
     exitCode = 2;
     return;

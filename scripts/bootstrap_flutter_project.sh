@@ -20,10 +20,11 @@ done
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-flutter create --project-name "$PROJECT_NAME" --org "$ORG" --platforms=android,ios,macos "$TMP_DIR/$PROJECT_NAME"
+flutter create --project-name "$PROJECT_NAME" --org "$ORG" --platforms=android,ios,macos,windows "$TMP_DIR/$PROJECT_NAME"
 rsync -a "$TMP_DIR/$PROJECT_NAME/android/" "$ROOT/android/"
 rsync -a "$TMP_DIR/$PROJECT_NAME/ios/" "$ROOT/ios/"
 rsync -a "$TMP_DIR/$PROJECT_NAME/macos/" "$ROOT/macos/"
+rsync -a "$TMP_DIR/$PROJECT_NAME/windows/" "$ROOT/windows/"
 
 if [ -f "$ROOT/android/app/build.gradle.kts" ]; then
   AQUA_APP_ID="$APP_ID" perl -0pi -e '
@@ -115,6 +116,26 @@ for file in "$MAC_PROJECT" "$MAC_SCHEME"; do
     ' "$file"
   fi
 done
+
+WINDOWS_CMAKE="$ROOT/windows/CMakeLists.txt"
+WINDOWS_MAIN="$ROOT/windows/runner/main.cpp"
+WINDOWS_RESOURCES="$ROOT/windows/runner/Runner.rc"
+if [ -f "$WINDOWS_CMAKE" ]; then
+  perl -0pi -e 's/set\(BINARY_NAME "[^"]+"\)/set(BINARY_NAME "AquaRecover")/' "$WINDOWS_CMAKE"
+fi
+if [ -f "$WINDOWS_MAIN" ]; then
+  perl -0pi -e 's/window\.Create\(L"[^"]+"/window.Create(L"AquaRecover"/' "$WINDOWS_MAIN"
+fi
+if [ -f "$WINDOWS_RESOURCES" ]; then
+  perl -0pi -e '
+    s/VALUE "CompanyName", "[^"]+"/VALUE "CompanyName", "AquaRecover contributors"/g;
+    s/VALUE "FileDescription", "[^"]+"/VALUE "FileDescription", "AquaRecover underwater color restoration"/g;
+    s/VALUE "InternalName", "[^"]+"/VALUE "InternalName", "AquaRecover"/g;
+    s/VALUE "LegalCopyright", "[^"]+"/VALUE "LegalCopyright", "Copyright (C) 2026 AquaRecover contributors. MIT licensed."/g;
+    s/VALUE "OriginalFilename", "[^"]+"/VALUE "OriginalFilename", "AquaRecover.exe"/g;
+    s/VALUE "ProductName", "[^"]+"/VALUE "ProductName", "AquaRecover"/g;
+  ' "$WINDOWS_RESOURCES"
+fi
 
 python3 - "$ROOT/ios/Runner.xcodeproj/project.pbxproj:RawBridge.swift:AppDelegate.swift" "$ROOT/ios/Runner.xcodeproj/project.pbxproj:IosVideoProcessor.swift:RawBridge.swift" "$ROOT/macos/Runner.xcodeproj/project.pbxproj:RawBridge.swift:MainFlutterWindow.swift" <<'PY'
 from pathlib import Path
@@ -322,5 +343,5 @@ cd "$ROOT"
 flutter pub get
 dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
 
-echo "Bootstrap complete. Try: flutter run -d macos"
+echo "Bootstrap complete. Try: flutter run -d macos or flutter run -d windows"
 echo "For iPhone signing, open ios/Runner.xcworkspace and select your Apple team."

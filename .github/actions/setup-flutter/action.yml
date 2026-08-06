@@ -1,0 +1,50 @@
+name: Set up Flutter
+description: Install the pinned Flutter SDK and project dependencies.
+
+inputs:
+  flutter-version:
+    description: Flutter SDK tag to install.
+    required: false
+    default: 3.44.1
+
+runs:
+  using: composite
+  steps:
+    - name: Cache Flutter SDK
+      id: flutter-cache
+      uses: actions/cache@v6
+      with:
+        path: ${{ runner.temp }}/flutter
+        key: flutter-${{ runner.os }}-${{ runner.arch }}-${{ inputs.flutter-version }}
+
+    - name: Install Flutter SDK
+      if: steps.flutter-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        flutter_root="${RUNNER_TEMP//\\//}/flutter"
+        git clone --branch "${{ inputs.flutter-version }}" --depth 1 https://github.com/flutter/flutter.git "$flutter_root"
+
+    - name: Configure Flutter paths
+      shell: bash
+      run: |
+        flutter_root="${RUNNER_TEMP//\\//}/flutter"
+        pub_cache="${RUNNER_TEMP//\\//}/pub-cache"
+        echo "FLUTTER_ROOT=$flutter_root" >> "$GITHUB_ENV"
+        echo "PUB_CACHE=$pub_cache" >> "$GITHUB_ENV"
+        echo "$flutter_root/bin" >> "$GITHUB_PATH"
+        echo "$pub_cache/bin" >> "$GITHUB_PATH"
+
+    - name: Cache pub packages
+      uses: actions/cache@v6
+      with:
+        path: ${{ runner.temp }}/pub-cache
+        key: pub-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pubspec.lock') }}
+        restore-keys: |
+          pub-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Resolve dependencies
+      shell: bash
+      run: |
+        flutter config --no-analytics
+        flutter --version
+        flutter pub get

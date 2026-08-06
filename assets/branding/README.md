@@ -4,7 +4,7 @@
 alpha channel and is the only image that should be edited when the launcher icon
 changes.
 
-Generate the Android, iOS, and macOS icon sets with:
+Generate the Android, iOS, macOS, and Windows icon sets with:
 
 ```bash
 dart run flutter_launcher_icons -f flutter_launcher_icons.yaml

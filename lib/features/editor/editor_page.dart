@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_version.dart';
 import '../../core/media/media_classifier.dart';
 import '../../core/media/media_inspection_service.dart';
 import '../../core/models/export_options.dart';
@@ -569,21 +570,23 @@ class _EditorPageState extends State<EditorPage> {
           ),
         ),
         const SizedBox(height: 28),
-        CupertinoButton(
-          key: const Key('start_choose_photos'),
-          color: CupertinoColors.white,
-          borderRadius: BorderRadius.circular(16),
-          onPressed: _busy ? null : _importFromPhotos,
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(CupertinoIcons.photo_on_rectangle, size: 20),
-              SizedBox(width: 8),
-              Text('Choose from Photos'),
-            ],
+        if (_supportsPhotoLibrary) ...[
+          CupertinoButton(
+            key: const Key('start_choose_photos'),
+            color: CupertinoColors.white,
+            borderRadius: BorderRadius.circular(16),
+            onPressed: _busy ? null : _importFromPhotos,
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.photo_on_rectangle, size: 20),
+                SizedBox(width: 8),
+                Text('Choose from Photos'),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
+          const SizedBox(height: 10),
+        ],
         CupertinoButton(
           key: const Key('start_import_files'),
           color: CupertinoColors.white.withValues(alpha: .12),
@@ -1957,13 +1960,14 @@ class _EditorPageState extends State<EditorPage> {
             styleContext: panelContext,
             onChanged: _setKeepLocalCopy,
           ),
-          _switchRow(
-            title: 'Add to Photos',
-            controlKey: const Key('export_add_to_photos'),
-            value: _exportOptions.saveToPhotoLibrary,
-            styleContext: panelContext,
-            onChanged: _setSaveToPhotoLibrary,
-          ),
+          if (_supportsPhotoLibrary)
+            _switchRow(
+              title: 'Add to Photos',
+              controlKey: const Key('export_add_to_photos'),
+              value: _exportOptions.saveToPhotoLibrary,
+              styleContext: panelContext,
+              onChanged: _setSaveToPhotoLibrary,
+            ),
           _switchRow(
             title: 'Export to Files',
             controlKey: const Key('export_to_files'),
@@ -2014,7 +2018,9 @@ class _EditorPageState extends State<EditorPage> {
           ],
           const SizedBox(height: 2),
           Text(
-            'Choose one or more destinations. Photos and Files exports do not appear under Local Exports unless a local copy is enabled.',
+            _supportsPhotoLibrary
+                ? 'Choose one or more destinations. Photos and Files exports do not appear under Local Exports unless a local copy is enabled.'
+                : 'Choose one or more destinations. Files exports do not appear under Local Exports unless a local copy is enabled.',
             style: CupertinoTheme.of(panelContext).textTheme.textStyle.copyWith(
               color: CupertinoColors.systemGrey,
               fontSize: 12,
@@ -2392,6 +2398,10 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Future<void> _importFromPhotos() async {
+    if (!_supportsPhotoLibrary) {
+      await _pickFiles();
+      return;
+    }
     List<String>? paths;
     if (Platform.isIOS) {
       setState(() {
@@ -2427,6 +2437,9 @@ class _EditorPageState extends State<EditorPage> {
     }
     await _addPaths(paths, MediaSource.photos);
   }
+
+  bool get _supportsPhotoLibrary =>
+      Platform.isIOS || Platform.isMacOS || Platform.isAndroid;
 
   Future<void> _importCubeLut() async {
     final result = await FilePicker.pickFiles(
@@ -3011,7 +3024,7 @@ class _EditorPageState extends State<EditorPage> {
         content: const Padding(
           padding: EdgeInsets.only(top: 8),
           child: Text(
-            'Version 1.0.0\n\nOn-device underwater color recovery for photos, RAW stills, videos, LUTs, and local exports.',
+            'Version $aquaRecoverVersion\n\nOn-device underwater color recovery for photos, RAW stills, videos, LUTs, and local exports.',
           ),
         ),
         actions: [

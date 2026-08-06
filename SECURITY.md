@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are made on the current `master` branch and included in the next
+Security fixes are made on the current `main` branch and included in the next
 release. Older source snapshots are not maintained separately.
 
 ## Reporting a vulnerability

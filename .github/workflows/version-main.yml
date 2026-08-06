@@ -1,0 +1,73 @@
+name: Prepare version on main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: version-main
+  cancel-in-progress: false
+
+jobs:
+  version:
+    if: "${{ github.actor != 'github-actions[bot]' && !startsWith(github.event.head_commit.message || '', 'chore(release): prepare v') }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: main
+      - name: Fast-forward to the latest main
+        run: |
+          git fetch origin main --tags
+          git checkout main
+          git merge --ff-only origin/main
+      - name: Determine semantic version with git-cliff
+        id: cliff
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --bumped-version
+      - name: Normalize version
+        id: version
+        env:
+          VERSION_FILE: ${{ steps.cliff.outputs.changelog }}
+        run: |
+          next_version="$(tr -d '\r\n[:space:]' < "$VERSION_FILE")"
+          next_version="${next_version#v}"
+          if [[ ! "$next_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "git-cliff returned an invalid version: $next_version" >&2
+            exit 1
+          fi
+          echo "version=$next_version" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/setup-flutter
+      - name: Synchronize project version and build number
+        run: dart run tool/sync_version.dart "${{ steps.version.outputs.version }}"
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --tag v${{ steps.version.outputs.version }}
+        env:
+          OUTPUT: CHANGELOG.md
+      - run: dart format --output=none --set-exit-if-changed lib test tool
+      - run: flutter analyze
+      - run: flutter test
+      - name: Commit synchronized version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if git diff --quiet; then
+            echo "Version $VERSION is already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md README.md THIRD_PARTY_NOTICES.md pubspec.yaml lib/core/app_version.dart .github/ISSUE_TEMPLATE/bug_report.yml
+          git commit -m "chore(release): prepare v$VERSION"
+          git push origin HEAD:main
