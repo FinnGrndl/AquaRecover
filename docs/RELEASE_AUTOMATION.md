@@ -2,14 +2,16 @@
 
 AquaRecover separates continuous checks from distributable builds.
 
-- Pull requests and `main` run formatting, analysis, tests, and debug builds.
+- Pull requests run formatting, analysis, tests, and debug builds directly.
 - Pushes to `main` use git-cliff to calculate the next semantic version,
   synchronize the Flutter build number and visible version strings, regenerate
-  `CHANGELOG.md`, and commit the result when a version changed. The workflow
-  then dispatches CI for that exact synchronized commit.
+  `CHANGELOG.md`, and commit the result when a version changed. The version
+  workflow then dispatches exactly one CI run for that commit SHA. This avoids
+  testing the pre-version commit and repeating the same tests in two workflows.
 - Only a verified `git cherry-pick -x` on `release/**` can start release builds.
   The workflow rejects direct commits, merge commits, cherry-picks from outside
-  `main`, and release trees that differ from the source commit.
+  `main`, stale main commits, release trees that differ from the source commit,
+  and source commits without a successful dispatched CI run.
 
 ## Version rules
 
@@ -20,6 +22,10 @@ Commit subjects follow Conventional Commits:
 - a `!` or `BREAKING CHANGE:` increments the major version.
 - `chore:`, `ci:`, `docs:`, `build:`, `style:`, and `test:` do not increment the
   version.
+
+The first public release baseline is `v1.1.0`, configured as git-cliff's
+`initial_tag`. Once that tag exists, subsequent versions are calculated from the
+latest matching release tag using the rules above.
 
 `pubspec.yaml` is the build source of truth. `tool/sync_version.dart` updates it,
 the in-app version constants, the issue template, README, and dependency notice
@@ -91,7 +97,7 @@ git cherry-pick -x "$SOURCE_SHA"
 git push -u origin "release/$VERSION"
 ```
 
-That push creates four release outputs:
+That push builds four release outputs in parallel:
 
 - signed Android APK;
 - Windows Inno Setup installer (`.exe`);
@@ -101,9 +107,11 @@ That push creates four release outputs:
 The desktop and Android packages remain available as GitHub Actions artifacts
 for 30 days. The IPA is retained for 14 days. No private test media is included.
 
-The TestFlight job starts only after the other three platform packages have
-finished successfully. Apple may need additional processing time before the
-uploaded build appears in App Store Connect.
+The signed IPA is created alongside the other platform packages. Its TestFlight
+upload starts only after Android, Windows, macOS, and iOS builds have all
+finished successfully. This keeps the expensive builds parallel without
+publishing a partial release. Apple may need additional processing time before
+the uploaded build appears in App Store Connect.
 
 ## Tagging
 
@@ -112,9 +120,14 @@ creates the annotated `vX.Y.Z` tag automatically. The tag points to the original
 tested commit on `main`, whose tree is identical to the cherry-picked release
 commit. A conflicting existing tag fails the workflow instead of moving it.
 
-The workflow does not publish a GitHub Release. Review the three downloadable
-packages, then create a release from the generated tag and attach the retained
-artifacts if permanent public downloads are wanted.
+The same final job creates a GitHub Release with generated release notes and
+attaches the APK, Windows installer, and DMG as permanent public downloads. The
+signed IPA remains a short-lived private workflow artifact and is distributed
+through TestFlight rather than attached to the public release.
+
+All external GitHub Actions are pinned to immutable commit SHAs. Dependabot
+tracks their release tags and proposes updates without allowing a mutable tag to
+change code inside a signing job unexpectedly.
 
 ## Local checks
 
@@ -127,7 +140,7 @@ flutter build ios --release --no-codesign --no-pub
 flutter build macos --release --no-pub
 ```
 
-Windows and signed TestFlight outputs are built on their matching GitHub-hosted
-runners. git-cliff, Inno Setup, Flutter, and the packaging commands used by the
-workflow are free software or operating-system tools. TestFlight distribution
-still requires an Apple Developer Program membership.
+Android, Windows, macOS, and signed iOS outputs are built on their matching
+GitHub-hosted runners. git-cliff, Inno Setup, Flutter, and the packaging commands
+used by the workflow are free software or operating-system tools. TestFlight
+distribution still requires an Apple Developer Program membership.

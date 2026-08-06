@@ -1,4 +1,5 @@
 name: Release builds
+run-name: Release · ${{ github.ref_name }}
 
 on:
   push:
@@ -6,6 +7,7 @@ on:
       - 'release/**'
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -22,15 +24,22 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       build_number: ${{ steps.release.outputs.build_number }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Verify exact tested main tree
         id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git fetch origin main --tags
           source_sha="$(scripts/verify_release_cherry_pick.sh HEAD origin/main)"
+          main_sha="$(git rev-parse origin/main)"
+          if [[ "$source_sha" != "$main_sha" ]]; then
+            echo "Release source $source_sha is not the latest main commit $main_sha." >&2
+            exit 1
+          fi
           version_with_build="$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml)"
           version="${version_with_build%%+*}"
           build_number="${version_with_build##*+}"
@@ -38,6 +47,27 @@ jobs:
             echo "Invalid Flutter version: $version_with_build" >&2
             exit 1
           fi
+          if [[ "$GITHUB_REF" != "refs/heads/release/$version" ]]; then
+            echo "Release branch must be release/$version, not $GITHUB_REF_NAME." >&2
+            exit 1
+          fi
+          tag="v$version"
+          if git show-ref --verify --quiet "refs/tags/$tag"; then
+            existing="$(git rev-list -n 1 "$tag")"
+            if [[ "$existing" != "$source_sha" ]]; then
+              echo "$tag already points to $existing instead of $source_sha." >&2
+              exit 1
+            fi
+          fi
+          ci_run_id="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$source_sha&status=success&per_page=100" \
+              --jq '.workflow_runs[] | select(.event == "workflow_dispatch") | .id' | head -n 1
+          )"
+          if [[ -z "$ci_run_id" ]]; then
+            echo "No successful dispatched CI run found for $source_sha." >&2
+            exit 1
+          fi
+          echo "Validated by CI run $ci_run_id."
           {
             echo "source_sha=$source_sha"
             echo "version=$version"
@@ -55,10 +85,11 @@ jobs:
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-flutter
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
       - name: Install Android upload key
         run: |
           required=(ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD)
@@ -81,7 +112,7 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk \
             "dist/AquaRecover-Android-${{ needs.validate.outputs.version }}.apk"
       - name: Upload APK
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: AquaRecover-Android-${{ needs.validate.outputs.version }}
           path: dist/*.apk
@@ -94,7 +125,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-flutter
@@ -123,7 +154,7 @@ jobs:
           fi
           "$iscc" windows/installer/AquaRecover.iss
       - name: Upload Windows installer
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: AquaRecover-Windows-${{ needs.validate.outputs.version }}
           path: dist/*.exe
@@ -142,7 +173,7 @@ jobs:
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APP_STORE_CONNECT_PRIVATE_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-flutter
@@ -219,7 +250,7 @@ jobs:
             --issuer "$APP_STORE_CONNECT_ISSUER_ID"
           xcrun stapler staple "$dmg"
       - name: Upload DMG
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: AquaRecover-macOS-${{ needs.validate.outputs.version }}
           path: dist/*.dmg
@@ -229,9 +260,9 @@ jobs:
         if: always() && steps.mac-sign.outputs.keychain != ''
         run: security delete-keychain "${{ steps.mac-sign.outputs.keychain }}" || true
 
-  testflight:
-    name: iOS archive and TestFlight upload
-    needs: [validate, android, windows, macos]
+  ios:
+    name: iOS IPA
+    needs: validate
     runs-on: macos-15
     timeout-minutes: 70
     environment: testflight
@@ -240,11 +271,8 @@ jobs:
       IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
       IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
       IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-      APP_STORE_CONNECT_PRIVATE_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-flutter
@@ -255,9 +283,6 @@ jobs:
             IOS_DISTRIBUTION_CERTIFICATE_BASE64
             IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
             IOS_PROVISIONING_PROFILE_BASE64
-            APP_STORE_CONNECT_KEY_ID
-            APP_STORE_CONNECT_ISSUER_ID
-            APP_STORE_CONNECT_PRIVATE_KEY_BASE64
           )
           for name in "${required[@]}"; do
             if [[ -z "${!name}" ]]; then
@@ -351,22 +376,8 @@ jobs:
             exit 1
           fi
           mv "$ipa" "dist/ios/AquaRecover-iOS-${{ needs.validate.outputs.version }}.ipa"
-      - name: Validate and upload to TestFlight
-        run: |
-          private_keys="$RUNNER_TEMP/private_keys"
-          mkdir -p "$private_keys"
-          api_key="$private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
-          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY_BASE64" | openssl base64 -d -A -out "$api_key"
-          export API_PRIVATE_KEYS_DIR="$private_keys"
-          ipa="dist/ios/AquaRecover-iOS-${{ needs.validate.outputs.version }}.ipa"
-          xcrun altool --validate-app -f "$ipa" -t ios \
-            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
-          xcrun altool --upload-app -f "$ipa" -t ios \
-            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
       - name: Upload IPA
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: AquaRecover-iOS-${{ needs.validate.outputs.version }}
           path: dist/ios/*.ipa
@@ -376,24 +387,87 @@ jobs:
         if: always() && steps.ios-sign.outputs.keychain != ''
         run: security delete-keychain "${{ steps.ios-sign.outputs.keychain }}" || true
 
-  tag:
-    name: Tag tested source
-    needs: [validate, android, windows, macos, testflight]
+  testflight:
+    name: TestFlight upload
+    needs: [validate, android, windows, macos, ios]
+    runs-on: macos-15
+    timeout-minutes: 25
+    environment: testflight
+    env:
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
+    steps:
+      - name: Validate App Store Connect secrets
+        run: |
+          required=(
+            APP_STORE_CONNECT_KEY_ID
+            APP_STORE_CONNECT_ISSUER_ID
+            APP_STORE_CONNECT_PRIVATE_KEY_BASE64
+          )
+          for name in "${required[@]}"; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing GitHub Actions secret: $name" >&2
+              exit 1
+            fi
+          done
+      - name: Download signed IPA
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: AquaRecover-iOS-${{ needs.validate.outputs.version }}
+          path: dist/ios
+      - name: Validate and upload to TestFlight
+        run: |
+          private_keys="$RUNNER_TEMP/private_keys"
+          mkdir -p "$private_keys"
+          api_key="$private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY_BASE64" | openssl base64 -d -A -out "$api_key"
+          export API_PRIVATE_KEYS_DIR="$private_keys"
+          ipa="dist/ios/AquaRecover-iOS-${{ needs.validate.outputs.version }}.ipa"
+          if [[ ! -s "$ipa" ]]; then
+            echo "Missing signed IPA: $ipa" >&2
+            exit 1
+          fi
+          xcrun altool --validate-app -f "$ipa" -t ios \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          xcrun altool --upload-app -f "$ipa" -t ios \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
+  publish:
+    name: Publish GitHub release
+    needs: [validate, android, windows, macos, ios, testflight]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
+      actions: read
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          ref: main
-      - name: Create version tag on the tested main commit
+          ref: ${{ needs.validate.outputs.source_sha }}
+      - name: Download release artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: AquaRecover-*-${{ needs.validate.outputs.version }}
+          path: release-assets
+          merge-multiple: true
+      - name: Create tag and GitHub release
         env:
+          GH_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ needs.validate.outputs.source_sha }}
           VERSION: ${{ needs.validate.outputs.version }}
         run: |
           git fetch origin main --tags
+          shopt -s nullglob
+          assets=(release-assets/*.apk release-assets/*.exe release-assets/*.dmg)
+          if (( ${#assets[@]} != 3 )); then
+            printf 'Expected APK, EXE, and DMG; found %s public assets.\n' "${#assets[@]}" >&2
+            find release-assets -maxdepth 1 -type f -print >&2
+            exit 1
+          fi
           tag="v$VERSION"
           if git show-ref --verify --quiet "refs/tags/$tag"; then
             existing="$(git rev-list -n 1 "$tag")"
@@ -402,9 +476,15 @@ jobs:
               exit 1
             fi
             echo "$tag already identifies the tested source commit."
-            exit 0
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$tag" "$SOURCE_SHA" -m "AquaRecover $VERSION"
+            git push origin "refs/tags/$tag"
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$tag" "$SOURCE_SHA" -m "AquaRecover $VERSION"
-          git push origin "refs/tags/$tag"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --verify-tag \
+              --title "AquaRecover $VERSION" \
+              --generate-notes
+          fi
+          gh release upload "$tag" "${assets[@]}" --clobber

@@ -46,5 +46,7 @@ sort_commits = "oldest"
 [bump]
 features_always_bump_minor = true
 breaking_always_bump_major = true
-initial_tag = "v1.0.0"
+# The first public GitHub/App Store release is 1.1.0. After that tag exists,
+# git-cliff derives every later version from the latest matching release tag.
+initial_tag = "v1.1.0"
 no_increment_regex = "^(chore|ci|docs|build|style|test|revert)(\\(.+\\))?(!)?:"
