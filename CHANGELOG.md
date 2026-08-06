@@ -27,4 +27,5 @@ semantic versioning; the number after `+` is the platform build number.
 - Authenticate private validation fetch
 - Correct mobile signing configuration
 - Let archive select signing identity
+- Scope distribution settings to Runner
 
