@@ -2381,7 +2381,7 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Future<void> _pickFiles() async {
-    final result = await FilePicker.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: MediaClassifier.allExtensions,
       allowMultiple: true,
@@ -2442,7 +2442,7 @@ class _EditorPageState extends State<EditorPage> {
       Platform.isIOS || Platform.isMacOS || Platform.isAndroid;
 
   Future<void> _importCubeLut() async {
-    final result = await FilePicker.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['cube'],
       allowMultiple: false,
@@ -2960,7 +2960,7 @@ class _EditorPageState extends State<EditorPage> {
 
   Future<bool> _chooseExportDirectory() async {
     try {
-      final path = await FilePicker.getDirectoryPath(
+      final path = await FilePicker.platform.getDirectoryPath(
         dialogTitle: 'Choose export folder',
       );
       if (path == null || !mounted) return false;
