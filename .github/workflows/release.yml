@@ -329,6 +329,12 @@ jobs:
           fi
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$profile" "$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+          {
+            echo 'CODE_SIGN_STYLE = Manual'
+            echo "DEVELOPMENT_TEAM = $APPLE_TEAM_ID"
+            echo 'CODE_SIGN_IDENTITY = Apple Distribution'
+            echo "PROVISIONING_PROFILE_SPECIFIER = $profile_name"
+          } > ios/Flutter/CIReleaseSigning.xcconfig
           echo "keychain=$keychain" >> "$GITHUB_OUTPUT"
           echo "profile_name=$profile_name" >> "$GITHUB_OUTPUT"
       - name: Prepare Flutter iOS release
@@ -345,8 +351,6 @@ jobs:
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/AquaRecover.xcarchive" \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic \
             OTHER_CODE_SIGN_FLAGS='--keychain ${{ steps.ios-sign.outputs.keychain }}'
       - name: Export IPA
         run: |
