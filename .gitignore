@@ -47,6 +47,7 @@ ios/.symlinks/
 ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 ios/Flutter/Generated.xcconfig
+ios/Flutter/CIReleaseSigning.xcconfig
 ios/Flutter/ephemeral/
 ios/Runner/GeneratedPluginRegistrant.*
 
