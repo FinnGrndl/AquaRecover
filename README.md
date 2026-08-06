@@ -12,7 +12,7 @@ Version 1.0.0 is the first stable open-source release. The photo workflow is
 usable on iOS, macOS, Android, and Windows; video and RAW support vary by
 platform as described below.
 
-Current source version: `1.0.0+7`.
+Current source version: `1.1.0+8`.
 
 ## How the app behaves
 

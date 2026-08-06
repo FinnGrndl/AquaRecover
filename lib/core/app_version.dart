@@ -1,3 +1,3 @@
-const String aquaRecoverVersion = '1.0.0';
-const int aquaRecoverBuildNumber = 7;
-const String aquaRecoverVersionWithBuild = '1.0.0+7';
+const String aquaRecoverVersion = '1.1.0';
+const int aquaRecoverBuildNumber = 8;
+const String aquaRecoverVersionWithBuild = '1.1.0+8';
