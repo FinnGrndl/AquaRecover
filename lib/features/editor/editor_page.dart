@@ -42,7 +42,6 @@ import 'widgets/photo_library_sheet.dart';
 import 'widgets/queue_overview_sheet.dart';
 import 'widgets/raw_video_dialog.dart';
 import 'widgets/setting_slider.dart';
-import 'widgets/video_frame_preview_tile.dart';
 
 class EditorPage extends StatefulWidget {
   const EditorPage({
@@ -53,6 +52,7 @@ class EditorPage extends StatefulWidget {
     this.initialCompareMode,
     this.reviewExportOnStart = false,
     this.libraryOnStart = false,
+    this.inspectionService = const MediaInspectionService(),
   });
 
   final List<String> initialPaths;
@@ -61,6 +61,7 @@ class EditorPage extends StatefulWidget {
   final EditorCompareMode? initialCompareMode;
   final bool reviewExportOnStart;
   final bool libraryOnStart;
+  final MediaInspectionService inspectionService;
 
   @override
   State<EditorPage> createState() => _EditorPageState();
@@ -73,7 +74,6 @@ class _EditorPageState extends State<EditorPage> {
   final _photoLibraryService = const PhotoLibraryService();
   final _folderExportService = const FolderExportService();
   final _sidecarService = const SidecarService();
-  final _inspectionService = const MediaInspectionService();
   final _imagePicker = ImagePicker();
   final _trimStartController = TextEditingController(text: '0');
   final _trimEndController = TextEditingController();
@@ -1119,6 +1119,7 @@ class _EditorPageState extends State<EditorPage> {
       child: Row(
         children: [
           _editorIconButton(
+            key: const Key('editor_previous_item'),
             icon: CupertinoIcons.chevron_left,
             onPressed: _busy || _selectedIndex <= 0
                 ? null
@@ -1188,6 +1189,7 @@ class _EditorPageState extends State<EditorPage> {
           ),
           const SizedBox(width: 6),
           _editorIconButton(
+            key: const Key('editor_next_item'),
             icon: CupertinoIcons.chevron_right,
             onPressed: _busy || _selectedIndex >= total - 1
                 ? null
@@ -1246,10 +1248,8 @@ class _EditorPageState extends State<EditorPage> {
       builder: (_) => BatchEditCopySheet(
         source: source.copyWith(displayName: _friendlyMediaName(source)),
         targets: targets,
-        onApplySelected: (ids) => _applyEditsToTargets(
-          sourceId: source.id,
-          targetIds: ids,
-        ),
+        onApplySelected: (ids) =>
+            _applyEditsToTargets(sourceId: source.id, targetIds: ids),
         onApplyAll: () => _confirmAndApplyEditsToAll(
           sourceId: source.id,
           targetIds: targets.map((job) => job.id).toSet(),
@@ -1303,10 +1303,7 @@ class _EditorPageState extends State<EditorPage> {
       ),
     );
     if (confirmed != true) return false;
-    return _applyEditsToTargets(
-      sourceId: sourceId,
-      targetIds: targetIds,
-    );
+    return _applyEditsToTargets(sourceId: sourceId, targetIds: targetIds);
   }
 
   void _selectToolGroup(EditorToolGroup group) {
@@ -1372,9 +1369,8 @@ class _EditorPageState extends State<EditorPage> {
             format: control.format,
             onChanged: _busy
                 ? null
-                : (value) => _setRestorationSettings(
-                    control.apply(_settings, value),
-                  ),
+                : (value) =>
+                      _setRestorationSettings(control.apply(_settings, value)),
           ),
       ],
     );
@@ -2140,125 +2136,127 @@ class _EditorPageState extends State<EditorPage> {
       selected: selected,
       label: 'Edit ${_friendlyMediaName(job)}',
       child: GestureDetector(
-      key: Key('start_queue_item_${job.id}'),
-      onTap: _busy
-          ? null
-          : () => _selectJobIndex(
-              index,
-              openEditor: _step == EditorWorkflowStep.import,
-            ),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: selected
-              ? primary.withValues(alpha: dark ? .18 : .12)
-              : dark
-              ? CupertinoColors.white.withValues(alpha: .055)
-              : CupertinoDynamicColor.resolve(
-                  CupertinoColors.secondarySystemGroupedBackground,
-                  context,
-                ),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
+        key: Key('start_queue_item_${job.id}'),
+        onTap: _busy
+            ? null
+            : () => _selectJobIndex(
+                index,
+                openEditor: _step == EditorWorkflowStep.import,
+              ),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
             color: selected
-                ? primary.withValues(alpha: 0.42)
+                ? primary.withValues(alpha: dark ? .18 : .12)
                 : dark
-                ? CupertinoColors.white.withValues(alpha: .10)
+                ? CupertinoColors.white.withValues(alpha: .055)
                 : CupertinoDynamicColor.resolve(
-                    CupertinoColors.separator,
+                    CupertinoColors.secondarySystemGroupedBackground,
                     context,
                   ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected
+                  ? primary.withValues(alpha: 0.42)
+                  : dark
+                  ? CupertinoColors.white.withValues(alpha: .10)
+                  : CupertinoDynamicColor.resolve(
+                      CupertinoColors.separator,
+                      context,
+                    ),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            _queueInlineThumbnail(job, dark: dark),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _friendlyMediaName(job),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: dark
-                              ? const TextStyle(
-                                  color: CupertinoColors.white,
-                                  fontWeight: FontWeight.w600,
-                                )
-                              : const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      if (selected) ...[
-                        const SizedBox(width: 6),
-                        const Text(
-                          'Selected',
-                          style: TextStyle(
-                            color: CupertinoColors.activeBlue,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+          child: Row(
+            children: [
+              _queueInlineThumbnail(job, dark: dark),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _friendlyMediaName(job),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: dark
+                                ? const TextStyle(
+                                    color: CupertinoColors.white,
+                                    fontWeight: FontWeight.w600,
+                                  )
+                                : const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ),
+                        if (selected) ...[
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Selected',
+                            style: TextStyle(
+                              color: CupertinoColors.activeBlue,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    details.join(' · '),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: dark
-                        ? TextStyle(
-                            color: CupertinoColors.white.withValues(alpha: .58),
-                            fontSize: 12,
-                          )
-                        : _secondaryText(context),
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      details.join(' · '),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: dark
+                          ? TextStyle(
+                              color: CupertinoColors.white.withValues(
+                                alpha: .58,
+                              ),
+                              fontSize: 12,
+                            )
+                          : _secondaryText(context),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            if (job.status == JobStatus.processing)
-              const CupertinoActivityIndicator()
-            else if (job.status == JobStatus.complete)
-              const Icon(
-                CupertinoIcons.check_mark_circled_solid,
-                color: CupertinoColors.activeGreen,
-              )
-            else if (job.status == JobStatus.failed)
-              const Icon(
-                CupertinoIcons.exclamationmark_triangle_fill,
-                color: CupertinoColors.destructiveRed,
-              ),
-            const SizedBox(width: 4),
-            CupertinoButton(
-              key: Key('queue_inline_remove_${job.id}'),
-              padding: const EdgeInsets.all(7),
-              minimumSize: Size.zero,
-              onPressed:
-                  (!_busy || job.status == JobStatus.pending) &&
-                      job.status != JobStatus.processing
-                  ? () => _removeJob(job.id)
-                  : null,
-              child: Icon(
-                CupertinoIcons.trash,
-                semanticLabel:
-                    'Remove ${job.displayName ?? p.basename(job.inputPath)} from queue',
-                size: 18,
-                color:
+              if (job.status == JobStatus.processing)
+                const CupertinoActivityIndicator()
+              else if (job.status == JobStatus.complete)
+                const Icon(
+                  CupertinoIcons.check_mark_circled_solid,
+                  color: CupertinoColors.activeGreen,
+                )
+              else if (job.status == JobStatus.failed)
+                const Icon(
+                  CupertinoIcons.exclamationmark_triangle_fill,
+                  color: CupertinoColors.destructiveRed,
+                ),
+              const SizedBox(width: 4),
+              CupertinoButton(
+                key: Key('queue_inline_remove_${job.id}'),
+                padding: const EdgeInsets.all(7),
+                minimumSize: Size.zero,
+                onPressed:
                     (!_busy || job.status == JobStatus.pending) &&
                         job.status != JobStatus.processing
-                    ? CupertinoColors.destructiveRed
-                    : CupertinoColors.systemGrey3.resolveFrom(context),
+                    ? () => _removeJob(job.id)
+                    : null,
+                child: Icon(
+                  CupertinoIcons.trash,
+                  semanticLabel:
+                      'Remove ${job.displayName ?? p.basename(job.inputPath)} from queue',
+                  size: 18,
+                  color:
+                      (!_busy || job.status == JobStatus.pending) &&
+                          job.status != JobStatus.processing
+                      ? CupertinoColors.destructiveRed
+                      : CupertinoColors.systemGrey3.resolveFrom(context),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -2454,7 +2452,7 @@ class _EditorPageState extends State<EditorPage> {
     final now = DateTime.now().microsecondsSinceEpoch;
     Future<(int, MediaJob?)> inspectAt(int index) async {
       try {
-        final metadata = await _inspectionService.inspect(paths[index]);
+        final metadata = await widget.inspectionService.inspect(paths[index]);
         return (
           index,
           MediaJob(
@@ -2605,7 +2603,9 @@ class _EditorPageState extends State<EditorPage> {
         !VideoRestorationService.isBackendAvailableOnCurrentPlatform) {
       final message = _videoUnavailableMessage;
       setState(() {
+        _storeSelectedEditState();
         _selectedIndex = index;
+        _loadEditStateForIndex(index);
         _updateJob(
           index,
           (old) => old.copyWith(
@@ -2634,11 +2634,13 @@ class _EditorPageState extends State<EditorPage> {
       }
     }
     setState(() {
+      _storeSelectedEditState();
       if (!partOfBatch) {
         _busy = true;
         _cancelRequested = false;
       }
       _selectedIndex = index;
+      _loadEditStateForIndex(index);
       _status =
           'Exporting ${job.displayName ?? p.basename(job.inputPath)} on this device...';
       _updateJob(
@@ -2808,33 +2810,47 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   void _removeExportedJobFromQueue(String id) {
+    _storeSelectedEditState();
     final result = removeMediaJobFromQueue(
       jobs: _jobs,
       selectedIndex: _selectedIndex,
       id: id,
     );
+    _editStates.remove(id);
     _jobs = result.jobs;
     _selectedIndex = result.selectedIndex;
+    if (_jobs.isNotEmpty) _loadEditStateForIndex(_selectedIndex);
   }
 
   Future<void> _showQueueOverview() {
     if (_jobs.isEmpty) return Future.value();
+    final openEditorOnSelect = _step == EditorWorkflowStep.import;
     return showCupertinoModalPopup<void>(
       context: context,
       builder: (_) => QueueOverviewSheet(
         jobs: _jobs,
         selectedJobId: _selectedJob?.id,
         busy: _busy,
-        onSelected: _selectJob,
+        onSelected: (id) => _selectJob(id, openEditor: openEditorOnSelect),
         onRemove: _removeJob,
       ),
     );
   }
 
-  void _selectJob(String id) {
+  void _selectJob(String id, {bool openEditor = false}) {
     final index = _jobs.indexWhere((job) => job.id == id);
     if (index < 0 || _busy) return;
-    setState(() => _selectedIndex = index);
+    _selectJobIndex(index, openEditor: openEditor);
+  }
+
+  void _selectJobIndex(int index, {bool openEditor = false}) {
+    if (index < 0 || index >= _jobs.length || _busy) return;
+    setState(() {
+      _storeSelectedEditState();
+      _selectedIndex = index;
+      _loadEditStateForIndex(index);
+      if (openEditor) _step = EditorWorkflowStep.edit;
+    });
   }
 
   bool _removeJob(String id) {
@@ -2852,8 +2868,11 @@ class _EditorPageState extends State<EditorPage> {
     );
     final remaining = result.jobs;
     setState(() {
+      _storeSelectedEditState();
+      _editStates.remove(id);
       _jobs = remaining;
       _selectedIndex = result.selectedIndex;
+      if (remaining.isNotEmpty) _loadEditStateForIndex(_selectedIndex);
       if (remaining.isEmpty) {
         _step = EditorWorkflowStep.import;
       }
@@ -2883,8 +2902,24 @@ class _EditorPageState extends State<EditorPage> {
         saveToPhotoLibrary: _exportOptions.saveToPhotoLibrary,
         saveToFiles: _exportOptions.saveToFiles,
       );
-      _settings = _settings.copyWith(jpegQuality: preset.jpegQuality);
+      _applyJpegQuality(preset.jpegQuality);
     });
+  }
+
+  void _setJpegQuality(int quality) {
+    setState(() => _applyJpegQuality(quality));
+  }
+
+  void _applyJpegQuality(int quality) {
+    _storeSelectedEditState();
+    _settings = _settings.copyWith(jpegQuality: quality);
+    _editStates = {
+      for (final entry in _editStates.entries)
+        entry.key: entry.value.copyWith(
+          settings: entry.value.settings.copyWith(jpegQuality: quality),
+        ),
+    };
+    _storeSelectedEditState();
   }
 
   void _setKeepLocalCopy(bool value) {
@@ -2976,7 +3011,7 @@ class _EditorPageState extends State<EditorPage> {
         content: const Padding(
           padding: EdgeInsets.only(top: 8),
           child: Text(
-            'Version 0.4.0\n\nOn-device underwater color recovery for photos, RAW stills, videos, LUTs, and local exports.',
+            'Version 1.0.0\n\nOn-device underwater color recovery for photos, RAW stills, videos, LUTs, and local exports.',
           ),
         ),
         actions: [

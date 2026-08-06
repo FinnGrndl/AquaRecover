@@ -131,6 +131,14 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
     final selected = job.id == _selectedJobId;
     final primary = CupertinoTheme.of(context).primaryColor;
     final canRemove = !widget.busy || job.status == JobStatus.pending;
+    final details = <String>[
+      job.kind.label,
+      job.source.label,
+      job.status.label,
+      if (job.metadata?.sizeLabel != null) job.metadata!.sizeLabel,
+      if (job.metadata?.dimensionsLabel != null) job.metadata!.dimensionsLabel!,
+      if (job.metadata?.durationLabel != null) job.metadata!.durationLabel!,
+    ];
     return Semantics(
       selected: selected,
       button: true,
@@ -178,8 +186,8 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${job.kind.label} · ${job.status.label}',
-                      maxLines: 1,
+                      details.join(' · '),
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: CupertinoColors.secondaryLabel.resolveFrom(

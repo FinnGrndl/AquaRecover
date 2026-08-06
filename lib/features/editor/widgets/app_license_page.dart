@@ -45,7 +45,7 @@ class _AppLicensePageState extends State<AppLicensePage> {
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
                     child: Text(
-                      'AquaRecover 0.4.0 includes the following software. '
+                      'AquaRecover 1.0.0 includes the following software. '
                       'Select a component to read its license text.',
                       style: CupertinoTheme.of(context).textTheme.textStyle
                           .copyWith(

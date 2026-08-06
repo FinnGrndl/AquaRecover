@@ -1,7 +1,7 @@
 name: aqua_recover
 description: Cross-platform on-device underwater photo and video color recovery app for Android, iOS, and macOS.
 publish_to: 'none'
-version: 0.4.0+6
+version: 1.0.0+7
 
 environment:
   sdk: '>=3.8.0 <4.0.0'

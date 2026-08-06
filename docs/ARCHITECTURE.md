@@ -30,10 +30,12 @@ ImageRestorationService   VideoRestorationService
 
 ## Editor state
 
-`EditorPage` owns the current jobs, selected item, restoration and image
-transform settings, LUT, trim values, export options, and workflow step. It
-calls small services for side effects. UI components in
-`lib/features/editor/widgets` receive values and callbacks.
+`EditorPage` owns the current jobs, selected item, per-job `MediaEditState`
+values, trim values, export options, and workflow step. The active restoration,
+transform, and LUT fields mirror the selected job so existing preview widgets
+remain simple. Switching jobs stores the old values and restores the target
+values. UI components in `lib/features/editor/widgets` receive values and
+callbacks, while small services handle side effects.
 
 A single import moves to the edit step. A multi-import creates ready queue
 entries without writing output files. Confirming the export view starts either
@@ -47,6 +49,11 @@ uses add-only access on iOS.
 Import inspection runs in bounded groups of three. File reads can overlap, but
 the app avoids unbounded image decodes that would increase peak memory use. The
 dimension probe reads decoder metadata instead of producing a full pixel image.
+
+The batch copy picker writes the selected job's immutable `MediaEditState` to
+explicit target job IDs. Applying to all requires a confirmation dialog. Export
+loads the matching state before each queued item is rendered, so copied and
+individually tuned values are preserved across a batch.
 
 `ExportLibraryService` lists supported files inside `AquaRecover Exports`.
 Deletion is restricted to that directory and also removes the adjacent

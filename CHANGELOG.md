@@ -3,7 +3,7 @@
 Changes are grouped by release. AquaRecover follows semantic versioning for
 source releases; the number after `+` is the mobile build number.
 
-## Unreleased
+## 1.0.0 - 2026-08-06
 
 ### Changed
 
@@ -47,7 +47,13 @@ source releases; the number after `+` is the mobile build number.
 - Successful exports are removed from the queue immediately, preventing
   accidental repeat exports and keeping failed items available for retry.
 - Matched the batch export card to the dark export settings surface.
-- Moved the start-page queue above a combined media and metadata card.
+- Moved the import actions above the queue, merged selected-media metadata into
+  the queue rows, and made each row open its item directly in the editor.
+- Moved Local Exports into a compact folder action beside the start-page info
+  action.
+- Editing values now belong to each queued photo. The batch strip can copy the
+  current photo's preset, adjustments, crop, and LUT to selected photos or,
+  after confirmation, every other photo in the batch.
 - Reserved editor space for the batch selector so it no longer covers the
   image, and extended the preview closer to the tool panel.
 - Added Fit and Fill preview modes, two-finger detail zoom, and double-tap zoom

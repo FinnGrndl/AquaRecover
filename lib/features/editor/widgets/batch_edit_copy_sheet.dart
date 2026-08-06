@@ -240,7 +240,9 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
       decoration: BoxDecoration(
         color: CupertinoColors.systemBackground.resolveFrom(context),
         border: Border(
-          top: BorderSide(color: CupertinoColors.separator.resolveFrom(context)),
+          top: BorderSide(
+            color: CupertinoColors.separator.resolveFrom(context),
+          ),
         ),
       ),
       child: Row(
@@ -250,13 +252,16 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
               key: const Key('batch_edit_apply_all'),
               color: CupertinoColors.secondarySystemFill.resolveFrom(context),
               onPressed: canApplyAll ? _applyAll : null,
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(CupertinoIcons.rectangle_stack_badge_plus, size: 19),
-                  SizedBox(width: 7),
-                  Text('Apply to all'),
-                ],
+              child: const FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(CupertinoIcons.rectangle_stack_badge_plus, size: 19),
+                    SizedBox(width: 7),
+                    Text('Apply to all'),
+                  ],
+                ),
               ),
             ),
           ),
@@ -277,7 +282,11 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
     );
   }
 
-  Widget _thumbnail(BuildContext context, MediaJob job, {required double size}) {
+  Widget _thumbnail(
+    BuildContext context,
+    MediaJob job, {
+    required double size,
+  }) {
     final placeholder = ColoredBox(
       color: CupertinoColors.systemGrey5.resolveFrom(context),
       child: Icon(

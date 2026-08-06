@@ -5,6 +5,8 @@ import 'package:aqua_recover/core/media/media_inspection_service.dart';
 import 'package:aqua_recover/core/media/media_classifier.dart';
 import 'package:aqua_recover/core/models/export_options.dart';
 import 'package:aqua_recover/core/models/image_transform_settings.dart';
+import 'package:aqua_recover/core/models/lut_profile.dart';
+import 'package:aqua_recover/core/models/media_edit_state.dart';
 import 'package:aqua_recover/core/models/media_job.dart';
 import 'package:aqua_recover/core/models/media_kind.dart';
 import 'package:aqua_recover/core/models/media_metadata.dart';
@@ -20,6 +22,7 @@ import 'package:aqua_recover/core/workflow/editor_workflow.dart';
 import 'package:aqua_recover/features/editor/editor_page.dart';
 import 'package:aqua_recover/features/editor/editor_tools.dart';
 import 'package:aqua_recover/features/editor/widgets/app_license_page.dart';
+import 'package:aqua_recover/features/editor/widgets/batch_edit_copy_sheet.dart';
 import 'package:aqua_recover/features/editor/widgets/crop_browser.dart';
 import 'package:aqua_recover/features/editor/widgets/adjustment_browser.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_bottom_panel.dart';
@@ -77,6 +80,39 @@ void main() {
     expect(after.r, greaterThan(before.r));
     expect(after.r, lessThan(after.b));
     expect(after.r, lessThan(after.g * 1.15));
+  });
+
+  test('media edit values copy only to requested queue targets', () {
+    const source = MediaEditState(
+      settings: RestorationSettings(contrast: 1.31, saturation: 1.22),
+      transform: ImageTransformSettings(
+        aspectRatio: CropAspectRatio.square,
+        quarterTurns: 1,
+      ),
+      lutProfile: LutProfile.coralWarm,
+    );
+    const originalTarget = MediaEditState();
+    const untouched = MediaEditState(
+      settings: RestorationSettings(contrast: .91),
+    );
+    final original = <String, MediaEditState>{
+      'source': source,
+      'target': originalTarget,
+      'untouched': untouched,
+    };
+
+    final copied = copyMediaEditStateToTargets(
+      states: original,
+      sourceId: 'source',
+      targetIds: const ['target'],
+    );
+
+    expect(copied['target']!.settings.contrast, 1.31);
+    expect(copied['target']!.transform.aspectRatio, CropAspectRatio.square);
+    expect(copied['target']!.transform.normalizedQuarterTurns, 1);
+    expect(copied['target']!.lutProfile.kind, LutKind.coralWarm);
+    expect(copied['untouched']!.settings.contrast, .91);
+    expect(original['target']!.settings.contrast, 1.04);
   });
 
   test('None preset leaves pixels unchanged', () {
@@ -685,7 +721,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('start_about')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Version 0.4.0'), findsOneWidget);
+    expect(find.textContaining('Version 1.0.0'), findsOneWidget);
 
     await tester.tap(find.text('Licenses'));
     await tester.pumpAndSettle();
@@ -743,6 +779,165 @@ void main() {
     expect(removed, ['pending']);
     expect(find.text('Pending.jpg'), findsNothing);
     expect(find.text('1 item in the queue'), findsOneWidget);
+  });
+
+  testWidgets('batch edit picker applies to selected targets', (tester) async {
+    Set<String>? appliedIds;
+    const source = MediaJob(
+      id: 'source',
+      inputPath: '/tmp/source.jpg',
+      kind: MediaKind.photo,
+      displayName: 'Source.jpg',
+    );
+    const targets = [
+      MediaJob(
+        id: 'one',
+        inputPath: '/tmp/one.jpg',
+        kind: MediaKind.photo,
+        displayName: 'One.jpg',
+      ),
+      MediaJob(
+        id: 'two',
+        inputPath: '/tmp/two.jpg',
+        kind: MediaKind.photo,
+        displayName: 'Two.jpg',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: BatchEditCopySheet(
+          source: source,
+          targets: targets,
+          onApplySelected: (ids) async {
+            appliedIds = ids;
+            return false;
+          },
+          onApplyAll: () async => false,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('batch_edit_target_two')));
+    await tester.pump();
+    expect(find.text('Apply to 1'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('batch_edit_apply_selected')));
+    await tester.pump();
+    expect(appliedIds, {'two'});
+  });
+
+  testWidgets('start queue opens the selected photo in the editor', (
+    tester,
+  ) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_start_queue_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/queue-photo.jpg');
+    file.writeAsBytesSync(
+      img.encodeJpg(img.Image(width: 16, height: 12), quality: 90),
+    );
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: EditorPage(
+          initialPaths: [file.path],
+          libraryOnStart: true,
+          inspectionService: const _FakeMediaInspectionService(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(const Key('start_selected_media')), findsNothing);
+    expect(find.byKey(const Key('start_local_exports')), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Add or open media')).dy,
+      lessThan(tester.getTopLeft(find.text('Queue')).dy),
+    );
+    final queueItem = find.byWidgetPredicate(
+      (widget) =>
+          widget.key is ValueKey<String> &&
+          (widget.key! as ValueKey<String>).value.startsWith(
+            'start_queue_item_',
+          ),
+    );
+    expect(queueItem, findsOneWidget);
+
+    await tester.tap(queueItem);
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.byKey(const Key('editor_review_export')), findsOneWidget);
+  });
+
+  testWidgets('copy to all requires confirmation and keeps per-photo edits', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_copy_edits_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final first = File('${directory.path}/first.jpg');
+    final second = File('${directory.path}/second.jpg');
+    final bytes = img.encodeJpg(img.Image(width: 16, height: 12), quality: 90);
+    first.writeAsBytesSync(bytes);
+    second.writeAsBytesSync(bytes);
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: EditorPage(
+          initialPaths: [first.path, second.path],
+          inspectionService: const _FakeMediaInspectionService(),
+        ),
+      ),
+    );
+    for (var i = 0; i < 6; i++) {
+      await tester.pump();
+    }
+
+    await tester.drag(
+      find.byKey(const Key('preset_list')),
+      const Offset(-220, 0),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('preset_deep')));
+    await tester.pump();
+    expect(find.text('Deep dive - Photo'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('editor_next_item')));
+    await tester.pump();
+    expect(find.text('Auto - Photo'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('editor_previous_item')));
+    await tester.pump();
+    expect(find.text('Deep dive - Photo'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('editor_copy_edits')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('Copy edits'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('batch_edit_apply_all')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(
+      find.text(
+        'Die Einstellungen werden nun auf alle anderen Bilder angewendet.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('confirm_apply_edits_to_all')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.byKey(const Key('editor_next_item')));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.text('Deep dive - Photo'), findsOneWidget);
   });
 
   testWidgets('completed export shows only the saved photo', (tester) async {
@@ -1281,6 +1476,22 @@ class _FakeExportLibraryService extends ExportLibraryService {
     deleted.add(item);
     items.remove(item);
   }
+}
+
+class _FakeMediaInspectionService extends MediaInspectionService {
+  const _FakeMediaInspectionService();
+
+  @override
+  Future<MediaMetadata> inspect(String path) => Future.value(
+    MediaMetadata(
+      path: path,
+      fileName: File(path).uri.pathSegments.last,
+      kind: MediaKind.photo,
+      fileSizeBytes: 256,
+      width: 16,
+      height: 12,
+    ),
+  );
 }
 
 double _meanAbsDelta(img.Image a, img.Image b) {

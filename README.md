@@ -8,7 +8,7 @@ AquaRecover corrects the color and contrast of underwater photos on the device.
 It is written in Flutter, uses native Apple media APIs where they are useful,
 and does not require an account or a processing server.
 
-Version 0.4.0 is the first open-source release candidate. The photo workflow is
+Version 1.0.0 is the first stable open-source release. The photo workflow is
 usable on iOS, macOS, and Android; video and RAW support vary by platform as
 described below.
 
@@ -22,7 +22,11 @@ described below.
   export is removed from the queue immediately, preventing accidental duplicate
   exports.
 - The selection overview shows every queued item and lets unprocessed items be
-  removed without deleting the original file.
+  opened or removed without deleting the original file. Each row includes its
+  source, status, size, and dimensions when available.
+- Preset, adjustment, crop, and LUT values are kept separately for every queued
+  photo. They can be copied from the current photo to selected batch items or,
+  after confirmation, to every other photo.
 - Local exports can be opened, selected in batches, or deleted all at once.
   Deleting them also removes their settings sidecars, but never imported
   originals or copies already added to Photos.
