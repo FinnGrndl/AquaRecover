@@ -107,7 +107,15 @@ jobs:
           flutter build apk --release --no-pub \
             --build-name "${{ needs.validate.outputs.version }}" \
             --build-number "${{ needs.validate.outputs.build_number }}"
-          apksigner verify --verbose build/app/outputs/flutter-apk/app-release.apk
+          apksigner_bin="$(
+            find "${ANDROID_SDK_ROOT:?}/build-tools" -type f -name apksigner -print |
+              sort -V | tail -n 1
+          )"
+          if [[ -z "$apksigner_bin" ]]; then
+            echo "Android SDK apksigner was not found." >&2
+            exit 1
+          fi
+          "$apksigner_bin" verify --verbose build/app/outputs/flutter-apk/app-release.apk
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk \
             "dist/AquaRecover-Android-${{ needs.validate.outputs.version }}.apk"
