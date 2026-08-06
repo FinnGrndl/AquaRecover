@@ -1,3 +1,6 @@
+import '../models/media_edit_state.dart';
+import '../models/media_job.dart';
+
 enum EditorWorkflowStep { import, edit, export }
 
 extension EditorWorkflowStepX on EditorWorkflowStep {
@@ -12,6 +15,51 @@ extension EditorWorkflowStepX on EditorWorkflowStep {
     EditorWorkflowStep.edit => '2',
     EditorWorkflowStep.export => '3',
   };
+}
+
+class MediaQueueSelection {
+  const MediaQueueSelection({required this.jobs, required this.selectedIndex});
+
+  final List<MediaJob> jobs;
+  final int selectedIndex;
+}
+
+MediaQueueSelection removeMediaJobFromQueue({
+  required List<MediaJob> jobs,
+  required int selectedIndex,
+  required String id,
+}) {
+  final removedIndex = jobs.indexWhere((job) => job.id == id);
+  if (removedIndex < 0) {
+    return MediaQueueSelection(
+      jobs: jobs,
+      selectedIndex: jobs.isEmpty
+          ? 0
+          : selectedIndex.clamp(0, jobs.length - 1).toInt(),
+    );
+  }
+  final remaining = [...jobs]..removeAt(removedIndex);
+  if (remaining.isEmpty) {
+    return const MediaQueueSelection(jobs: [], selectedIndex: 0);
+  }
+  final nextIndex = removedIndex < selectedIndex
+      ? selectedIndex - 1
+      : selectedIndex.clamp(0, remaining.length - 1).toInt();
+  return MediaQueueSelection(jobs: remaining, selectedIndex: nextIndex);
+}
+
+Map<String, MediaEditState> copyMediaEditStateToTargets({
+  required Map<String, MediaEditState> states,
+  required String sourceId,
+  required Iterable<String> targetIds,
+}) {
+  final source = states[sourceId];
+  final result = Map<String, MediaEditState>.of(states);
+  if (source == null) return result;
+  for (final targetId in targetIds) {
+    if (targetId != sourceId) result[targetId] = source;
+  }
+  return result;
 }
 
 class EditorWorkflowState {

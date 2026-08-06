@@ -22,6 +22,7 @@ class AquaRecoverApp extends StatelessWidget {
     this.initialToolGroup,
     this.initialCompareMode,
     this.reviewExportOnStart = false,
+    this.libraryOnStart = false,
   });
 
   final List<String> initialPaths;
@@ -29,6 +30,7 @@ class AquaRecoverApp extends StatelessWidget {
   final EditorToolGroup? initialToolGroup;
   final EditorCompareMode? initialCompareMode;
   final bool reviewExportOnStart;
+  final bool libraryOnStart;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +49,7 @@ class AquaRecoverApp extends StatelessWidget {
         initialToolGroup: initialToolGroup,
         initialCompareMode: initialCompareMode,
         reviewExportOnStart: reviewExportOnStart,
+        libraryOnStart: libraryOnStart,
       ),
     );
   }

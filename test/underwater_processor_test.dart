@@ -27,6 +27,7 @@ import 'package:aqua_recover/features/editor/widgets/editor_preview_stage.dart';
 import 'package:aqua_recover/features/editor/widgets/editor_tool_rail.dart';
 import 'package:aqua_recover/features/editor/widgets/exported_photo_preview.dart';
 import 'package:aqua_recover/features/editor/widgets/gpu_preview_filter.dart';
+import 'package:aqua_recover/features/editor/widgets/image_transform_preview.dart';
 import 'package:aqua_recover/features/editor/widgets/preset_browser.dart';
 import 'package:aqua_recover/features/editor/widgets/queue_overview_sheet.dart';
 import 'package:aqua_recover/features/editor/widgets/restored_image_preview.dart';
@@ -336,10 +337,10 @@ void main() {
     expect(filesOnly.withFiles(false).keepLocalCopy, isTrue);
   });
 
-  test('individual batch export is available unless an item is processing', () {
+  test('individual batch export is available for ready or failed items', () {
     expect(JobStatus.pending.canStartIndividualExport, isTrue);
     expect(JobStatus.failed.canStartIndividualExport, isTrue);
-    expect(JobStatus.complete.canStartIndividualExport, isTrue);
+    expect(JobStatus.complete.canStartIndividualExport, isFalse);
     expect(JobStatus.processing.canStartIndividualExport, isFalse);
   });
 
@@ -462,6 +463,30 @@ void main() {
     },
   );
 
+  test('queue removal keeps the nearest remaining item selected', () {
+    const jobs = [
+      MediaJob(id: 'one', inputPath: '/one.jpg', kind: MediaKind.photo),
+      MediaJob(id: 'two', inputPath: '/two.jpg', kind: MediaKind.photo),
+      MediaJob(id: 'three', inputPath: '/three.jpg', kind: MediaKind.photo),
+    ];
+
+    final afterSelectedExport = removeMediaJobFromQueue(
+      jobs: jobs,
+      selectedIndex: 1,
+      id: 'two',
+    );
+    expect(afterSelectedExport.jobs.map((job) => job.id), ['one', 'three']);
+    expect(afterSelectedExport.selectedIndex, 1);
+
+    final afterFinalExport = removeMediaJobFromQueue(
+      jobs: [afterSelectedExport.jobs.last],
+      selectedIndex: 0,
+      id: 'three',
+    );
+    expect(afterFinalExport.jobs, isEmpty);
+    expect(afterFinalExport.selectedIndex, 0);
+  });
+
   test(
     'export review helpers format media details and video frame positions',
     () {
@@ -492,6 +517,7 @@ void main() {
   );
 
   test('editor tool groups expose expected controls and media visibility', () {
+    expect(EditorToolGroup.effects.label, 'LUT');
     expect(
       activeEditorToolGroupsFor(MediaKind.photo),
       isNot(contains(EditorToolGroup.video)),
@@ -1034,6 +1060,7 @@ void main() {
     tester,
   ) async {
     const inset = 220.0;
+    const topInset = 112.0;
     final job = MediaJob(
       id: 'split-stage',
       inputPath: '/tmp/split-stage.raw',
@@ -1051,6 +1078,7 @@ void main() {
             settings: RestorationPreset.auto.settings,
             compareMode: EditorCompareMode.split,
             immersive: true,
+            immersiveTopInset: topInset,
             immersiveBottomInset: inset,
           ),
         ),
@@ -1061,11 +1089,79 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget is Padding &&
-            widget.padding == const EdgeInsets.fromLTRB(10, 54, 10, inset),
+            widget.padding ==
+                const EdgeInsets.fromLTRB(10, topInset, 10, inset),
       ),
       findsOneWidget,
     );
     expect(find.byType(ImageFiltered), findsWidgets);
+  });
+
+  testWidgets('preview Fit contains the image and Fill covers the viewport', (
+    tester,
+  ) async {
+    BoxFit? observedFit;
+    Widget preview(EditorPreviewFit previewFit) => CupertinoApp(
+      home: SizedBox(
+        width: 320,
+        height: 480,
+        child: ImageTransformPreview(
+          settings: const ImageTransformSettings(),
+          sourceAspectRatio: 4 / 3,
+          previewFit: previewFit,
+          builder: (fit, _) {
+            observedFit = fit;
+            return const ColoredBox(color: CupertinoColors.black);
+          },
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(preview(EditorPreviewFit.fit));
+    expect(observedFit, BoxFit.contain);
+
+    await tester.pumpWidget(preview(EditorPreviewFit.fill));
+    expect(observedFit, BoxFit.cover);
+  });
+
+  testWidgets('preview zoom supports pinch inspection and resets by key', (
+    tester,
+  ) async {
+    Future<void> pumpZoom(String resetKey) => tester.pumpWidget(
+      CupertinoApp(
+        home: SizedBox(
+          width: 320,
+          height: 480,
+          child: EditorPreviewZoom(
+            resetKey: resetKey,
+            child: const ColoredBox(color: CupertinoColors.black),
+          ),
+        ),
+      ),
+    );
+
+    await pumpZoom('photo-fit');
+
+    var viewer = tester.widget<InteractiveViewer>(
+      find.byKey(const Key('editor_preview_zoom')),
+    );
+    expect(viewer.minScale, 1);
+    expect(viewer.maxScale, 5);
+    expect(viewer.panEnabled, isTrue);
+    expect(viewer.scaleEnabled, isTrue);
+
+    viewer.transformationController!.value = Matrix4.diagonal3Values(2, 2, 1);
+    await tester.pump();
+    expect(
+      viewer.transformationController!.value.getMaxScaleOnAxis(),
+      greaterThan(1),
+    );
+
+    await pumpZoom('another-photo');
+    viewer = tester.widget<InteractiveViewer>(
+      find.byKey(const Key('editor_preview_zoom')),
+    );
+    expect(viewer.transformationController!.value.getMaxScaleOnAxis(), 1);
   });
 
   testWidgets('holding the edited preview temporarily reveals the original', (

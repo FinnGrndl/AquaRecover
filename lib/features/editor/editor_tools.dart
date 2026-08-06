@@ -14,7 +14,7 @@ extension EditorToolGroupX on EditorToolGroup {
     EditorToolGroup.crop => 'Crop',
     EditorToolGroup.color => 'Color',
     EditorToolGroup.details => 'Details',
-    EditorToolGroup.effects => 'Finish',
+    EditorToolGroup.effects => 'LUT',
     EditorToolGroup.video => 'Video',
   };
 
@@ -24,7 +24,7 @@ extension EditorToolGroupX on EditorToolGroup {
     EditorToolGroup.crop => 'Crop, rotate, and flip',
     EditorToolGroup.color => 'Water cast and color balance',
     EditorToolGroup.details => 'Haze, clarity, and sharpening',
-    EditorToolGroup.effects => 'LUT and finishing options',
+    EditorToolGroup.effects => 'Look-up table and vignette',
     EditorToolGroup.video => 'Trim and raw frame settings',
   };
 
@@ -275,6 +275,19 @@ extension EditorCompareModeX on EditorCompareMode {
 
   EditorCompareMode get toggled =>
       isSplit ? EditorCompareMode.edited : EditorCompareMode.split;
+}
+
+enum EditorPreviewFit { fit, fill }
+
+extension EditorPreviewFitX on EditorPreviewFit {
+  String get label => this == EditorPreviewFit.fit ? 'Fit' : 'Fill';
+
+  String get actionLabel =>
+      this == EditorPreviewFit.fit ? 'Fill preview area' : 'Fit entire image';
+
+  EditorPreviewFit get toggled => this == EditorPreviewFit.fit
+      ? EditorPreviewFit.fill
+      : EditorPreviewFit.fit;
 }
 
 class AdjustmentControl {

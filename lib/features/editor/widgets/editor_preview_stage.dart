@@ -89,8 +89,10 @@ class EditorPreviewStage extends StatelessWidget {
     this.showHeader = true,
     this.borderRadius = 18,
     this.immersiveBottomInset = 154,
+    this.immersiveTopInset = 54,
     this.transform = const ImageTransformSettings(),
     this.showCropGrid = false,
+    this.previewFit = EditorPreviewFit.fit,
   });
 
   final MediaJob job;
@@ -101,8 +103,10 @@ class EditorPreviewStage extends StatelessWidget {
   final bool showHeader;
   final double borderRadius;
   final double immersiveBottomInset;
+  final double immersiveTopInset;
   final ImageTransformSettings transform;
   final bool showCropGrid;
+  final EditorPreviewFit previewFit;
 
   @override
   Widget build(BuildContext context) {
@@ -192,6 +196,7 @@ class EditorPreviewStage extends StatelessWidget {
       settings: transform,
       sourceAspectRatio: sourceAspect,
       showGrid: showCropGrid && compareMode != EditorCompareMode.split,
+      previewFit: previewFit,
       builder: builder,
     );
   }
@@ -253,7 +258,12 @@ class EditorPreviewStage extends StatelessWidget {
     return ColoredBox(
       color: CupertinoColors.black,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(10, 54, 10, immersiveBottomInset),
+        padding: EdgeInsets.fromLTRB(
+          10,
+          immersiveTopInset,
+          10,
+          immersiveBottomInset,
+        ),
         child: split,
       ),
     );
@@ -304,7 +314,12 @@ class EditorPreviewStage extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: EdgeInsets.fromLTRB(10, 54, 10, immersiveBottomInset),
+          padding: EdgeInsets.fromLTRB(
+            10,
+            immersiveTopInset,
+            10,
+            immersiveBottomInset,
+          ),
           child: foreground,
         ),
       ],
@@ -392,6 +407,62 @@ class EditorPreviewStage extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class EditorPreviewZoom extends StatefulWidget {
+  const EditorPreviewZoom({
+    super.key,
+    required this.child,
+    required this.resetKey,
+    this.enabled = true,
+  });
+
+  final Widget child;
+  final Object resetKey;
+  final bool enabled;
+
+  @override
+  State<EditorPreviewZoom> createState() => _EditorPreviewZoomState();
+}
+
+class _EditorPreviewZoomState extends State<EditorPreviewZoom> {
+  final TransformationController _controller = TransformationController();
+
+  @override
+  void didUpdateWidget(covariant EditorPreviewZoom oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.resetKey != widget.resetKey ||
+        oldWidget.enabled != widget.enabled) {
+      _reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _reset() => _controller.value = Matrix4.identity();
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enabled) return widget.child;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onDoubleTap: _reset,
+      child: InteractiveViewer(
+        key: const Key('editor_preview_zoom'),
+        transformationController: _controller,
+        minScale: 1,
+        maxScale: 5,
+        panEnabled: true,
+        scaleEnabled: true,
+        clipBehavior: Clip.hardEdge,
+        child: SizedBox.expand(child: widget.child),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 
 import '../../../core/models/image_transform_settings.dart';
+import '../editor_tools.dart';
 
 typedef TransformPreviewBuilder =
     Widget Function(BoxFit fit, Alignment alignment);
@@ -12,12 +13,14 @@ class ImageTransformPreview extends StatelessWidget {
     required this.sourceAspectRatio,
     required this.builder,
     this.showGrid = false,
+    this.previewFit = EditorPreviewFit.fit,
   });
 
   final ImageTransformSettings settings;
   final double sourceAspectRatio;
   final TransformPreviewBuilder builder;
   final bool showGrid;
+  final EditorPreviewFit previewFit;
 
   @override
   Widget build(BuildContext context) {
@@ -31,13 +34,19 @@ class ImageTransformPreview extends StatelessWidget {
             ? constraints.maxHeight
             : 640.0;
         var width = maxWidth;
-        var height = width / targetAspect;
-        if (height > maxHeight) {
-          height = maxHeight;
-          width = height * targetAspect;
+        var height = maxHeight;
+        if (previewFit == EditorPreviewFit.fit) {
+          height = width / targetAspect;
+          if (height > maxHeight) {
+            height = maxHeight;
+            width = height * targetAspect;
+          }
         }
         final sourceAlignment = _sourceAlignment(settings);
-        var content = builder(BoxFit.cover, sourceAlignment);
+        var content = builder(
+          previewFit == EditorPreviewFit.fit ? BoxFit.contain : BoxFit.cover,
+          sourceAlignment,
+        );
         content = RotatedBox(
           quarterTurns: settings.normalizedQuarterTurns,
           child: content,

@@ -13,6 +13,7 @@ Future<void> main() async {
     'AQUA_INITIAL_COMPARE_MODE',
   );
   const reviewExport = bool.fromEnvironment('AQUA_REVIEW_EXPORT_ON_START');
+  const libraryOnStart = bool.fromEnvironment('AQUA_LIBRARY_ON_START');
   const openLocalExports = bool.fromEnvironment(
     'AQUA_OPEN_LOCAL_EXPORTS_ON_START',
   );
@@ -49,6 +50,7 @@ Future<void> main() async {
       initialToolGroup: initialGroup,
       initialCompareMode: initialCompareMode,
       reviewExportOnStart: reviewExport,
+      libraryOnStart: libraryOnStart,
     ),
   );
 }

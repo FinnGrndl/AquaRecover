@@ -71,9 +71,9 @@ extension JobStatusX on JobStatus {
     JobStatus.failed => 'Failed',
   };
 
-  /// Whether the item can start an explicit single-item export.
-  ///
-  /// Completed items remain eligible so they can be exported again to a
-  /// different destination without rerunning the rest of their batch.
-  bool get canStartIndividualExport => this != JobStatus.processing;
+  /// Whether a queued item can start an explicit single-item export.
+  bool get canStartIndividualExport => switch (this) {
+    JobStatus.pending || JobStatus.failed => true,
+    JobStatus.processing || JobStatus.complete => false,
+  };
 }

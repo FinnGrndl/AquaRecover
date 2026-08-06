@@ -37,12 +37,12 @@ calls small services for side effects. UI components in
 
 A single import moves to the edit step. A multi-import creates ready queue
 entries without writing output files. Confirming the export view starts either
-the selected export or `_processQueue` for the remaining batch. An individual
-export marks only its selected queue item as complete; the later full-batch
-action skips completed items. Queue items move through ready, processing,
-complete, or failed states. Photos saving remains an explicit export option and
-uses add-only access on iOS. The selection sheet can remove ready items while a
-batch is running; the item currently being processed remains locked.
+the selected export or `_processQueue` for the remaining batch. Successful
+items are removed from the in-memory queue immediately. Failed or cancelled
+items remain available, while processing items stay locked. `_processQueue`
+iterates over stable job IDs so removing successful entries cannot shift an
+index and skip later media. Photos saving remains an explicit export option and
+uses add-only access on iOS.
 
 Import inspection runs in bounded groups of three. File reads can overlap, but
 the app avoids unbounded image decodes that would increase peak memory use. The

@@ -43,7 +43,16 @@ source releases; the number after `+` is the mobile build number.
 - Added Files as an independent export destination. A system folder picker is
   used once and the same folder receives every item in a batch.
 - Added a separate export action for the currently selected batch item. The
-  full batch action skips items that were already exported individually.
+  full batch action continues with the remaining queue.
+- Successful exports are removed from the queue immediately, preventing
+  accidental repeat exports and keeping failed items available for retry.
+- Matched the batch export card to the dark export settings surface.
+- Moved the start-page queue above a combined media and metadata card.
+- Reserved editor space for the batch selector so it no longer covers the
+  image, and extended the preview closer to the tool panel.
+- Added Fit and Fill preview modes, two-finger detail zoom, and double-tap zoom
+  reset without changing the exported crop.
+- Renamed the Finish tab to LUT and replaced its sparkle icon with a cube.
 - Replaced the editor export label with a neutral gray review checkmark.
 - Parallelized import metadata inspection in bounded groups and avoided full
   pixel decoding when only image dimensions are required.
@@ -57,8 +66,7 @@ source releases; the number after `+` is the mobile build number.
 - The export background now extends through the top safe area while its controls
   remain positioned below the status bar.
 - The editor background now extends behind the status bar and Dynamic Island.
-- Completed exports now show the saved photo directly without a comparison
-  slider.
+- Successful exports no longer leave completed items in the active queue.
 
 ## 0.4.0 - 2026-08-05
 

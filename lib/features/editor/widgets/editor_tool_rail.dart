@@ -116,7 +116,7 @@ class _ToolButton extends StatelessWidget {
     EditorToolGroup.crop => CupertinoIcons.crop,
     EditorToolGroup.color => CupertinoIcons.color_filter,
     EditorToolGroup.details => CupertinoIcons.slider_horizontal_3,
-    EditorToolGroup.effects => CupertinoIcons.sparkles,
+    EditorToolGroup.effects => CupertinoIcons.cube,
     EditorToolGroup.video => CupertinoIcons.film,
   };
 }

@@ -14,6 +14,7 @@ import '../../core/media/media_inspection_service.dart';
 import '../../core/models/export_options.dart';
 import '../../core/models/image_transform_settings.dart';
 import '../../core/models/lut_profile.dart';
+import '../../core/models/media_edit_state.dart';
 import '../../core/models/media_job.dart';
 import '../../core/models/media_kind.dart';
 import '../../core/models/raw_video_descriptor.dart';
@@ -25,25 +26,23 @@ import '../../core/persistence/sidecar_service.dart';
 import '../../core/platform/raw_processing_service.dart';
 import '../../core/processing/image_restoration_service.dart';
 import '../../core/processing/video_restoration_service.dart';
-import '../../core/utils/output_paths.dart';
 import '../../core/workflow/editor_workflow.dart';
 import '../../shared/widgets/glass_panel.dart';
 import '../library/export_library_page.dart';
 import 'editor_tools.dart';
 import 'widgets/adjustment_browser.dart';
 import 'widgets/app_license_page.dart';
+import 'widgets/batch_edit_copy_sheet.dart';
 import 'widgets/crop_browser.dart';
 import 'widgets/editor_bottom_panel.dart';
 import 'widgets/editor_preview_stage.dart';
 import 'widgets/editor_tool_rail.dart';
-import 'widgets/exported_photo_preview.dart';
 import 'widgets/preset_browser.dart';
 import 'widgets/photo_library_sheet.dart';
 import 'widgets/queue_overview_sheet.dart';
 import 'widgets/raw_video_dialog.dart';
 import 'widgets/setting_slider.dart';
 import 'widgets/video_frame_preview_tile.dart';
-import 'widgets/video_preview_tile.dart';
 
 class EditorPage extends StatefulWidget {
   const EditorPage({
@@ -53,6 +52,7 @@ class EditorPage extends StatefulWidget {
     this.initialToolGroup,
     this.initialCompareMode,
     this.reviewExportOnStart = false,
+    this.libraryOnStart = false,
   });
 
   final List<String> initialPaths;
@@ -60,6 +60,7 @@ class EditorPage extends StatefulWidget {
   final EditorToolGroup? initialToolGroup;
   final EditorCompareMode? initialCompareMode;
   final bool reviewExportOnStart;
+  final bool libraryOnStart;
 
   @override
   State<EditorPage> createState() => _EditorPageState();
@@ -78,6 +79,7 @@ class _EditorPageState extends State<EditorPage> {
   final _trimEndController = TextEditingController();
 
   List<MediaJob> _jobs = const [];
+  Map<String, MediaEditState> _editStates = {};
   int _selectedIndex = 0;
   EditorWorkflowStep _step = EditorWorkflowStep.import;
   RawVideoDescriptor _rawDescriptor = RawVideoDescriptor.default4k;
@@ -92,6 +94,7 @@ class _EditorPageState extends State<EditorPage> {
   String _selectedAdjustmentId = 'recovery';
   bool _toolPanelOpen = true;
   EditorCompareMode _compareMode = EditorCompareMode.edited;
+  EditorPreviewFit _previewFit = EditorPreviewFit.fit;
   bool _busy = false;
   bool _cancelRequested = false;
   double _cropGestureStartZoom = 1;
@@ -100,6 +103,49 @@ class _EditorPageState extends State<EditorPage> {
   MediaJob? get _selectedJob {
     if (_jobs.isEmpty) return null;
     return _jobs[_selectedIndex.clamp(0, _jobs.length - 1).toInt()];
+  }
+
+  MediaEditState get _currentEditState => MediaEditState(
+    settings: _settings,
+    transform: _transformSettings,
+    lutProfile: _lutProfile,
+  );
+
+  void _storeSelectedEditState() {
+    final job = _selectedJob;
+    if (job != null) _editStates[job.id] = _currentEditState;
+  }
+
+  void _loadEditStateForIndex(int index) {
+    if (index < 0 || index >= _jobs.length) return;
+    final state = _editStates.putIfAbsent(
+      _jobs[index].id,
+      () => const MediaEditState(),
+    );
+    _settings = state.settings;
+    _transformSettings = state.transform;
+    _lutProfile = state.lutProfile;
+  }
+
+  void _setRestorationSettings(RestorationSettings settings) {
+    setState(() {
+      _settings = settings;
+      _storeSelectedEditState();
+    });
+  }
+
+  void _setTransformSettings(ImageTransformSettings transform) {
+    setState(() {
+      _transformSettings = transform;
+      _storeSelectedEditState();
+    });
+  }
+
+  void _setLutProfile(LutProfile profile) {
+    setState(() {
+      _lutProfile = profile;
+      _storeSelectedEditState();
+    });
   }
 
   bool get _canCancelCurrentWork {
@@ -228,10 +274,10 @@ class _EditorPageState extends State<EditorPage> {
                               children: [
                                 _importHeader(),
                                 SizedBox(height: wide ? 54 : 42),
-                                _importStep(showQueue: true),
+                                _importStep(),
                                 if (_shouldShowStartStatus) ...[
                                   const SizedBox(height: 16),
-                                  _statusPanel(),
+                                  _statusPanel(dark: true),
                                 ],
                               ],
                             ),
@@ -297,18 +343,43 @@ class _EditorPageState extends State<EditorPage> {
             ],
           ),
         ),
-        CupertinoButton(
-          key: const Key('start_about'),
-          padding: EdgeInsets.zero,
-          minimumSize: const Size(42, 42),
-          borderRadius: BorderRadius.circular(99),
-          color: CupertinoColors.white.withValues(alpha: .11),
-          onPressed: _showAbout,
-          child: const Icon(
-            CupertinoIcons.info,
-            color: CupertinoColors.white,
-            size: 20,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Tooltip(
+              message: 'Local exports',
+              child: CupertinoButton(
+                key: const Key('start_local_exports'),
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(42, 42),
+                borderRadius: BorderRadius.circular(99),
+                color: CupertinoColors.white.withValues(alpha: .11),
+                onPressed: _openLocalExports,
+                child: const Icon(
+                  CupertinoIcons.folder,
+                  color: CupertinoColors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: 'About AquaRecover',
+              child: CupertinoButton(
+                key: const Key('start_about'),
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(42, 42),
+                borderRadius: BorderRadius.circular(99),
+                color: CupertinoColors.white.withValues(alpha: .11),
+                onPressed: _showAbout,
+                child: const Icon(
+                  CupertinoIcons.info,
+                  color: CupertinoColors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -457,15 +528,14 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _importStep({required bool showQueue}) {
+  Widget _importStep() {
     final job = _selectedJob;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _importHero(job),
-        if (job != null) ...[const SizedBox(height: 14), _importSummary(job)],
-        if (showQueue && _jobs.isNotEmpty) ...[
-          const SizedBox(height: 16),
+        if (_jobs.isNotEmpty) ...[
+          const SizedBox(height: 22),
           _queueSection(compact: true),
         ],
       ],
@@ -477,19 +547,21 @@ class _EditorPageState extends State<EditorPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Restore underwater color',
+          job == null ? 'Restore underwater color' : 'Add or open media',
           style: CupertinoTheme.of(context).textTheme.navLargeTitleTextStyle
               .copyWith(
                 color: CupertinoColors.white,
                 fontWeight: FontWeight.w700,
-                fontSize: 38,
+                fontSize: job == null ? 38 : 28,
                 letterSpacing: -1,
                 height: 1.05,
               ),
         ),
         const SizedBox(height: 13),
         Text(
-          'Choose one photo or video to edit. Select several to prepare one batch, then export everything with one confirmation.',
+          job == null
+              ? 'Choose one photo or video to edit. Select several to prepare one batch, then export everything with one confirmation.'
+              : 'Add more items to the queue or continue with the selected image.',
           style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
             color: CupertinoColors.white.withValues(alpha: .72),
             fontSize: 17,
@@ -533,28 +605,6 @@ class _EditorPageState extends State<EditorPage> {
             ],
           ),
         ),
-        const SizedBox(height: 10),
-        CupertinoButton(
-          key: const Key('start_local_exports'),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          borderRadius: BorderRadius.circular(16),
-          onPressed: _openLocalExports,
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                CupertinoIcons.tray_full,
-                size: 19,
-                color: CupertinoColors.white,
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Local Exports',
-                style: TextStyle(color: CupertinoColors.white),
-              ),
-            ],
-          ),
-        ),
         if (job != null) ...[
           const SizedBox(height: 10),
           CupertinoButton(
@@ -563,9 +613,20 @@ class _EditorPageState extends State<EditorPage> {
             onPressed: _busy
                 ? null
                 : () => setState(() => _step = EditorWorkflowStep.edit),
-            child: const Text(
-              'Edit selected',
-              style: TextStyle(color: CupertinoColors.white),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Edit selected',
+                  style: TextStyle(color: CupertinoColors.white),
+                ),
+                SizedBox(width: 7),
+                Icon(
+                  CupertinoIcons.chevron_right,
+                  color: CupertinoColors.white,
+                  size: 17,
+                ),
+              ],
             ),
           ),
         ],
@@ -623,23 +684,36 @@ class _EditorPageState extends State<EditorPage> {
             ? 0.0
             : availablePanelHeight.clamp(0.0, preferredPanelHeight).toDouble();
         final panelOpen = _toolPanelOpen && panelHeight > 0;
+        final previewTopInset =
+            topInset +
+            (_jobs.length > 1
+                ? (compact ? 128.0 : 132.0)
+                : (compact ? 76.0 : 80.0));
         return Stack(
           fit: StackFit.expand,
           children: [
             EditorHoldPreview(
               compareMode: _compareMode,
-              previewBuilder: (mode) => EditorPreviewStage(
-                job: job,
-                settings: _settings,
-                compareMode: mode,
-                lutProfile: _lutProfile,
-                immersive: true,
-                showHeader: false,
-                borderRadius: 0,
-                immersiveBottomInset:
-                    (panelOpen ? panelHeight + 102 : 112) + bottomInset,
-                transform: _transformSettings,
-                showCropGrid: activeGroup == EditorToolGroup.crop,
+              previewBuilder: (mode) => EditorPreviewZoom(
+                resetKey: '${job.id}:${_previewFit.name}',
+                enabled: activeGroup != EditorToolGroup.crop,
+                child: EditorPreviewStage(
+                  job: job,
+                  settings: _settings,
+                  compareMode: mode,
+                  lutProfile: _lutProfile,
+                  immersive: true,
+                  showHeader: false,
+                  borderRadius: 0,
+                  immersiveTopInset: previewTopInset,
+                  immersiveBottomInset:
+                      (panelOpen ? panelHeight + 88 : 122) + bottomInset,
+                  transform: _transformSettings,
+                  showCropGrid: activeGroup == EditorToolGroup.crop,
+                  previewFit: activeGroup == EditorToolGroup.crop
+                      ? EditorPreviewFit.fit
+                      : _previewFit,
+                ),
               ),
               onScaleStart: activeGroup == EditorToolGroup.crop
                   ? _startCropGesture
@@ -689,15 +763,22 @@ class _EditorPageState extends State<EditorPage> {
                 child: _editorBatchStrip(job, compact: compact),
               ),
             Positioned(
-              top:
-                  topInset +
-                  (_jobs.length > 1
-                      ? (compact ? 122 : 126)
-                      : (compact ? 70 : 74)),
+              top: previewTopInset + 8,
               right: horizontalPadding,
-              child: _previewCompareButton(
-                mode: _compareMode,
-                onPressed: _toggleComparePreview,
+              child: Column(
+                children: [
+                  _previewCompareButton(
+                    mode: _compareMode,
+                    onPressed: _toggleComparePreview,
+                  ),
+                  if (job.kind == MediaKind.photo) ...[
+                    const SizedBox(height: 8),
+                    _previewFitButton(
+                      fit: _previewFit,
+                      enabled: activeGroup != EditorToolGroup.crop,
+                    ),
+                  ],
+                ],
               ),
             ),
             Positioned(
@@ -794,6 +875,44 @@ class _EditorPageState extends State<EditorPage> {
     setState(() => _compareMode = _compareMode.toggled);
   }
 
+  Widget _previewFitButton({
+    required EditorPreviewFit fit,
+    required bool enabled,
+  }) {
+    final actionLabel = enabled
+        ? '${fit.actionLabel}. Pinch with two fingers to inspect details; double-tap to reset zoom.'
+        : 'Fit is fixed while cropping.';
+    return Tooltip(
+      message: actionLabel,
+      child: Semantics(
+        button: true,
+        selected: fit == EditorPreviewFit.fill,
+        label: actionLabel,
+        child: CupertinoButton(
+          key: const Key('editor_preview_fit'),
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(42, 42),
+          borderRadius: BorderRadius.circular(99),
+          color: CupertinoColors.black.withValues(alpha: .56),
+          onPressed: !enabled
+              ? null
+              : () => setState(() => _previewFit = fit.toggled),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 160),
+            child: Icon(
+              fit == EditorPreviewFit.fit
+                  ? CupertinoIcons.arrow_up_left_arrow_down_right
+                  : CupertinoIcons.arrow_down_right_arrow_up_left,
+              key: ValueKey(fit),
+              color: CupertinoColors.white,
+              size: 19,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _startCropGesture(ScaleStartDetails details) {
     _cropGestureStartZoom = _transformSettings.zoom;
   }
@@ -820,6 +939,7 @@ class _EditorPageState extends State<EditorPage> {
         offsetX: offsetX,
         offsetY: offsetY,
       );
+      _storeSelectedEditState();
     });
   }
 
@@ -911,7 +1031,6 @@ class _EditorPageState extends State<EditorPage> {
     final videoUnavailable =
         job.kind.isVideo &&
         !VideoRestorationService.isBackendAvailableOnCurrentPlatform;
-    final complete = _jobs.every((item) => item.status == JobStatus.complete);
     return _floatingGlass(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       borderRadius: 22,
@@ -942,7 +1061,7 @@ class _EditorPageState extends State<EditorPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  complete ? 'Complete' : 'Export',
+                  'Export',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
@@ -970,16 +1089,10 @@ class _EditorPageState extends State<EditorPage> {
           CupertinoButton.filled(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             minimumSize: Size.zero,
-            onPressed: (_busy || videoUnavailable)
-                ? null
-                : complete
-                ? () => setState(() => _step = EditorWorkflowStep.import)
-                : _commitExport,
+            onPressed: (_busy || videoUnavailable) ? null : _commitExport,
             child: Text(
               _busy
                   ? 'Exporting...'
-                  : complete
-                  ? 'Done'
                   : _jobs.length > 1
                   ? 'Export all'
                   : 'Export',
@@ -993,13 +1106,13 @@ class _EditorPageState extends State<EditorPage> {
   Widget _editorBatchStrip(MediaJob job, {required bool compact}) {
     final total = _jobs.length;
     final current = _selectedIndex.clamp(0, total - 1).toInt() + 1;
-    final complete = _jobs
-        .where((item) => item.status == JobStatus.complete)
-        .length;
     final failed = _jobs
         .where((item) => item.status == JobStatus.failed)
         .length;
-    final pending = total - complete - failed;
+    final processing = _jobs
+        .where((item) => item.status == JobStatus.processing)
+        .length;
+    final pending = total - failed - processing;
     return _floatingGlass(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       borderRadius: 20,
@@ -1009,7 +1122,7 @@ class _EditorPageState extends State<EditorPage> {
             icon: CupertinoIcons.chevron_left,
             onPressed: _busy || _selectedIndex <= 0
                 ? null
-                : () => setState(() => _selectedIndex--),
+                : () => _selectJobIndex(_selectedIndex - 1),
           ),
           const SizedBox(width: 6),
           Expanded(
@@ -1046,7 +1159,7 @@ class _EditorPageState extends State<EditorPage> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '$pending ready - $complete complete${failed == 0 ? '' : ' - $failed failed'}',
+                          '$pending ready${processing == 0 ? '' : ' - $processing processing'}${failed == 0 ? '' : ' - $failed failed'}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: CupertinoTheme.of(context).textTheme.textStyle
@@ -1066,10 +1179,19 @@ class _EditorPageState extends State<EditorPage> {
           ),
           const SizedBox(width: 6),
           _editorIconButton(
+            key: const Key('editor_copy_edits'),
+            icon: CupertinoIcons.doc_on_doc,
+            tooltip: 'Copy this photo’s edits',
+            onPressed: _busy || !_canCopyEditsFrom(job)
+                ? null
+                : _showBatchEditCopySheet,
+          ),
+          const SizedBox(width: 6),
+          _editorIconButton(
             icon: CupertinoIcons.chevron_right,
             onPressed: _busy || _selectedIndex >= total - 1
                 ? null
-                : () => setState(() => _selectedIndex++),
+                : () => _selectJobIndex(_selectedIndex + 1),
           ),
         ],
       ),
@@ -1077,10 +1199,13 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _editorIconButton({
+    Key? key,
     required IconData icon,
     required VoidCallback? onPressed,
+    String? tooltip,
   }) {
-    return CupertinoButton(
+    final button = CupertinoButton(
+      key: key,
       padding: const EdgeInsets.all(7),
       minimumSize: Size.zero,
       borderRadius: BorderRadius.circular(99),
@@ -1095,6 +1220,92 @@ class _EditorPageState extends State<EditorPage> {
         ),
         size: 17,
       ),
+    );
+    if (tooltip == null) return button;
+    return Tooltip(message: tooltip, child: button);
+  }
+
+  bool _canCopyEditsFrom(MediaJob source) {
+    return source.kind.isImage &&
+        _jobs.any((job) => job.id != source.id && job.kind.isImage);
+  }
+
+  Future<void> _showBatchEditCopySheet() {
+    final source = _selectedJob;
+    if (source == null || !_canCopyEditsFrom(source) || _busy) {
+      return Future.value();
+    }
+    _storeSelectedEditState();
+    final targets = [
+      for (final job in _jobs)
+        if (job.id != source.id && job.kind.isImage)
+          job.copyWith(displayName: _friendlyMediaName(job)),
+    ];
+    return showCupertinoModalPopup<void>(
+      context: context,
+      builder: (_) => BatchEditCopySheet(
+        source: source.copyWith(displayName: _friendlyMediaName(source)),
+        targets: targets,
+        onApplySelected: (ids) => _applyEditsToTargets(
+          sourceId: source.id,
+          targetIds: ids,
+        ),
+        onApplyAll: () => _confirmAndApplyEditsToAll(
+          sourceId: source.id,
+          targetIds: targets.map((job) => job.id).toSet(),
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _applyEditsToTargets({
+    required String sourceId,
+    required Set<String> targetIds,
+  }) async {
+    if (!mounted || targetIds.isEmpty || !_editStates.containsKey(sourceId)) {
+      return false;
+    }
+    setState(() {
+      _editStates = copyMediaEditStateToTargets(
+        states: _editStates,
+        sourceId: sourceId,
+        targetIds: targetIds,
+      );
+      _status =
+          'Copied edits to ${targetIds.length} photo${targetIds.length == 1 ? '' : 's'}.';
+    });
+    return true;
+  }
+
+  Future<bool> _confirmAndApplyEditsToAll({
+    required String sourceId,
+    required Set<String> targetIds,
+  }) async {
+    final confirmed = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('Apply edits to all photos?'),
+        content: const Text(
+          'Die Einstellungen werden nun auf alle anderen Bilder angewendet.',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            key: const Key('confirm_apply_edits_to_all'),
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return false;
+    return _applyEditsToTargets(
+      sourceId: sourceId,
+      targetIds: targetIds,
     );
   }
 
@@ -1115,7 +1326,7 @@ class _EditorPageState extends State<EditorPage> {
         EditorToolGroup.presets => PresetBrowser(
           settings: _settings,
           enabled: !_busy,
-          onChanged: (settings) => setState(() => _settings = settings),
+          onChanged: _setRestorationSettings,
         ),
         EditorToolGroup.light => AdjustmentBrowser(
           controls: allImageAdjustmentControls,
@@ -1124,13 +1335,12 @@ class _EditorPageState extends State<EditorPage> {
           selectedId: _selectedAdjustmentId,
           enabled: !_busy,
           onSelected: (id) => setState(() => _selectedAdjustmentId = id),
-          onChanged: (settings) => setState(() => _settings = settings),
+          onChanged: _setRestorationSettings,
         ),
         EditorToolGroup.crop => CropBrowser(
           settings: _transformSettings,
           enabled: !_busy,
-          onChanged: (settings) =>
-              setState(() => _transformSettings = settings),
+          onChanged: _setTransformSettings,
         ),
         EditorToolGroup.effects => _lutSection(panelContext),
         EditorToolGroup.color || EditorToolGroup.details => _adjustmentSliders(
@@ -1162,8 +1372,8 @@ class _EditorPageState extends State<EditorPage> {
             format: control.format,
             onChanged: _busy
                 ? null
-                : (value) => setState(
-                    () => _settings = control.apply(_settings, value),
+                : (value) => _setRestorationSettings(
+                    control.apply(_settings, value),
                   ),
           ),
       ],
@@ -1187,13 +1397,9 @@ class _EditorPageState extends State<EditorPage> {
         ),
         const SizedBox(height: 8),
         _exportPreview(job),
-        if (job.status == JobStatus.complete && job.outputPath != null) ...[
-          const SizedBox(height: 12),
-          _resultPanel(job),
-        ],
         const SizedBox(height: 14),
         if (_jobs.length > 1) ...[
-          _batchExportReviewPanel(),
+          _batchExportReviewPanel(panelContext),
           const SizedBox(height: 12),
         ],
         _exportOptionsSection(panelContext),
@@ -1284,67 +1490,6 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _importSummary(MediaJob job) {
-    return _splitCards(
-      left: _mediaCard(
-        title: 'Selected media',
-        path: job.inputPath,
-        kind: job.kind,
-        previewMode: _PreviewMode.frame,
-      ),
-      right: _metadataCard(job),
-    );
-  }
-
-  Widget _metadataCard(MediaJob job) {
-    final metadata = job.metadata;
-    final rows = <(String, String)>[
-      (
-        'File',
-        metadata?.fileName ?? job.displayName ?? p.basename(job.inputPath),
-      ),
-      ('Type', metadata?.kind.label ?? job.kind.label),
-      ('Source', job.source.label),
-      ('Status', job.status.label),
-      if (metadata?.sizeLabel != null) ('Size', metadata!.sizeLabel),
-      if (metadata?.dimensionsLabel != null)
-        ('Resolution', metadata!.dimensionsLabel!),
-      if (metadata?.durationLabel != null)
-        ('Duration', metadata!.durationLabel!),
-    ];
-    return _previewCard(
-      title: 'Details',
-      trailing: job.kind.label,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [for (final row in rows) _metadataRow(row.$1, row.$2)],
-        ),
-      ),
-      footer: job.inputPath,
-      minHeight: 280,
-    );
-  }
-
-  Widget _metadataRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 86,
-            child: Text(label, style: _secondaryText(context)),
-          ),
-          Expanded(
-            child: Text(value, maxLines: 2, overflow: TextOverflow.ellipsis),
-          ),
-        ],
-      ),
-    );
-  }
-
   String _friendlyMediaName(MediaJob job) {
     final rawName = job.displayName ?? p.basename(job.inputPath);
     final uuidLike = RegExp(
@@ -1432,14 +1577,6 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _exportPreview(MediaJob job) {
     final sourceAspectRatio = _previewAspectRatio(job);
-    if (job.status == JobStatus.complete &&
-        job.outputPath != null &&
-        job.kind.isImage) {
-      return ExportedPhotoPreview(
-        path: job.outputPath!,
-        aspectRatio: _transformSettings.outputAspectRatio(sourceAspectRatio),
-      );
-    }
     return AspectRatio(
       aspectRatio: _transformSettings.outputAspectRatio(sourceAspectRatio),
       child: EditorPreviewStage(
@@ -1450,167 +1587,9 @@ class _EditorPageState extends State<EditorPage> {
         showHeader: false,
         borderRadius: 16,
         transform: _transformSettings,
+        previewFit: EditorPreviewFit.fill,
       ),
     );
-  }
-
-  Widget _mediaCard({
-    required String title,
-    required String path,
-    required MediaKind kind,
-    _PreviewMode previewMode = _PreviewMode.live,
-  }) {
-    final ext = p.extension(path).replaceFirst('.', '').toUpperCase();
-    final canShowImage = kind.isImage && !kind.isRaw;
-    final canShowVideo = kind == MediaKind.video && File(path).existsSync();
-    final child = SizedBox(
-      height: 236,
-      width: double.infinity,
-      child: canShowImage
-          ? Image.file(
-              File(path),
-              fit: BoxFit.contain,
-              errorBuilder: (_, _, _) => _placeholder(kind),
-            )
-          : canShowVideo
-          ? previewMode == _PreviewMode.frame
-                ? VideoFramePreviewTile(path: path)
-                : VideoPreviewTile(path: path)
-          : _placeholder(kind),
-    );
-    return _previewCard(
-      title: title,
-      trailing: ext.isEmpty ? kind.label : ext,
-      child: child,
-      footer: path,
-    );
-  }
-
-  Widget _previewCard({
-    required String title,
-    required String trailing,
-    required Widget child,
-    String? footer,
-    double minHeight = 280,
-  }) {
-    return Container(
-      constraints: BoxConstraints(minHeight: minHeight),
-      decoration: _tileDecoration(context),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _tileHeader(title, trailing),
-          child,
-          if (footer != null)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                footer,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: _secondaryText(context),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _placeholder(MediaKind kind) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            kind.isVideo ? CupertinoIcons.film : CupertinoIcons.doc_richtext,
-            size: 48,
-            color: CupertinoDynamicColor.resolve(
-              CupertinoColors.secondaryLabel,
-              context,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            kind.isVideo
-                ? 'Frame preview unavailable for this format'
-                : 'Preview generated during export',
-            style: _secondaryText(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _resultPanel(MediaJob job) {
-    final output = job.outputPath!;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: CupertinoColors.white.withValues(alpha: .07),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CupertinoColors.white.withValues(alpha: .13)),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            CupertinoIcons.check_mark_circled_solid,
-            color: CupertinoColors.activeGreen,
-            size: 25,
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Export saved',
-                  style: TextStyle(
-                    color: CupertinoColors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  _exportResultMessage(output),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: CupertinoColors.systemGrey,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (_exportOptions.keepLocalCopy)
-            CupertinoButton(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-              minimumSize: Size.zero,
-              onPressed: _openLocalExports,
-              child: const Text('View'),
-            ),
-        ],
-      ),
-    );
-  }
-
-  String _exportResultMessage(String outputPath) {
-    final destinations = _exportDestinationNames();
-    if (destinations.length == 1 && _exportOptions.keepLocalCopy) {
-      return 'Saved locally as ${p.basename(outputPath)}.';
-    }
-    final joined = switch (destinations.length) {
-      0 => 'the selected destination',
-      1 => destinations.single,
-      2 => '${destinations.first} and ${destinations.last}',
-      _ =>
-        '${destinations.sublist(0, destinations.length - 1).join(', ')}, and ${destinations.last}',
-    };
-    final localNote = _exportOptions.keepLocalCopy
-        ? ''
-        : ' No local copy was kept.';
-    return 'Saved to $joined.$localNote';
   }
 
   List<String> _exportDestinationNames() => [
@@ -1619,12 +1598,12 @@ class _EditorPageState extends State<EditorPage> {
     if (_exportOptions.saveToFiles) 'Files',
   ];
 
-  Widget _batchExportReviewPanel() {
-    final complete = _jobs
-        .where((job) => job.status == JobStatus.complete)
-        .length;
+  Widget _batchExportReviewPanel(BuildContext panelContext) {
     final failed = _jobs.where((job) => job.status == JobStatus.failed).length;
-    final pending = _jobs.length - complete - failed;
+    final processing = _jobs
+        .where((job) => job.status == JobStatus.processing)
+        .length;
+    final pending = _jobs.length - failed - processing;
     final selected = _selectedJob;
     final videoUnavailable =
         selected != null &&
@@ -1637,11 +1616,17 @@ class _EditorPageState extends State<EditorPage> {
         selected.status.canStartIndividualExport;
     final actionLabel = switch (selected?.status) {
       JobStatus.failed => 'Retry selected',
-      JobStatus.complete => 'Export selected again',
       JobStatus.processing => 'Exporting selected...',
+      JobStatus.complete => 'Exported',
       _ => 'Export selected',
     };
-    return _sectionBox(
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CupertinoColors.white.withValues(alpha: .07),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: CupertinoColors.white.withValues(alpha: .13)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1653,13 +1638,22 @@ class _EditorPageState extends State<EditorPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Batch export', style: _panelTitle()),
+                    Text(
+                      'Batch export',
+                      style: CupertinoTheme.of(
+                        panelContext,
+                      ).textTheme.navTitleTextStyle,
+                    ),
                     const SizedBox(height: 3),
                     Text(
-                      '$pending ready - $complete complete${failed == 0 ? '' : ' - $failed failed'}',
+                      '$pending ready${processing == 0 ? '' : ' - $processing processing'}${failed == 0 ? '' : ' - $failed failed'}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: _secondaryText(context),
+                      style: CupertinoTheme.of(panelContext).textTheme.textStyle
+                          .copyWith(
+                            color: CupertinoColors.systemGrey,
+                            fontSize: 12,
+                          ),
                     ),
                   ],
                 ),
@@ -1681,8 +1675,11 @@ class _EditorPageState extends State<EditorPage> {
           Container(
             padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
             decoration: BoxDecoration(
-              color: CupertinoColors.systemGrey5.resolveFrom(context),
+              color: CupertinoColors.white.withValues(alpha: .07),
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: CupertinoColors.white.withValues(alpha: .08),
+              ),
             ),
             child: Row(
               children: [
@@ -1692,7 +1689,10 @@ class _EditorPageState extends State<EditorPage> {
                     children: [
                       const Text(
                         'Selected item',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: CupertinoColors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -1701,7 +1701,13 @@ class _EditorPageState extends State<EditorPage> {
                             : _friendlyMediaName(selected),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: _secondaryText(context).copyWith(fontSize: 12),
+                        style: CupertinoTheme.of(panelContext)
+                            .textTheme
+                            .textStyle
+                            .copyWith(
+                              color: CupertinoColors.systemGrey,
+                              fontSize: 12,
+                            ),
                       ),
                     ],
                   ),
@@ -1715,7 +1721,7 @@ class _EditorPageState extends State<EditorPage> {
                   ),
                   minimumSize: Size.zero,
                   borderRadius: BorderRadius.circular(11),
-                  color: CupertinoColors.systemGrey4.resolveFrom(context),
+                  color: CupertinoColors.white.withValues(alpha: .10),
                   onPressed: canExportSelected ? _commitSelectedExport : null,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1763,24 +1769,6 @@ class _EditorPageState extends State<EditorPage> {
           Text(message, style: _secondaryText(context)),
         ],
       ),
-    );
-  }
-
-  Widget _splitCards({required Widget left, required Widget right}) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 720) {
-          return Column(children: [left, const SizedBox(height: 12), right]);
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: left),
-            const SizedBox(width: 12),
-            Expanded(child: right),
-          ],
-        );
-      },
     );
   }
 
@@ -1858,8 +1846,8 @@ class _EditorPageState extends State<EditorPage> {
                 styleContext: panelContext,
                 onPressed: _busy
                     ? null
-                    : () => setState(
-                        () => _lutProfile = profile.copyWith(
+                    : () => _setLutProfile(
+                        profile.copyWith(
                           intensity: profile.kind == LutKind.none ? 0 : 1,
                         ),
                       ),
@@ -1887,9 +1875,7 @@ class _EditorPageState extends State<EditorPage> {
           divisions: 20,
           onChanged: _busy
               ? null
-              : (v) => setState(
-                  () => _lutProfile = _lutProfile.copyWith(intensity: v),
-                ),
+              : (v) => _setLutProfile(_lutProfile.copyWith(intensity: v)),
         ),
       ],
     );
@@ -2045,9 +2031,7 @@ class _EditorPageState extends State<EditorPage> {
             max: 100,
             divisions: 30,
             format: (v) => v.round().toString(),
-            onChanged: (v) => setState(
-              () => _settings = _settings.copyWith(jpegQuality: v.round()),
-            ),
+            onChanged: (v) => _setJpegQuality(v.round()),
           ),
           _switchRow(
             title: 'Strip metadata',
@@ -2071,49 +2055,106 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _queueSection({bool compact = false}) {
+    final titleStyle = compact
+        ? const TextStyle(
+            color: CupertinoColors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          )
+        : CupertinoTheme.of(context).textTheme.navTitleTextStyle;
+    final subtitleStyle = compact
+        ? TextStyle(
+            color: CupertinoColors.white.withValues(alpha: .62),
+            fontSize: 12,
+          )
+        : _secondaryText(context);
     final child = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(
-          'Queue',
-          '${_jobs.length} item${_jobs.length == 1 ? '' : 's'}',
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Queue', style: titleStyle),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${_jobs.length} item${_jobs.length == 1 ? '' : 's'} selected',
+                    style: subtitleStyle,
+                  ),
+                ],
+              ),
+            ),
+            if (_jobs.isNotEmpty)
+              CupertinoButton(
+                key: const Key('start_open_queue'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                minimumSize: Size.zero,
+                onPressed: _busy ? null : _showQueueOverview,
+                child: const Text('Manage'),
+              ),
+          ],
         ),
         const SizedBox(height: 8),
         if (_jobs.isEmpty)
-          Text('No media imported.', style: _secondaryText(context))
+          Text('No media imported.', style: subtitleStyle)
         else
           Column(
             children: [
-              for (var i = 0; i < _jobs.length; i++) _queueRow(i, _jobs[i]),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: CupertinoButton(
-                  onPressed: _busy ? null : _clearCompleted,
-                  child: const Text('Clear completed'),
-                ),
-              ),
+              for (var i = 0; i < _jobs.length; i++)
+                _queueRow(i, _jobs[i], dark: compact),
             ],
           ),
       ],
     );
-    return compact ? _sectionBox(child: child) : GlassPanel(child: child);
+    if (!compact) return GlassPanel(child: child);
+    return Container(
+      key: const Key('start_queue'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CupertinoColors.white.withValues(alpha: .07),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: CupertinoColors.white.withValues(alpha: .13)),
+      ),
+      child: child,
+    );
   }
 
-  Widget _queueRow(int index, MediaJob job) {
+  Widget _queueRow(int index, MediaJob job, {bool dark = false}) {
     final selected = index == _selectedIndex;
-    return GestureDetector(
+    final primary = CupertinoTheme.of(context).primaryColor;
+    final details = <String>[
+      job.kind.label,
+      job.source.label,
+      job.status.label,
+      if (job.metadata?.sizeLabel != null) job.metadata!.sizeLabel,
+      if (job.metadata?.dimensionsLabel != null) job.metadata!.dimensionsLabel!,
+      if (job.metadata?.durationLabel != null) job.metadata!.durationLabel!,
+    ];
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Edit ${_friendlyMediaName(job)}',
+      child: GestureDetector(
+      key: Key('start_queue_item_${job.id}'),
       onTap: _busy
           ? null
-          : () => setState(() {
-              _selectedIndex = index;
-            }),
+          : () => _selectJobIndex(
+              index,
+              openEditor: _step == EditorWorkflowStep.import,
+            ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: selected
-              ? CupertinoTheme.of(context).primaryColor.withValues(alpha: 0.12)
+              ? primary.withValues(alpha: dark ? .18 : .12)
+              : dark
+              ? CupertinoColors.white.withValues(alpha: .055)
               : CupertinoDynamicColor.resolve(
                   CupertinoColors.secondarySystemGroupedBackground,
                   context,
@@ -2121,9 +2162,9 @@ class _EditorPageState extends State<EditorPage> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected
-                ? CupertinoTheme.of(
-                    context,
-                  ).primaryColor.withValues(alpha: 0.42)
+                ? primary.withValues(alpha: 0.42)
+                : dark
+                ? CupertinoColors.white.withValues(alpha: .10)
                 : CupertinoDynamicColor.resolve(
                     CupertinoColors.separator,
                     context,
@@ -2132,26 +2173,51 @@ class _EditorPageState extends State<EditorPage> {
         ),
         child: Row(
           children: [
-            Icon(
-              _iconFor(job),
-              color: CupertinoDynamicColor.resolve(
-                CupertinoColors.secondaryLabel,
-                context,
-              ),
-            ),
+            _queueInlineThumbnail(job, dark: dark),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    job.displayName ?? p.basename(job.inputPath),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _friendlyMediaName(job),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: dark
+                              ? const TextStyle(
+                                  color: CupertinoColors.white,
+                                  fontWeight: FontWeight.w600,
+                                )
+                              : const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      if (selected) ...[
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Selected',
+                          style: TextStyle(
+                            color: CupertinoColors.activeBlue,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
+                  const SizedBox(height: 3),
                   Text(
-                    '${job.kind.label} - ${job.status.label}',
-                    style: _secondaryText(context),
+                    details.join(' · '),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: dark
+                        ? TextStyle(
+                            color: CupertinoColors.white.withValues(alpha: .58),
+                            fontSize: 12,
+                          )
+                        : _secondaryText(context),
                   ),
                 ],
               ),
@@ -2193,48 +2259,120 @@ class _EditorPageState extends State<EditorPage> {
           ],
         ),
       ),
+      ),
     );
   }
 
-  Widget _statusPanel() {
-    return GlassPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionHeader('Status', _busy ? 'Working locally' : 'Idle'),
-          if (_busy)
-            const Padding(
-              padding: EdgeInsets.only(top: 10),
-              child: CupertinoActivityIndicator(),
-            ),
-          if (_status != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Text(
-                _status!,
-                maxLines: 5,
-                overflow: TextOverflow.ellipsis,
-                style: _secondaryText(context),
-              ),
-            ),
-          if (_busy && _canCancelCurrentWork)
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: _cancelProcessing,
-              child: const Text('Cancel'),
-            )
-          else if (_busy)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Text(
-                'Export cannot be cancelled safely. Keep the app open until this item finishes.',
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: _secondaryText(context),
-              ),
-            ),
-        ],
+  Widget _queueInlineThumbnail(MediaJob job, {required bool dark}) {
+    final placeholder = ColoredBox(
+      color: dark
+          ? CupertinoColors.white.withValues(alpha: .07)
+          : CupertinoColors.systemGrey5.resolveFrom(context),
+      child: Icon(
+        _iconFor(job),
+        color: dark
+            ? CupertinoColors.white.withValues(alpha: .64)
+            : CupertinoColors.secondaryLabel.resolveFrom(context),
+        size: 20,
       ),
+    );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: 52,
+        height: 52,
+        child: job.kind.isImage && !job.kind.isRaw
+            ? Image.file(
+                File(job.inputPath),
+                fit: BoxFit.cover,
+                cacheWidth: 120,
+                errorBuilder: (_, _, _) => placeholder,
+              )
+            : placeholder,
+      ),
+    );
+  }
+
+  Widget _statusPanel({bool dark = false}) {
+    final child = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (dark)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Status',
+                style: TextStyle(
+                  color: CupertinoColors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                _busy ? 'Working locally' : 'Idle',
+                style: TextStyle(
+                  color: CupertinoColors.white.withValues(alpha: .62),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          )
+        else
+          _sectionHeader('Status', _busy ? 'Working locally' : 'Idle'),
+        if (_busy)
+          const Padding(
+            padding: EdgeInsets.only(top: 10),
+            child: CupertinoActivityIndicator(),
+          ),
+        if (_status != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text(
+              _status!,
+              maxLines: 5,
+              overflow: TextOverflow.ellipsis,
+              style: dark
+                  ? TextStyle(
+                      color: CupertinoColors.white.withValues(alpha: .64),
+                      fontSize: 13,
+                    )
+                  : _secondaryText(context),
+            ),
+          ),
+        if (_busy && _canCancelCurrentWork)
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: _cancelProcessing,
+            child: const Text('Cancel'),
+          )
+        else if (_busy)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text(
+              'Export cannot be cancelled safely. Keep the app open until this item finishes.',
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: dark
+                  ? TextStyle(
+                      color: CupertinoColors.white.withValues(alpha: .64),
+                      fontSize: 13,
+                    )
+                  : _secondaryText(context),
+            ),
+          ),
+      ],
+    );
+    if (!dark) return GlassPanel(child: child);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: CupertinoColors.white.withValues(alpha: .07),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: CupertinoColors.white.withValues(alpha: .13)),
+      ),
+      child: child,
     );
   }
 
@@ -2301,8 +2439,9 @@ class _EditorPageState extends State<EditorPage> {
     );
     final path = result?.files.single.path;
     if (path == null) return;
+    _setLutProfile(LutProfile.customCube(path, name: p.basename(path)));
+    if (!mounted) return;
     setState(() {
-      _lutProfile = LutProfile.customCube(path, name: p.basename(path));
       _status = 'Loaded LUT ${p.basename(path)}.';
     });
   }
@@ -2359,18 +2498,24 @@ class _EditorPageState extends State<EditorPage> {
       return;
     }
     setState(() {
+      _storeSelectedEditState();
       final startIndex = _jobs.length;
       _jobs = [..._jobs, ...next];
+      for (final job in next) {
+        _editStates.putIfAbsent(job.id, () => const MediaEditState());
+      }
       _selectedIndex = startIndex;
-      _step = widget.reviewExportOnStart
+      _loadEditStateForIndex(startIndex);
+      _step = widget.libraryOnStart
+          ? EditorWorkflowStep.import
+          : widget.reviewExportOnStart
           ? EditorWorkflowStep.export
           : EditorWorkflowStep.edit;
-      _settings = RestorationPreset.auto.settings;
-      _transformSettings = const ImageTransformSettings();
       _selectedToolGroup = widget.initialToolGroup ?? EditorToolGroup.presets;
       _selectedAdjustmentId = 'recovery';
       _toolPanelOpen = true;
       _compareMode = widget.initialCompareMode ?? EditorCompareMode.edited;
+      _previewFit = EditorPreviewFit.fit;
       _busy = false;
       _status = next.length > 1
           ? 'Imported ${next.length} items${skipped == 0 ? '' : ', skipped $skipped unsupported'}. Nothing is saved until you confirm export.'
@@ -2396,8 +2541,19 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Future<void> _processSelected() async {
-    if (_selectedJob == null) return;
-    await _processJob(_selectedIndex);
+    final selected = _selectedJob;
+    if (selected == null) return;
+    final exported = await _processJob(_selectedIndex);
+    if (!exported || !mounted) return;
+    setState(() {
+      _removeExportedJobFromQueue(selected.id);
+      _step = _jobs.isEmpty
+          ? EditorWorkflowStep.import
+          : EditorWorkflowStep.export;
+      _status = _jobs.isEmpty
+          ? 'Export complete. The queue is empty.'
+          : 'Export complete. ${_jobs.length} item${_jobs.length == 1 ? '' : 's'} remaining.';
+    });
   }
 
   Future<void> _processQueue() async {
@@ -2407,31 +2563,43 @@ class _EditorPageState extends State<EditorPage> {
       _cancelRequested = false;
       _status = 'Exporting all selected media...';
     });
-    for (var i = 0; i < _jobs.length; i++) {
+    final batchIds = _jobs.map((job) => job.id).toList(growable: false);
+    var exportedCount = 0;
+    for (final id in batchIds) {
       if (!mounted || _cancelRequested) break;
-      if (_jobs[i].status == JobStatus.complete) continue;
-      await _processJob(i, partOfBatch: true);
+      final index = _jobs.indexWhere((job) => job.id == id);
+      if (index < 0) continue;
+      if (_jobs[index].status == JobStatus.complete) {
+        setState(() => _removeExportedJobFromQueue(id));
+        continue;
+      }
+      final exported = await _processJob(index, partOfBatch: true);
+      if (exported && mounted) {
+        exportedCount++;
+        setState(() => _removeExportedJobFromQueue(id));
+      }
     }
     if (mounted) {
-      final complete = _jobs
-          .where((job) => job.status == JobStatus.complete)
-          .length;
       final failed = _jobs
           .where((job) => job.status == JobStatus.failed)
           .length;
       setState(() {
         _busy = false;
-        if (!_cancelRequested) _step = EditorWorkflowStep.export;
+        if (!_cancelRequested) {
+          _step = _jobs.isEmpty
+              ? EditorWorkflowStep.import
+              : EditorWorkflowStep.export;
+        }
         _status = _cancelRequested
             ? 'Queue cancelled.'
-            : 'Batch export finished: $complete complete${failed == 0 ? '' : ', $failed failed'}.';
+            : 'Batch export finished: $exportedCount exported and removed${failed == 0 ? '' : ', $failed failed'}.';
       });
     }
   }
 
-  Future<void> _processJob(int index, {bool partOfBatch = false}) async {
-    if (index < 0 || index >= _jobs.length) return;
-    if (!partOfBatch && _busy) return;
+  Future<bool> _processJob(int index, {bool partOfBatch = false}) async {
+    if (index < 0 || index >= _jobs.length) return false;
+    if (!partOfBatch && _busy) return false;
     var job = _jobs[index];
     if (job.kind.isVideo &&
         !VideoRestorationService.isBackendAvailableOnCurrentPlatform) {
@@ -2449,7 +2617,7 @@ class _EditorPageState extends State<EditorPage> {
         _status = message;
       });
       if (!partOfBatch) await _showAlert('Video export unavailable', message);
-      return;
+      return false;
     }
     RawVideoDescriptor? rawDescriptor;
     if (job.kind == MediaKind.rawVideo) {
@@ -2460,7 +2628,7 @@ class _EditorPageState extends State<EditorPage> {
           context,
           initial: _rawDescriptor,
         );
-        if (descriptor == null || !mounted) return;
+        if (descriptor == null || !mounted) return false;
         _rawDescriptor = descriptor;
         rawDescriptor = descriptor;
       }
@@ -2537,29 +2705,31 @@ class _EditorPageState extends State<EditorPage> {
           directoryPath: directoryPath,
         );
       }
-      final previewOutput = _exportOptions.keepLocalCopy
-          ? output
-          : await _moveToTemporaryPreview(output);
-      if (!mounted) return;
+      if (!_exportOptions.keepLocalCopy) {
+        await _deleteGeneratedOutput(output);
+      }
+      if (!mounted) return false;
       setState(() {
         _updateJob(
           index,
           (old) => old.copyWith(
             status: JobStatus.complete,
-            outputPath: previewOutput,
+            outputPath: _exportOptions.keepLocalCopy ? output : null,
             progress: 1,
             clearError: true,
+            clearOutput: !_exportOptions.keepLocalCopy,
           ),
         );
         if (!partOfBatch) _step = EditorWorkflowStep.export;
         _status =
             'Exported ${p.basename(output)} to ${_exportDestinationNames().join(', ')}.';
       });
+      return true;
     } on Object catch (error) {
       if (!_exportOptions.keepLocalCopy && generatedOutput != null) {
         await _deleteGeneratedOutput(generatedOutput);
       }
-      if (!mounted) return;
+      if (!mounted) return false;
       final message = _friendlyError(error);
       setState(() {
         _updateJob(
@@ -2573,6 +2743,7 @@ class _EditorPageState extends State<EditorPage> {
         _status = 'Failed: $message';
       });
       if (!partOfBatch) await _showAlert('Export failed', message);
+      return false;
     } finally {
       if (mounted && !partOfBatch) setState(() => _busy = false);
     }
@@ -2595,26 +2766,6 @@ class _EditorPageState extends State<EditorPage> {
       lutProfile: _lutProfile,
       transform: _transformSettings,
     );
-  }
-
-  Future<String> _moveToTemporaryPreview(String outputPath) async {
-    final directory = await OutputPaths.intermediateDirectory();
-    final previewPath = p.join(
-      directory.path,
-      'export_preview_${p.basename(outputPath)}',
-    );
-    final source = File(outputPath);
-    final preview = File(previewPath);
-    if (await preview.exists()) await preview.delete();
-    try {
-      await source.rename(previewPath);
-    } on FileSystemException {
-      await source.copy(previewPath);
-      await source.delete();
-    }
-    final sidecar = File('$outputPath.aquarecover.json');
-    if (await sidecar.exists()) await sidecar.delete();
-    return previewPath;
   }
 
   Future<void> _deleteGeneratedOutput(String outputPath) async {
@@ -2656,18 +2807,14 @@ class _EditorPageState extends State<EditorPage> {
     _jobs = copy;
   }
 
-  void _clearCompleted() {
-    final remaining = _jobs
-        .where((job) => job.status != JobStatus.complete)
-        .toList();
-    setState(() {
-      _jobs = remaining;
-      _selectedIndex = remaining.isEmpty
-          ? 0
-          : _selectedIndex.clamp(0, remaining.length - 1).toInt();
-      if (remaining.isEmpty) _step = EditorWorkflowStep.import;
-      _status = 'Cleared completed items.';
-    });
+  void _removeExportedJobFromQueue(String id) {
+    final result = removeMediaJobFromQueue(
+      jobs: _jobs,
+      selectedIndex: _selectedIndex,
+      id: id,
+    );
+    _jobs = result.jobs;
+    _selectedIndex = result.selectedIndex;
   }
 
   Future<void> _showQueueOverview() {
@@ -2698,16 +2845,17 @@ class _EditorPageState extends State<EditorPage> {
         (_busy && removed.status != JobStatus.pending)) {
       return false;
     }
-    final remaining = [..._jobs]..removeAt(index);
+    final result = removeMediaJobFromQueue(
+      jobs: _jobs,
+      selectedIndex: _selectedIndex,
+      id: id,
+    );
+    final remaining = result.jobs;
     setState(() {
       _jobs = remaining;
+      _selectedIndex = result.selectedIndex;
       if (remaining.isEmpty) {
-        _selectedIndex = 0;
         _step = EditorWorkflowStep.import;
-      } else if (index < _selectedIndex) {
-        _selectedIndex--;
-      } else if (_selectedIndex >= remaining.length) {
-        _selectedIndex = remaining.length - 1;
       }
       _status = 'Removed ${_friendlyMediaName(removed)} from the queue.';
     });
@@ -2889,30 +3037,6 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _sectionBox({
-    required Widget child,
-    EdgeInsetsGeometry margin = EdgeInsets.zero,
-  }) {
-    return Container(
-      margin: margin,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: CupertinoDynamicColor.resolve(
-          CupertinoColors.secondarySystemGroupedBackground,
-          context,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: CupertinoDynamicColor.resolve(
-            CupertinoColors.separator,
-            context,
-          ),
-        ),
-      ),
-      child: child,
-    );
-  }
-
   Widget _sectionHeader(String title, String subtitle) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3045,41 +3169,6 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _tileHeader(String title, String trailing) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: CupertinoTheme.of(
-                context,
-              ).textTheme.textStyle.copyWith(fontWeight: FontWeight.w700),
-            ),
-          ),
-          Text(trailing, style: _secondaryText(context)),
-        ],
-      ),
-    );
-  }
-
-  BoxDecoration _tileDecoration(BuildContext context) {
-    return BoxDecoration(
-      color: CupertinoDynamicColor.resolve(
-        CupertinoColors.secondarySystemGroupedBackground,
-        context,
-      ),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: CupertinoDynamicColor.resolve(
-          CupertinoColors.separator,
-          context,
-        ),
-      ),
-    );
-  }
-
   TextStyle _secondaryText(BuildContext context) {
     return CupertinoTheme.of(context).textTheme.textStyle.copyWith(
       fontSize: 13,
@@ -3105,5 +3194,3 @@ class _EditorPageState extends State<EditorPage> {
         : CupertinoIcons.photo;
   }
 }
-
-enum _PreviewMode { live, frame }
