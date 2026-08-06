@@ -204,8 +204,10 @@ flutter build macos --debug --no-pub
 ```
 
 GitHub Actions runs formatting, analysis, tests, and Android, Apple, and Windows
-debug builds for pushes and pull requests. Release packages are restricted to
-verified cherry-picks on `release/**`. Read
+debug builds for pull requests and exact versioned `main` commits. Release
+packages are restricted to verified cherry-picks on `release/**`; successful
+releases publish the APK, Windows installer, and DMG on GitHub and upload the
+signed iOS build to TestFlight. Read
 [Release automation](docs/RELEASE_AUTOMATION.md) for the branch flow, signing
 secrets, TestFlight upload, and tagging behavior.
 

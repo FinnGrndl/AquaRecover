@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: main
@@ -30,7 +30,7 @@ jobs:
           git merge --ff-only origin/main
       - name: Determine semantic version with git-cliff
         id: cliff
-        uses: orhun/git-cliff-action@v4
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4.8.0
         with:
           config: cliff.toml
           args: --bumped-version
@@ -46,19 +46,18 @@ jobs:
             exit 1
           fi
           echo "version=$next_version" >> "$GITHUB_OUTPUT"
-      - uses: ./.github/actions/setup-flutter
+      - uses: dart-lang/setup-dart@7654d458321ee25acccccfdb86cd48bd95768ff1 # v1.8.0
+        with:
+          sdk: 3.12.1
       - name: Synchronize project version and build number
         run: dart run tool/sync_version.dart "${{ steps.version.outputs.version }}"
       - name: Generate changelog
-        uses: orhun/git-cliff-action@v4
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4.8.0
         with:
           config: cliff.toml
           args: --tag v${{ steps.version.outputs.version }}
         env:
           OUTPUT: CHANGELOG.md
-      - run: dart format --output=none --set-exit-if-changed lib test tool
-      - run: flutter analyze
-      - run: flutter test
       - name: Commit synchronized version
         id: commit
         env:
@@ -67,6 +66,7 @@ jobs:
           if git diff --quiet; then
             echo "Version $VERSION is already synchronized."
             echo "created=false" >> "$GITHUB_OUTPUT"
+            echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "github-actions[bot]"
@@ -75,8 +75,9 @@ jobs:
           git commit -m "chore(release): prepare v$VERSION"
           git push origin HEAD:main
           echo "created=true" >> "$GITHUB_OUTPUT"
-      - name: Validate the synchronized commit
-        if: steps.commit.outputs.created == 'true'
+          echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Dispatch CI for the exact synchronized commit
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run ci.yml --ref main
+          SOURCE_SHA: ${{ steps.commit.outputs.source_sha }}
+        run: gh workflow run ci.yml --ref main --field source_sha="$SOURCE_SHA"
