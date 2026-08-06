@@ -101,9 +101,11 @@ That push creates four release outputs:
 The desktop and Android packages remain available as GitHub Actions artifacts
 for 30 days. The IPA is retained for 14 days. No private test media is included.
 
-The TestFlight job starts only after the other three platform packages have
-finished successfully. Apple may need additional processing time before the
-uploaded build appears in App Store Connect.
+The TestFlight job starts after validation and the macOS package. Android and
+Windows build independently, so an unavailable hosted runner does not block the
+Apple upload. The final tag still requires every platform package and the
+TestFlight upload to succeed. Apple may need additional processing time before
+the uploaded build appears in App Store Connect.
 
 ## Tagging
 
@@ -127,7 +129,13 @@ flutter build ios --release --no-codesign --no-pub
 flutter build macos --release --no-pub
 ```
 
-Windows and signed TestFlight outputs are built on their matching GitHub-hosted
-runners. git-cliff, Inno Setup, Flutter, and the packaging commands used by the
-workflow are free software or operating-system tools. TestFlight distribution
-still requires an Apple Developer Program membership.
+Trusted `main` and release jobs for versioning, checks, macOS, and TestFlight
+use the repository's `self-hosted`, `macOS`, `ARM64` runner. Pull-request code
+never runs on that machine; pull requests use disposable GitHub-hosted runners.
+Android and Windows builds remain on their matching GitHub-hosted runners. The
+macOS runner is persistent, so signing jobs restore its keychain search list and
+remove temporary provisioning profiles when they finish.
+
+git-cliff, Inno Setup, Flutter, and the packaging commands used by the workflow
+are free software or operating-system tools. TestFlight distribution still
+requires an Apple Developer Program membership.

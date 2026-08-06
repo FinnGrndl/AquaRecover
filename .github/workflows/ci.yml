@@ -15,8 +15,9 @@ concurrency:
 
 jobs:
   checks:
-    name: Format, analyze, test, and Android build
-    runs-on: ubuntu-latest
+    name: Format, analyze, and test
+    # Never run code from pull requests on the private self-hosted machine.
+    runs-on: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["self-hosted","macOS","ARM64"]') }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -33,11 +34,22 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed lib test tool
       - run: flutter analyze
       - run: flutter test
+
+  android-build:
+    name: Android debug build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-flutter
       - run: flutter build apk --debug --no-pub
 
   apple-builds:
     name: Apple debug builds
-    runs-on: macos-15
+    # Pull requests remain isolated on disposable GitHub-hosted runners.
+    runs-on: ${{ fromJSON(github.event_name == 'pull_request' && '["macos-15"]' || '["self-hosted","macOS","ARM64"]') }}
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@v7

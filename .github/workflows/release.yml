@@ -15,7 +15,7 @@ concurrency:
 jobs:
   validate:
     name: Validate release cherry-pick
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 10
     outputs:
       source_sha: ${{ steps.release.outputs.source_sha }}
@@ -133,7 +133,7 @@ jobs:
   macos:
     name: macOS DMG
     needs: validate
-    runs-on: macos-15
+    runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 55
     env:
       MACOS_DEVELOPER_ID_CERTIFICATE_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE_BASE64 }}
@@ -169,12 +169,24 @@ jobs:
           keychain="$RUNNER_TEMP/aquarecover-macos.keychain-db"
           certificate="$RUNNER_TEMP/aquarecover-developer-id.p12"
           keychain_password="$(openssl rand -hex 24)"
+          original_keychains="$(security list-keychains -d user)"
+          original_keychains_b64="$(printf '%s' "$original_keychains" | openssl base64 -A)"
+          {
+            echo "keychain=$keychain"
+            echo "original_keychains_b64=$original_keychains_b64"
+          } >> "$GITHUB_OUTPUT"
           printf '%s' "$MACOS_DEVELOPER_ID_CERTIFICATE_BASE64" | openssl base64 -d -A -out "$certificate"
           security create-keychain -p "$keychain_password" "$keychain"
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$keychain_password" "$keychain"
           security import "$certificate" -k "$keychain" -P "$MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security list-keychains -d user -s "$keychain"
+          existing_keychains=()
+          while IFS= read -r existing_keychain; do
+            existing_keychain="${existing_keychain//\"/}"
+            existing_keychain="${existing_keychain#"${existing_keychain%%[![:space:]]*}"}"
+            [[ -n "$existing_keychain" ]] && existing_keychains+=("$existing_keychain")
+          done <<< "$original_keychains"
+          security list-keychains -d user -s "$keychain" "${existing_keychains[@]}"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
           identity="$(security find-identity -v -p codesigning "$keychain" | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | head -n 1)"
           if [[ -z "$identity" ]]; then
@@ -189,7 +201,6 @@ jobs:
           codesign --verify --deep --strict --verbose=2 build/macos/Build/Products/Release/AquaRecover.app
           {
             echo "signed=true"
-            echo "keychain=$keychain"
             echo "identity=$identity"
           } >> "$GITHUB_OUTPUT"
       - name: Create DMG
@@ -227,12 +238,25 @@ jobs:
           retention-days: 30
       - name: Remove temporary keychain
         if: always() && steps.mac-sign.outputs.keychain != ''
-        run: security delete-keychain "${{ steps.mac-sign.outputs.keychain }}" || true
+        env:
+          ORIGINAL_KEYCHAINS_B64: ${{ steps.mac-sign.outputs.original_keychains_b64 }}
+        run: |
+          original_keychains="$(printf '%s' "$ORIGINAL_KEYCHAINS_B64" | openssl base64 -d -A)"
+          restored_keychains=()
+          while IFS= read -r restored_keychain; do
+            restored_keychain="${restored_keychain//\"/}"
+            restored_keychain="${restored_keychain#"${restored_keychain%%[![:space:]]*}"}"
+            [[ -n "$restored_keychain" ]] && restored_keychains+=("$restored_keychain")
+          done <<< "$original_keychains"
+          if (( ${#restored_keychains[@]} )); then
+            security list-keychains -d user -s "${restored_keychains[@]}"
+          fi
+          security delete-keychain "${{ steps.mac-sign.outputs.keychain }}" || true
 
   testflight:
     name: iOS archive and TestFlight upload
-    needs: [validate, android, windows, macos]
-    runs-on: macos-15
+    needs: [validate, macos]
+    runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 70
     environment: testflight
     env:
@@ -273,13 +297,25 @@ jobs:
           profile="$RUNNER_TEMP/aquarecover.mobileprovision"
           profile_plist="$RUNNER_TEMP/aquarecover-profile.plist"
           keychain_password="$(openssl rand -hex 24)"
+          original_keychains="$(security list-keychains -d user)"
+          original_keychains_b64="$(printf '%s' "$original_keychains" | openssl base64 -A)"
+          {
+            echo "keychain=$keychain"
+            echo "original_keychains_b64=$original_keychains_b64"
+          } >> "$GITHUB_OUTPUT"
           printf '%s' "$IOS_DISTRIBUTION_CERTIFICATE_BASE64" | openssl base64 -d -A -out "$certificate"
           printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | openssl base64 -d -A -out "$profile"
           security create-keychain -p "$keychain_password" "$keychain"
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$keychain_password" "$keychain"
           security import "$certificate" -k "$keychain" -P "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security list-keychains -d user -s "$keychain"
+          existing_keychains=()
+          while IFS= read -r existing_keychain; do
+            existing_keychain="${existing_keychain//\"/}"
+            existing_keychain="${existing_keychain#"${existing_keychain%%[![:space:]]*}"}"
+            [[ -n "$existing_keychain" ]] && existing_keychains+=("$existing_keychain")
+          done <<< "$original_keychains"
+          security list-keychains -d user -s "$keychain" "${existing_keychains[@]}"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
           security cms -D -i "$profile" > "$profile_plist"
           profile_uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$profile_plist")"
@@ -295,9 +331,17 @@ jobs:
             exit 1
           fi
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          cp "$profile" "$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
-          echo "keychain=$keychain" >> "$GITHUB_OUTPUT"
-          echo "profile_name=$profile_name" >> "$GITHUB_OUTPUT"
+          installed_profile="$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+          {
+            echo "profile_path=$installed_profile"
+            echo "profile_name=$profile_name"
+          } >> "$GITHUB_OUTPUT"
+          if [[ -e "$installed_profile" ]]; then
+            echo "profile_created=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "profile_created=true" >> "$GITHUB_OUTPUT"
+            cp "$profile" "$installed_profile"
+          fi
       - name: Prepare Flutter iOS release
         run: |
           flutter build ios --release --no-codesign --no-pub \
@@ -373,13 +417,32 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - name: Remove temporary keychain
-        if: always() && steps.ios-sign.outputs.keychain != ''
-        run: security delete-keychain "${{ steps.ios-sign.outputs.keychain }}" || true
+        if: always() && (steps.ios-sign.outputs.keychain != '' || steps.ios-sign.outputs.profile_path != '')
+        env:
+          ORIGINAL_KEYCHAINS_B64: ${{ steps.ios-sign.outputs.original_keychains_b64 }}
+          PROFILE_CREATED: ${{ steps.ios-sign.outputs.profile_created }}
+        run: |
+          if [[ -n "$ORIGINAL_KEYCHAINS_B64" ]]; then
+            original_keychains="$(printf '%s' "$ORIGINAL_KEYCHAINS_B64" | openssl base64 -d -A)"
+            restored_keychains=()
+            while IFS= read -r restored_keychain; do
+              restored_keychain="${restored_keychain//\"/}"
+              restored_keychain="${restored_keychain#"${restored_keychain%%[![:space:]]*}"}"
+              [[ -n "$restored_keychain" ]] && restored_keychains+=("$restored_keychain")
+            done <<< "$original_keychains"
+            if (( ${#restored_keychains[@]} )); then
+              security list-keychains -d user -s "${restored_keychains[@]}"
+            fi
+          fi
+          security delete-keychain "${{ steps.ios-sign.outputs.keychain }}" || true
+          if [[ "$PROFILE_CREATED" == "true" && -n "${{ steps.ios-sign.outputs.profile_path }}" ]]; then
+            rm -f "${{ steps.ios-sign.outputs.profile_path }}"
+          fi
 
   tag:
     name: Tag tested source
     needs: [validate, android, windows, macos, testflight]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 10
     permissions:
       contents: write
