@@ -4,6 +4,11 @@
 
 # AquaRecover
 
+<p>
+  <a href="https://github.com/FinnGrndl/AquaRecover/releases/latest"><img src="https://img.shields.io/github/v/release/FinnGrndl/AquaRecover?display_name=tag&sort=semver&label=latest%20release" alt="Latest AquaRecover release"></a>
+  <a href="https://github.com/FinnGrndl/AquaRecover/releases/latest"><img src="https://img.shields.io/github/downloads/FinnGrndl/AquaRecover/total?label=release%20downloads" alt="AquaRecover release downloads"></a>
+</p>
+
 AquaRecover corrects the color and contrast of underwater photos on the device.
 It is written in Flutter, uses native Apple media APIs where they are useful,
 and does not require an account or a processing server.
@@ -13,6 +18,13 @@ usable on iOS, macOS, Android, and Windows; video and RAW support vary by
 platform as described below.
 
 Current source version: `1.1.2+10`.
+
+## Download the latest release
+
+The [latest GitHub release](https://github.com/FinnGrndl/AquaRecover/releases/latest)
+lists the current Android APK, Windows installer, and macOS disk image under
+**Assets**. These public packages remain attached to their versioned release.
+Signed iOS builds are distributed privately through TestFlight.
 
 ## How the app behaves
 
@@ -205,8 +217,8 @@ flutter build macos --debug --no-pub
 
 GitHub Actions runs formatting, analysis, tests, and Android, Apple, and Windows
 debug builds for pull requests and exact versioned `main` commits. Release
-packages are restricted to verified cherry-picks on `release/**`; successful
-releases publish the APK, Windows installer, and DMG on GitHub and upload the
+packages are restricted to verified single-commit snapshots on `release/**`;
+successful releases publish the APK, Windows installer, and DMG on GitHub and upload the
 signed iOS build to TestFlight. Read
 [Release automation](docs/RELEASE_AUTOMATION.md) for the branch flow, signing
 secrets, TestFlight upload, and tagging behavior.
