@@ -28,6 +28,8 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>AquaRecover uses the camera when you choose to capture underwater photos or videos for editing.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

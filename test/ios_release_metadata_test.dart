@@ -38,4 +38,17 @@ void main() {
       );
     }
   });
+
+  test('iOS declares that it uses no non-exempt encryption', () {
+    final plist = File('ios/Runner/Info.plist').readAsStringSync();
+    expect(
+      RegExp(
+        '<key>ITSAppUsesNonExemptEncryption</key>\\s*<false\\s*/>',
+      ).hasMatch(plist),
+      isTrue,
+      reason:
+          'App Store uploads must declare that AquaRecover uses no '
+          'non-exempt encryption.',
+    );
+  });
 }
