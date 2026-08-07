@@ -271,7 +271,7 @@ jobs:
   ios:
     name: iOS IPA
     needs: validate
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 70
     environment: testflight
     env:
@@ -283,6 +283,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Verify App Store SDK
+        run: |
+          xcodebuild -version
+          sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          sdk_major="${sdk_version%%.*}"
+          if [[ ! "$sdk_major" =~ ^[0-9]+$ || "$sdk_major" -lt 26 ]]; then
+            echo "App Store Connect requires the iOS 26 SDK or newer; found $sdk_version." >&2
+            exit 1
+          fi
       - uses: ./.github/actions/setup-flutter
       - name: Validate iOS signing secrets
         run: |
@@ -400,7 +409,7 @@ jobs:
   testflight:
     name: TestFlight upload
     needs: [validate, android, windows, macos, ios]
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 25
     environment: testflight
     env:
