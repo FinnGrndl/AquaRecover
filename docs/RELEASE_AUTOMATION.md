@@ -118,6 +118,10 @@ finished successfully. This keeps the expensive builds parallel without
 publishing a partial release. Apple may need additional processing time before
 the uploaded build appears in App Store Connect.
 
+The iOS archive and TestFlight upload run on GitHub's `macos-26` image. The
+workflow verifies the selected iPhoneOS SDK before installing dependencies or
+signing so an outdated runner fails early instead of producing an unusable IPA.
+
 ## Tagging
 
 After every platform job and the TestFlight upload succeeds, the workflow
