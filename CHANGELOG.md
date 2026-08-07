@@ -8,6 +8,7 @@ semantic versioning; the number after `+` is the platform build number.
 ### Fixed
 
 - Declare required privacy purposes
+- Use persistent major release lines
 ## 1.1.0 - 2026-08-07
 
 ### Added
