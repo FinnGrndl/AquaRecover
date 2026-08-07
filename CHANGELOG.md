@@ -8,6 +8,10 @@ semantic versioning; the number after `+` is the platform build number.
 ### Documentation
 
 - Correct release line initialization (#12)
+
+### Fixed
+
+- Declare export compliance exemption (#13)
 ## 1.1.1 - 2026-08-07
 
 ### Fixed
