@@ -83,13 +83,16 @@ DMG and records that fact in the workflow summary.
 ## Update a release line
 
 First wait for the `main` CI and version workflow to finish. Use the exact
-tested `main` commit as the source. A major-version branch is created once from
-the last release tag. For example, the 1.x line starts at `v1.1.0`:
+tested `main` commit as the source. A major-version branch is created only once.
+Initialize it from the parent of the first release commit, then cherry-pick that
+commit with its source marker. For example, to create the 1.x line:
 
 ```bash
 git fetch origin main --tags
-git switch -c release/1 v1.1.0
-scripts/update_release_line.sh origin/main
+source_sha="$(git rev-parse origin/main)"
+git switch -c release/1 "${source_sha}^"
+git cherry-pick -x "$source_sha"
+scripts/verify_release_cherry_pick.sh HEAD "$source_sha"
 git push -u origin release/1
 ```
 
