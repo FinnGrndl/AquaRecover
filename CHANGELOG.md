@@ -3,7 +3,7 @@
 Changes are generated from Conventional Commit messages. AquaRecover follows
 semantic versioning; the number after `+` is the platform build number.
 
-## 1.1.0 - 2026-08-06
+## 1.1.0 - 2026-08-07
 
 ### Added
 
@@ -28,4 +28,5 @@ semantic versioning; the number after `+` is the platform build number.
 - Correct mobile signing configuration
 - Let archive select signing identity
 - Scope distribution settings to Runner
+- Require current App Store SDK
 
