@@ -19,6 +19,12 @@ to the library. Saving an export requests add-only access. macOS and Android use
 their platform media access flows and should be tested against the current
 limited-library behavior before each store release.
 
+The iOS media-picker dependency also contains optional camera and foreground
+location APIs. AquaRecover declares the corresponding purpose strings so iOS
+can explain those capabilities if the system requests access. The app does not
+track location, request background location, or open the camera without a user
+action.
+
 If an original exists only in iCloud Photos, Apple's Photos service may download
 it before the app receives a local representation. That transfer belongs to the
 operating system's photo-library flow, not an AquaRecover endpoint.
