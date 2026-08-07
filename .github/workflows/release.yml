@@ -382,6 +382,11 @@ jobs:
               exit 1
             fi
           done
+          non_exempt_encryption="$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$app_plist")"
+          if [[ "$non_exempt_encryption" != "false" ]]; then
+            echo "Archived app must set ITSAppUsesNonExemptEncryption to false." >&2
+            exit 1
+          fi
           minimum_os="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$app_plist")"
           minimum_major="${minimum_os%%.*}"
           if [[ ! "$minimum_major" =~ ^[0-9]+$ || "$minimum_major" -lt 15 ]]; then

@@ -36,6 +36,15 @@ upload, or cloud-processing client. Dependencies may contain platform support
 for targets that AquaRecover does not ship; the release application does not
 call those network paths.
 
+## Encryption and export compliance
+
+AquaRecover does not implement proprietary, non-standard, or other non-exempt
+encryption. The iOS app declares `ITSAppUsesNonExemptEncryption` as `false` so
+App Store Connect can apply the corresponding export-compliance exemption
+without asking the same question for every uploaded build. Any future feature
+or dependency that adds cryptography or encrypted communications requires this
+classification to be reviewed before release.
+
 ## Exports and metadata
 
 - Dart still exports are encoded from decoded pixels and do not copy normal
