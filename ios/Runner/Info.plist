@@ -28,6 +28,10 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>AquaRecover uses the camera when you choose to capture underwater photos or videos for editing.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>AquaRecover accesses location information only when required by the iOS media picker to import photos or videos you select. Your location is not tracked.</string>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

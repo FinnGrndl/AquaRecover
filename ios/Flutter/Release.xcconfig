@@ -1,2 +1,3 @@
 #include "Generated.xcconfig"
+IPHONEOS_DEPLOYMENT_TARGET = 15.0
 #include? "CIReleaseSigning.xcconfig"

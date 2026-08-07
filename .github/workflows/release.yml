@@ -361,6 +361,32 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/AquaRecover.xcarchive" \
             OTHER_CODE_SIGN_FLAGS='--keychain ${{ steps.ios-sign.outputs.keychain }}'
+      - name: Verify archived iOS metadata
+        run: |
+          app_plist="$RUNNER_TEMP/AquaRecover.xcarchive/Products/Applications/Runner.app/Info.plist"
+          if [[ ! -f "$app_plist" ]]; then
+            echo "Missing archived application Info.plist." >&2
+            exit 1
+          fi
+          privacy_keys=(
+            NSCameraUsageDescription
+            NSLocationWhenInUseUsageDescription
+            NSPhotoLibraryUsageDescription
+            NSPhotoLibraryAddUsageDescription
+          )
+          for privacy_key in "${privacy_keys[@]}"; do
+            purpose="$(/usr/libexec/PlistBuddy -c "Print :$privacy_key" "$app_plist")"
+            if [[ -z "${purpose//[[:space:]]/}" ]]; then
+              echo "Archived Info.plist is missing $privacy_key." >&2
+              exit 1
+            fi
+          done
+          minimum_os="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$app_plist")"
+          minimum_major="${minimum_os%%.*}"
+          if [[ ! "$minimum_major" =~ ^[0-9]+$ || "$minimum_major" -lt 15 ]]; then
+            echo "Archived app requires iOS $minimum_os; expected iOS 15 or newer." >&2
+            exit 1
+          fi
       - name: Export IPA
         run: |
           export_options="$RUNNER_TEMP/ExportOptions.plist"
