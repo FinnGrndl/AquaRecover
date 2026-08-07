@@ -3,6 +3,11 @@
 Changes are generated from Conventional Commit messages. AquaRecover follows
 semantic versioning; the number after `+` is the platform build number.
 
+## 1.1.1 - 2026-08-07
+
+### Fixed
+
+- Declare required privacy purposes
 ## 1.1.0 - 2026-08-07
 
 ### Added
