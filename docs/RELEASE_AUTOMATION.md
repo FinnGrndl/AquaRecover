@@ -8,10 +8,12 @@ AquaRecover separates continuous checks from distributable builds.
   `CHANGELOG.md`, and commit the result when a version changed. The version
   workflow then dispatches exactly one CI run for that commit SHA. This avoids
   testing the pre-version commit and repeating the same tests in two workflows.
-- Only a verified `git cherry-pick -x` on `release/**` can start release builds.
-  The workflow rejects direct commits, merge commits, cherry-picks from outside
-  `main`, stale main commits, release trees that differ from the source commit,
-  and source commits without a successful dispatched CI run.
+- Each major release line has one persistent branch, such as `release/1`.
+  Releases update that branch by cherry-picking every new first-parent `main`
+  commit with `-x` and pushing the completed sequence once. The workflow rejects
+  direct or merge commits, cherry-picks from outside `main`, stale main commits,
+  release trees that differ from the source commit, and source commits without
+  a successful dispatched CI run.
 
 ## Version rules
 
@@ -78,24 +80,33 @@ secrets, the signed DMG is submitted to Apple's notary service and stapled.
 Without the Developer ID certificate the workflow still creates an unsigned
 DMG and records that fact in the workflow summary.
 
-## Prepare a release branch
+## Update a release line
 
 First wait for the `main` CI and version workflow to finish. Use the exact
-tested `main` commit as the source. The release branch starts at its parent so
-the source commit can be replayed with the required provenance marker:
+tested `main` commit as the source. A major-version branch is created once from
+the last release tag. For example, the 1.x line starts at `v1.1.0`:
 
 ```bash
 git fetch origin main --tags
-git switch main
-git pull --ff-only
-
-SOURCE_SHA="$(git rev-parse HEAD)"
-VERSION="$(awk '$1 == "version:" { split($2, value, "+"); print value[1] }' pubspec.yaml)"
-
-git switch -c "release/$VERSION" "${SOURCE_SHA}^"
-git cherry-pick -x "$SOURCE_SHA"
-git push -u origin "release/$VERSION"
+git switch -c release/1 v1.1.0
+scripts/update_release_line.sh origin/main
+git push -u origin release/1
 ```
+
+For every later 1.x release, update the same branch in a clean worktree:
+
+```bash
+git fetch origin main --tags
+git switch release/1
+git pull --ff-only
+scripts/update_release_line.sh origin/main
+git push origin release/1
+```
+
+The helper finds the previous source marker, cherry-picks every newer linear
+`main` commit in chronological order, and verifies that the final tree exactly
+matches the tested source. Keep all cherry-picks local until the helper finishes,
+then push once; intermediate pushes intentionally fail the release gate.
 
 That push builds four release outputs in parallel:
 
@@ -105,7 +116,8 @@ That push builds four release outputs in parallel:
 - signed iOS IPA, validated and uploaded to TestFlight.
 
 The workflow can also be retried manually from GitHub Actions. Select the exact
-`release/X.Y.Z` branch when dispatching it. The same cherry-pick, version, tag,
+`release/<major>` branch, such as `release/1`, when dispatching it. The same
+cherry-pick, version, tag,
 and successful-CI checks run before any release build starts, so the manual
 entry point cannot bypass the release gate.
 
