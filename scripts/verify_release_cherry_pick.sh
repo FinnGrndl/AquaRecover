@@ -32,7 +32,7 @@ release_tree="$(git rev-parse "$release_commit^{tree}")"
 source_tree="$(git rev-parse "$source_sha^{tree}")"
 if [[ "$release_tree" != "$source_tree" ]]; then
   echo "Release tree differs from the tested source commit $source_sha." >&2
-  echo "Create release/<version> from the source commit's parent, then cherry-pick with -x." >&2
+  echo "Update release/<major> by cherry-picking every new main commit with -x, then push once." >&2
   exit 1
 fi
 

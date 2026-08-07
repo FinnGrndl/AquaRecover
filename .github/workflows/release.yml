@@ -47,8 +47,9 @@ jobs:
             echo "Invalid Flutter version: $version_with_build" >&2
             exit 1
           fi
-          if [[ "$GITHUB_REF" != "refs/heads/release/$version" ]]; then
-            echo "Release branch must be release/$version, not $GITHUB_REF_NAME." >&2
+          release_major="${version%%.*}"
+          if [[ "$GITHUB_REF" != "refs/heads/release/$release_major" ]]; then
+            echo "Version $version must be released from release/$release_major, not $GITHUB_REF_NAME." >&2
             exit 1
           fi
           tag="v$version"
