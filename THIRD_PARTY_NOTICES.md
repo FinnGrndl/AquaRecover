@@ -5,7 +5,7 @@ license texts are registered by Flutter and can be opened from **About >
 Licenses** inside the app. The resolved versions in `pubspec.lock` are the
 authoritative dependency list for a build.
 
-Direct dependencies in version 1.1.1:
+Direct dependencies in version 1.1.2:
 
 | Component | Resolved version | License |
 | --- | ---: | --- |
