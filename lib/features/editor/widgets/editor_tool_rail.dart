@@ -20,15 +20,15 @@ class EditorToolRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 68,
+      height: 58,
       child: EditorGlassSurface(
         style: EditorGlassStyle.clear,
-        borderRadius: 22,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        borderRadius: 20,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         child: Row(
           children: [
             for (var index = 0; index < groups.length; index++) ...[
-              if (index > 0) const SizedBox(width: 8),
+              if (index > 0) const SizedBox(width: 5),
               Expanded(
                 child: _ToolButton(
                   key: Key('editor_tool_${groups[index].name}'),
@@ -69,24 +69,24 @@ class _ToolButton extends StatelessWidget {
     return CupertinoButton(
       padding: EdgeInsets.zero,
       minimumSize: Size.zero,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(15),
       color: background,
       onPressed: onPressed,
       child: SizedBox(
         width: double.infinity,
-        height: 52,
+        height: 46,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(_iconFor(group), size: 20, color: foreground),
-            const SizedBox(height: 3),
+            Icon(_iconFor(group), size: 18, color: foreground),
+            const SizedBox(height: 2),
             Text(
               group.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
                 color: foreground,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),

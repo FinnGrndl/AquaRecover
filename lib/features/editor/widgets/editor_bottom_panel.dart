@@ -87,7 +87,9 @@ class EditorBottomPanel extends StatelessWidget {
             children: [
               CupertinoScrollbar(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(14, 48, 14, 18),
+                  padding: group == EditorToolGroup.crop
+                      ? const EdgeInsets.fromLTRB(14, 36, 14, 10)
+                      : const EdgeInsets.fromLTRB(14, 48, 14, 18),
                   children: [child],
                 ),
               ),

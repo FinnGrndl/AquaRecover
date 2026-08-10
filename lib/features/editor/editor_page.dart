@@ -666,7 +666,7 @@ class _EditorPageState extends State<EditorPage> {
         final horizontalPadding = wide ? 24.0 : 12.0;
         final bottomPadding = bottomInset + (compact ? 10.0 : 18.0);
         final reservedPreview = compact ? 250.0 : 320.0;
-        final reservedChrome = compact ? 174.0 : 182.0;
+        final reservedChrome = compact ? 164.0 : 172.0;
         final availablePanelHeight =
             constraints.maxHeight -
             reservedPreview -
@@ -677,7 +677,7 @@ class _EditorPageState extends State<EditorPage> {
             ? switch (activeGroup) {
                 EditorToolGroup.light => 300.0,
                 EditorToolGroup.presets => 280.0,
-                EditorToolGroup.crop => 330.0,
+                EditorToolGroup.crop => 190.0,
                 EditorToolGroup.effects => 240.0,
                 EditorToolGroup.video => 290.0,
                 _ => 255.0,
@@ -685,7 +685,7 @@ class _EditorPageState extends State<EditorPage> {
             : switch (activeGroup) {
                 EditorToolGroup.light => 320.0,
                 EditorToolGroup.presets => 300.0,
-                EditorToolGroup.crop => 350.0,
+                EditorToolGroup.crop => 210.0,
                 EditorToolGroup.effects => 260.0,
                 EditorToolGroup.video => 315.0,
                 _ => 275.0,
@@ -717,7 +717,11 @@ class _EditorPageState extends State<EditorPage> {
                   borderRadius: 0,
                   immersiveTopInset: previewTopInset,
                   immersiveBottomInset:
-                      (panelOpen ? panelHeight + 88 : 122) + bottomInset,
+                      (panelOpen
+                          ? panelHeight +
+                                (activeGroup == EditorToolGroup.crop ? 30 : 70)
+                          : 108) +
+                      bottomInset,
                   transform: _transformSettings,
                   showCropGrid: activeGroup == EditorToolGroup.crop,
                   previewFit: activeGroup == EditorToolGroup.crop

@@ -40,7 +40,7 @@ class PrecisionWheel extends StatefulWidget {
 
 class _PrecisionWheelState extends State<PrecisionWheel> {
   static const double _tickSpacing = 9;
-  double get _wheelHeight => widget.showValue ? 58 : 48;
+  double get _wheelHeight => widget.showValue ? 54 : 44;
   static const Duration _snapDuration = Duration(milliseconds: 150);
 
   late final ScrollController _scrollController;
@@ -216,10 +216,6 @@ class _PrecisionWheelState extends State<PrecisionWheel> {
       CupertinoColors.secondaryLabel,
       context,
     );
-    final separator = CupertinoDynamicColor.resolve(
-      CupertinoColors.separator,
-      context,
-    );
     final displayedValue = widget.value
         .clamp(widget.min, widget.max)
         .toDouble();
@@ -263,158 +259,103 @@ class _PrecisionWheelState extends State<PrecisionWheel> {
               key: const Key('precision_wheel'),
               height: _wheelHeight,
               width: double.infinity,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: CupertinoColors.white.withValues(
-                    alpha: _enabled ? .055 : .025,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: separator.withValues(alpha: _enabled ? .55 : .24),
-                  ),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      NotificationListener<ScrollNotification>(
-                        onNotification: _handleScrollNotification,
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final horizontalPadding =
-                                (constraints.maxWidth - _tickSpacing) / 2;
-                            return ExcludeSemantics(
-                              child: ListView.builder(
-                                controller: _scrollController,
-                                scrollDirection: Axis.horizontal,
-                                physics: _enabled
-                                    ? const BouncingScrollPhysics(
-                                        parent: AlwaysScrollableScrollPhysics(),
-                                      )
-                                    : const NeverScrollableScrollPhysics(),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: horizontalPadding,
-                                ),
-                                itemExtent: _tickSpacing,
-                                itemCount: _divisionCount + 1,
-                                itemBuilder: (context, index) =>
-                                    GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      onTap: _enabled
-                                          ? () => _selectIndex(index)
-                                          : null,
-                                      child: const SizedBox.expand(),
-                                    ),
+              child: ClipRect(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    NotificationListener<ScrollNotification>(
+                      onNotification: _handleScrollNotification,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final horizontalPadding =
+                              (constraints.maxWidth - _tickSpacing) / 2;
+                          return ExcludeSemantics(
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              scrollDirection: Axis.horizontal,
+                              physics: _enabled
+                                  ? const BouncingScrollPhysics(
+                                      parent: AlwaysScrollableScrollPhysics(),
+                                    )
+                                  : const NeverScrollableScrollPhysics(),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: horizontalPadding,
                               ),
-                            );
-                          },
+                              itemExtent: _tickSpacing,
+                              itemCount: _divisionCount + 1,
+                              itemBuilder: (context, index) => GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: _enabled
+                                    ? () => _selectIndex(index)
+                                    : null,
+                                child: const SizedBox.expand(),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    IgnorePointer(
+                      child: CustomPaint(
+                        painter: _PrecisionWheelPainter(
+                          controller: _scrollController,
+                          initialIndex: _displayedIndex,
+                          tickSpacing: _tickSpacing,
+                          divisionCount: _divisionCount,
+                          tickColor: secondary,
+                          enabled: _enabled,
+                          showValue: widget.showValue,
                         ),
                       ),
-                      IgnorePointer(
-                        child: CustomPaint(
-                          painter: _PrecisionWheelPainter(
-                            controller: _scrollController,
-                            initialIndex: _displayedIndex,
-                            tickSpacing: _tickSpacing,
-                            divisionCount: _divisionCount,
-                            tickColor: secondary,
-                            enabled: _enabled,
-                            showValue: widget.showValue,
+                    ),
+                    IgnorePointer(
+                      child: Align(
+                        alignment: widget.showValue
+                            ? Alignment.bottomCenter
+                            : Alignment.center,
+                        child: Container(
+                          width: 2,
+                          height: widget.showValue ? 25 : 28,
+                          margin: EdgeInsets.only(
+                            bottom: widget.showValue ? 3 : 0,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _enabled ? primary : secondary,
+                            borderRadius: BorderRadius.circular(99),
+                            boxShadow: _enabled
+                                ? [
+                                    BoxShadow(
+                                      color: primary.withValues(alpha: .32),
+                                      blurRadius: 7,
+                                    ),
+                                  ]
+                                : null,
                           ),
                         ),
                       ),
+                    ),
+                    if (widget.showValue)
                       IgnorePointer(
                         child: Align(
-                          alignment: widget.showValue
-                              ? Alignment.bottomCenter
-                              : Alignment.center,
-                          child: Container(
-                            width: 2,
-                            height: widget.showValue ? 27 : 30,
-                            margin: EdgeInsets.only(
-                              bottom: widget.showValue ? 5 : 0,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _enabled ? primary : secondary,
-                              borderRadius: BorderRadius.circular(99),
-                              boxShadow: _enabled
-                                  ? [
-                                      BoxShadow(
-                                        color: primary.withValues(alpha: .32),
-                                        blurRadius: 7,
-                                      ),
-                                    ]
-                                  : null,
-                            ),
+                          alignment: Alignment.topCenter,
+                          child: Text(
+                            displayedText,
+                            maxLines: 1,
+                            style: CupertinoTheme.of(context)
+                                .textTheme
+                                .textStyle
+                                .copyWith(
+                                  color: _enabled ? label : secondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
                           ),
                         ),
                       ),
-                      if (widget.showValue)
-                        IgnorePointer(
-                          child: Align(
-                            alignment: Alignment.topCenter,
-                            child: Container(
-                              constraints: const BoxConstraints(minWidth: 48),
-                              height: 27,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                              ),
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    CupertinoColors.white.withValues(
-                                      alpha: .18,
-                                    ),
-                                    CupertinoColors.white.withValues(
-                                      alpha: .07,
-                                    ),
-                                  ],
-                                ),
-                                borderRadius: const BorderRadius.vertical(
-                                  bottom: Radius.circular(11),
-                                ),
-                                border: Border(
-                                  left: BorderSide(
-                                    color: CupertinoColors.white.withValues(
-                                      alpha: .12,
-                                    ),
-                                  ),
-                                  right: BorderSide(
-                                    color: CupertinoColors.white.withValues(
-                                      alpha: .12,
-                                    ),
-                                  ),
-                                  bottom: BorderSide(
-                                    color: CupertinoColors.white.withValues(
-                                      alpha: .12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              child: Text(
-                                displayedText,
-                                maxLines: 1,
-                                style: CupertinoTheme.of(context)
-                                    .textTheme
-                                    .textStyle
-                                    .copyWith(
-                                      color: _enabled ? label : secondary,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures(),
-                                      ],
-                                    ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
             ),
