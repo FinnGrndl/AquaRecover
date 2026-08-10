@@ -500,8 +500,25 @@ final class IosVideoProcessor {
         y: -output.extent.origin.y
       )
     )
+    let sourceWidth = output.extent.width
+    let sourceHeight = output.extent.height
+    if abs(settings.straightenDegrees) > 0.0000001 {
+      let radians = CGFloat(-settings.straightenDegrees * Double.pi / 180.0)
+      output = output.transformed(by: CGAffineTransform(rotationAngle: radians))
+      output = output.transformed(
+        by: CGAffineTransform(
+          translationX: -output.extent.origin.x,
+          y: -output.extent.origin.y
+        )
+      )
+    }
     let extent = output.extent.integral
-    let crop = settings.cropRect(width: extent.width, height: extent.height)
+    let crop = settings.cropRect(
+      outputWidth: extent.width,
+      outputHeight: extent.height,
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight
+    )
     let coreImageCrop = CGRect(
       x: crop.origin.x,
       y: extent.height - crop.origin.y - crop.height,
@@ -988,6 +1005,8 @@ private struct ImageTransformSettings {
     offsetX = double(values, key: "offsetX", fallback: 0.0)
     offsetY = double(values, key: "offsetY", fallback: 0.0)
     quarterTurns = Int(double(values, key: "quarterTurns", fallback: 0.0))
+    straightenDegrees = double(values, key: "straightenDegrees", fallback: 0.0)
+    customAspectRatio = double(values, key: "customAspectRatio", fallback: 4.0 / 3.0)
     flipHorizontal = bool(values, key: "flipHorizontal", fallback: false)
     flipVertical = bool(values, key: "flipVertical", fallback: false)
   }
@@ -997,6 +1016,8 @@ private struct ImageTransformSettings {
   let offsetX: Double
   let offsetY: Double
   let quarterTurns: Int
+  let straightenDegrees: Double
+  let customAspectRatio: Double
   let flipHorizontal: Bool
   let flipVertical: Bool
 
@@ -1010,17 +1031,27 @@ private struct ImageTransformSettings {
       && abs(offsetX) < 0.0000001
       && abs(offsetY) < 0.0000001
       && normalizedQuarterTurns == 0
+      && abs(straightenDegrees) < 0.0000001
       && !flipHorizontal
       && !flipVertical
   }
 
-  func cropRect(width: CGFloat, height: CGFloat) -> CGRect {
-    let safeWidth = max(1.0, width)
-    let safeHeight = max(1.0, height)
-    let sourceAspect = safeWidth / safeHeight
+  func cropRect(
+    outputWidth: CGFloat,
+    outputHeight: CGFloat,
+    sourceWidth: CGFloat,
+    sourceHeight: CGFloat
+  ) -> CGRect {
+    let safeOutputWidth = max(1.0, outputWidth)
+    let safeOutputHeight = max(1.0, outputHeight)
+    let safeSourceWidth = max(1.0, sourceWidth)
+    let safeSourceHeight = max(1.0, sourceHeight)
+    let sourceAspect = safeSourceWidth / safeSourceHeight
     let portrait = sourceAspect < 1.0
     let targetAspect: CGFloat
     switch aspectRatio {
+    case "freeform":
+      targetAspect = CGFloat(clamp(customAspectRatio, 0.25, 4.0))
     case "square":
       targetAspect = 1.0
     case "fourThree":
@@ -1031,25 +1062,29 @@ private struct ImageTransformSettings {
       targetAspect = sourceAspect
     }
 
-    var normalizedWidth: CGFloat = 1.0
-    var normalizedHeight: CGFloat = 1.0
-    if sourceAspect > targetAspect {
-      normalizedWidth = targetAspect / sourceAspect
-    } else if sourceAspect < targetAspect {
-      normalizedHeight = sourceAspect / targetAspect
-    }
+    let radians = CGFloat(abs(straightenDegrees) * Double.pi / 180.0)
+    let cosine = abs(cos(radians))
+    let sine = abs(sin(radians))
+    let rotationSafety: CGFloat = abs(straightenDegrees) > 0.0000001 ? 0.98 : 1.0
+    let baseHeight = min(
+      safeSourceWidth / (targetAspect * cosine + sine),
+      safeSourceHeight / (targetAspect * sine + cosine)
+    ) * rotationSafety
+    let baseWidth = baseHeight * targetAspect
     let safeZoom = CGFloat(clamp(zoom, 1.0, 4.0))
-    normalizedWidth /= safeZoom
-    normalizedHeight /= safeZoom
+    let cropWidth = max(1.0, min(safeOutputWidth, baseWidth / safeZoom))
+    let cropHeight = max(1.0, min(safeOutputHeight, baseHeight / safeZoom))
+    let baseLeft = (safeOutputWidth - baseWidth) / 2.0
+    let baseTop = (safeOutputHeight - baseHeight) / 2.0
     let safeX = CGFloat(clamp(offsetX, -1.0, 1.0))
     let safeY = CGFloat(clamp(offsetY, -1.0, 1.0))
-    let left = (1.0 - normalizedWidth) * (safeX + 1.0) / 2.0
-    let top = (1.0 - normalizedHeight) * (safeY + 1.0) / 2.0
+    let left = baseLeft + (baseWidth - cropWidth) * (safeX + 1.0) / 2.0
+    let top = baseTop + (baseHeight - cropHeight) * (safeY + 1.0) / 2.0
     return CGRect(
-      x: left * safeWidth,
-      y: top * safeHeight,
-      width: max(1.0, normalizedWidth * safeWidth),
-      height: max(1.0, normalizedHeight * safeHeight)
+      x: left,
+      y: top,
+      width: cropWidth,
+      height: cropHeight
     )
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 
 import '../../../core/models/image_transform_settings.dart';
@@ -43,8 +45,14 @@ class ImageTransformPreview extends StatelessWidget {
           }
         }
         final sourceAlignment = _sourceAlignment(settings);
+        final requiresCropFill =
+            settings.aspectRatio != CropAspectRatio.original ||
+            settings.zoom > 1.0000001 ||
+            settings.straightenDegrees.abs() > .0000001;
         var content = builder(
-          previewFit == EditorPreviewFit.fit ? BoxFit.contain : BoxFit.cover,
+          previewFit == EditorPreviewFit.fit && !requiresCropFill
+              ? BoxFit.contain
+              : BoxFit.cover,
           sourceAlignment,
         );
         content = RotatedBox(
@@ -62,8 +70,16 @@ class ImageTransformPreview extends StatelessWidget {
             child: content,
           );
         }
+        if (settings.straightenDegrees.abs() > .0000001) {
+          content = Transform.rotate(
+            angle: settings.straightenDegrees * math.pi / 180,
+            child: content,
+          );
+        }
         content = Transform.scale(
-          scale: settings.zoom.clamp(1.0, 4.0).toDouble(),
+          scale:
+              settings.straightenCoverageScale(sourceAspectRatio) *
+              settings.zoom.clamp(1.0, 4.0).toDouble(),
           alignment: Alignment(
             settings.offsetX.clamp(-1.0, 1.0).toDouble(),
             settings.offsetY.clamp(-1.0, 1.0).toDouble(),

@@ -1,17 +1,24 @@
-enum CropAspectRatio { original, square, fourThree, sixteenNine }
+import 'dart:math' as math;
+
+enum CropAspectRatio { original, freeform, square, fourThree, sixteenNine }
 
 extension CropAspectRatioX on CropAspectRatio {
   String get label => switch (this) {
     CropAspectRatio.original => 'Original',
+    CropAspectRatio.freeform => 'Free',
     CropAspectRatio.square => 'Square',
     CropAspectRatio.fourThree => '4:3',
     CropAspectRatio.sixteenNine => '16:9',
   };
 
-  double resolve(double orientedSourceAspectRatio) {
+  double resolve(
+    double orientedSourceAspectRatio, {
+    double customAspectRatio = 4 / 3,
+  }) {
     final portrait = orientedSourceAspectRatio < 1;
     return switch (this) {
       CropAspectRatio.original => orientedSourceAspectRatio,
+      CropAspectRatio.freeform => customAspectRatio.clamp(.25, 4).toDouble(),
       CropAspectRatio.square => 1,
       CropAspectRatio.fourThree => portrait ? 3 / 4 : 4 / 3,
       CropAspectRatio.sixteenNine => portrait ? 9 / 16 : 16 / 9,
@@ -40,6 +47,8 @@ class ImageTransformSettings {
     this.offsetX = 0,
     this.offsetY = 0,
     this.quarterTurns = 0,
+    this.straightenDegrees = 0,
+    this.customAspectRatio = 4 / 3,
     this.flipHorizontal = false,
     this.flipVertical = false,
   });
@@ -49,6 +58,8 @@ class ImageTransformSettings {
   final double offsetX;
   final double offsetY;
   final int quarterTurns;
+  final double straightenDegrees;
+  final double customAspectRatio;
   final bool flipHorizontal;
   final bool flipVertical;
 
@@ -62,6 +73,7 @@ class ImageTransformSettings {
       offsetX.abs() < .0000001 &&
       offsetY.abs() < .0000001 &&
       normalizedQuarterTurns == 0 &&
+      straightenDegrees.abs() < .0000001 &&
       !flipHorizontal &&
       !flipVertical;
 
@@ -73,7 +85,35 @@ class ImageTransformSettings {
   }
 
   double outputAspectRatio(double sourceAspectRatio) {
-    return aspectRatio.resolve(orientedSourceAspectRatio(sourceAspectRatio));
+    return aspectRatio.resolve(
+      orientedSourceAspectRatio(sourceAspectRatio),
+      customAspectRatio: customAspectRatio,
+    );
+  }
+
+  /// Extra preview scale needed to keep a straightened image behind the crop.
+  ///
+  /// The calculation finds the largest rectangle with the requested output
+  /// ratio that fits inside the rotated source. Scaling that rectangle to the
+  /// crop viewport prevents empty corners while straightening.
+  double straightenCoverageScale(double sourceAspectRatio) {
+    final degrees = straightenDegrees.clamp(-45.0, 45.0).abs();
+    if (degrees < .0000001) return 1;
+    final source = orientedSourceAspectRatio(sourceAspectRatio);
+    final target = outputAspectRatio(sourceAspectRatio);
+    final sourceWidth = source > target ? source : target;
+    final sourceHeight = source > target ? 1.0 : target / source;
+    final radians = degrees * math.pi / 180;
+    final cosine = math.cos(radians).abs();
+    final sine = math.sin(radians).abs();
+    final safeHeight =
+        math.min(
+          sourceWidth / (target * cosine + sine),
+          sourceHeight / (target * sine + cosine),
+        ) *
+        .98;
+    if (!safeHeight.isFinite || safeHeight <= 0) return 1;
+    return math.max(1.0, 1 / safeHeight);
   }
 
   NormalizedCropRect normalizedCropRect(double sourceAspectRatio) {
@@ -105,6 +145,8 @@ class ImageTransformSettings {
     double? offsetX,
     double? offsetY,
     int? quarterTurns,
+    double? straightenDegrees,
+    double? customAspectRatio,
     bool? flipHorizontal,
     bool? flipVertical,
   }) {
@@ -114,6 +156,8 @@ class ImageTransformSettings {
       offsetX: offsetX ?? this.offsetX,
       offsetY: offsetY ?? this.offsetY,
       quarterTurns: quarterTurns ?? this.quarterTurns,
+      straightenDegrees: straightenDegrees ?? this.straightenDegrees,
+      customAspectRatio: customAspectRatio ?? this.customAspectRatio,
       flipHorizontal: flipHorizontal ?? this.flipHorizontal,
       flipVertical: flipVertical ?? this.flipVertical,
     );
@@ -125,6 +169,8 @@ class ImageTransformSettings {
     'offsetX': offsetX,
     'offsetY': offsetY,
     'quarterTurns': normalizedQuarterTurns,
+    'straightenDegrees': straightenDegrees,
+    'customAspectRatio': customAspectRatio,
     'flipHorizontal': flipHorizontal,
     'flipVertical': flipVertical,
   };
@@ -141,6 +187,9 @@ class ImageTransformSettings {
       offsetX: (map['offsetX'] as num?)?.toDouble() ?? 0,
       offsetY: (map['offsetY'] as num?)?.toDouble() ?? 0,
       quarterTurns: (map['quarterTurns'] as num?)?.toInt() ?? 0,
+      straightenDegrees: (map['straightenDegrees'] as num?)?.toDouble() ?? 0,
+      customAspectRatio:
+          (map['customAspectRatio'] as num?)?.toDouble() ?? 4 / 3,
       flipHorizontal: map['flipHorizontal'] as bool? ?? false,
       flipVertical: map['flipVertical'] as bool? ?? false,
     );

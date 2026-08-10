@@ -670,7 +670,7 @@ class _EditorPageState extends State<EditorPage> {
             ? switch (activeGroup) {
                 EditorToolGroup.light => 260.0,
                 EditorToolGroup.presets => 255.0,
-                EditorToolGroup.crop => 250.0,
+                EditorToolGroup.crop => 330.0,
                 EditorToolGroup.effects => 240.0,
                 EditorToolGroup.video => 275.0,
                 _ => 255.0,
@@ -678,7 +678,7 @@ class _EditorPageState extends State<EditorPage> {
             : switch (activeGroup) {
                 EditorToolGroup.light => 280.0,
                 EditorToolGroup.presets => 275.0,
-                EditorToolGroup.crop => 270.0,
+                EditorToolGroup.crop => 350.0,
                 EditorToolGroup.effects => 260.0,
                 EditorToolGroup.video => 300.0,
                 _ => 275.0,
@@ -1339,6 +1339,7 @@ class _EditorPageState extends State<EditorPage> {
         ),
         EditorToolGroup.crop => CropBrowser(
           settings: _transformSettings,
+          sourceAspectRatio: _previewAspectRatio(_selectedJob!),
           enabled: !_busy,
           onChanged: _setTransformSettings,
         ),

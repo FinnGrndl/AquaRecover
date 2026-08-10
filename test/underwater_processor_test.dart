@@ -167,6 +167,34 @@ void main() {
     expect(rotated.height, 8);
   });
 
+  test('freeform crop and straightening preserve a filled output', () {
+    const settings = ImageTransformSettings(
+      aspectRatio: CropAspectRatio.freeform,
+      customAspectRatio: 1.5,
+      straightenDegrees: 18,
+    );
+    expect(settings.outputAspectRatio(2), 1.5);
+    expect(settings.straightenCoverageScale(2), greaterThan(1));
+
+    final source = img.Image(width: 180, height: 100, numChannels: 4)
+      ..clear(img.ColorRgba8(20, 120, 180, 255));
+    final output = const ImageTransformService().apply(source, settings);
+    expect(output.width / output.height, closeTo(1.5, .03));
+    for (final point in [
+      (0, 0),
+      (output.width - 1, 0),
+      (0, output.height - 1),
+      (output.width - 1, output.height - 1),
+    ]) {
+      expect(output.getPixel(point.$1, point.$2).a, greaterThan(0));
+    }
+
+    final restored = ImageTransformSettings.fromJson(settings.toJson());
+    expect(restored.aspectRatio, CropAspectRatio.freeform);
+    expect(restored.customAspectRatio, 1.5);
+    expect(restored.straightenDegrees, 18);
+  });
+
   test('preset strength preserves later manual offsets', () {
     final full = RestorationPreset.deep.settings;
     final manual = full.copyWith(contrast: full.contrast + .12);
@@ -1229,6 +1257,7 @@ void main() {
         home: StatefulBuilder(
           builder: (context, setState) => CropBrowser(
             settings: settings,
+            sourceAspectRatio: 4 / 3,
             onChanged: (value) => setState(() => settings = value),
           ),
         ),
@@ -1242,6 +1271,11 @@ void main() {
     await tester.tap(find.byKey(const Key('crop_rotate_right')));
     await tester.pump();
     expect(settings.normalizedQuarterTurns, 1);
+
+    await tester.tap(find.text('Free'));
+    await tester.pump();
+    expect(settings.aspectRatio, CropAspectRatio.freeform);
+    expect(find.byKey(const Key('crop_freeform_ratio')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('crop_flip_horizontal')));
     await tester.pump();
@@ -1317,6 +1351,26 @@ void main() {
     expect(observedFit, BoxFit.contain);
 
     await tester.pumpWidget(preview(EditorPreviewFit.fill));
+    expect(observedFit, BoxFit.cover);
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: SizedBox(
+          width: 320,
+          height: 480,
+          child: ImageTransformPreview(
+            settings: const ImageTransformSettings(
+              aspectRatio: CropAspectRatio.square,
+            ),
+            sourceAspectRatio: 16 / 9,
+            builder: (fit, _) {
+              observedFit = fit;
+              return const ColoredBox(color: CupertinoColors.black);
+            },
+          ),
+        ),
+      ),
+    );
     expect(observedFit, BoxFit.cover);
   });
 
