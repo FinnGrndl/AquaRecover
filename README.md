@@ -42,12 +42,14 @@ Signed iOS builds are distributed privately through TestFlight.
   photo. They can be copied from the current photo to selected batch items or,
   after confirmation, to every other photo.
 - Local exports can be opened, selected in batches, or deleted all at once.
-  Deleting them also removes their settings sidecars, but never imported
-  originals or copies already added to Photos.
+  Local video exports include an in-app player. Deleting an export also removes
+  its settings sidecar, but never the imported original or a copy already added
+  to Photos.
 - Every image adjustment remains visible in the editor and can be changed before
   a single-image export.
-- On iOS, selection uses the system Photos picker. Saving an export to Photos
-  requests add-only access instead of access to the complete library.
+- On iPhone, selection uses the system Photos picker. iPad uses an in-app
+  PhotoKit browser that reports unavailable iCloud items without discarding the
+  complete selection. Saving an export to Photos requests add-only access.
 - Files can be imported directly. When the local destination is selected,
   exports remain available in the app's Documents directory and receive an
   `.aquarecover.json` settings sidecar.
@@ -125,20 +127,22 @@ The adjacent view button switches between fitting the complete image and
 filling the preview area. Outside the Crop tab, a two-finger pinch zooms the
 preview for detail inspection and a double-tap resets that view. Pressing and
 holding the normal edited preview temporarily shows the original. The Crop tab
-applies a nondestructive crop, 90-degree rotation, horizontal or vertical flip,
-and its own pinch positioning. Original, square, 4:3, and 16:9 aspect ratios are
-available; portrait media keeps the corresponding portrait orientation. LUT
-selection and intensity live in the dedicated **LUT** tab.
+applies a nondestructive crop, 90-degree rotation, straightening, horizontal or
+vertical flip, and its own pinch positioning. Original, square, 4:3, 16:9, and
+freeform aspect ratios are available; portrait media keeps the corresponding
+portrait orientation. A selected aspect ratio always fills the crop frame, so
+the frame cannot extend beyond the source image. LUT selection and intensity
+live in the dedicated **LUT** tab.
 
 ## Platform support
 
 | Capability | iOS | macOS | Android | Windows |
 | --- | --- | --- | --- | --- |
 | JPEG/PNG/WebP photo correction | Yes | Yes | Yes | Yes |
-| Media import | Native Photos picker and Files | Local photo browser and Files | Local photo browser and Files | Files |
+| Media import | Native Photos APIs and Files | Local photo browser and Files | Local photo browser and Files | Files |
 | HEIC/HEIF decode | Native | Native | Platform dependent | Platform dependent |
 | Supported RAW still decode | Core Image | Core Image | ImageDecoder on API 28+ | Not available |
-| Standard video export | AVFoundation/Core Image | Requires local `ffmpeg` | Not available | Not available |
+| Standard video export | MP4/MOV through AVFoundation/Core Image | MP4/MOV; requires local `ffmpeg` | Not available | Not available |
 | Raw frame-stream export | No | Requires local `ffmpeg` | No | No |
 
 The first store release should be treated as photo-first. Custom `.cube` LUTs
@@ -153,6 +157,10 @@ Photos item exists only in iCloud, the operating system may download it before
 handing a local file to AquaRecover.
 
 Still exports are freshly encoded and video exports strip metadata by default.
+The editor can select the representative frame used in video previews without
+changing the exported timeline. On iOS 26 and later, user-started video exports
+use Continued Processing so they can remain active after switching apps; older
+iOS versions use the finite background time provided by UIKit.
 The iOS and macOS privacy manifests declare no tracking and no collected data.
 Read the [privacy policy](PRIVACY.md) and
 [technical privacy model](docs/ON_DEVICE_PRIVACY.md) for the complete data flow.
