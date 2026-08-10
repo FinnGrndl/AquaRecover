@@ -3,6 +3,34 @@
 Changes are generated from Conventional Commit messages. AquaRecover follows
 semantic versioning; the number after `+` is the platform build number.
 
+## 1.2.0 - 2026-08-10
+
+### Added
+
+- Add freeform ratios and straightening
+- Add selectable preview frames and playback
+- Continue long exports on iOS 26
+- Replace sliders with haptic precision wheel
+
+### Changed
+
+- Unify floating glass control surfaces
+- Compact crop and adjustment controls
+
+### Documentation
+
+- Update media editing and export behavior
+
+### Fixed
+
+- Make iPad Photos selection resilient
+- Show media-specific format controls
+- Keep iOS exports active during app switches
+- Honor photo orientation in crop previews
+
+### Performance
+
+- Resolve Photos assets concurrently
 ## 1.1.2 - 2026-08-07
 
 ### Documentation
