@@ -89,7 +89,7 @@ class VideoRestorationService {
 
     final outputPath = await OutputPaths.forVideo(
       inputPath,
-      extension: 'mp4',
+      extension: exportOptions.videoFormat.extension,
       temporary: !exportOptions.keepLocalCopy,
     );
     await File(outputPath).parent.create(recursive: true);
@@ -168,7 +168,7 @@ class VideoRestorationService {
 
     final outputPath = await OutputPaths.forVideo(
       inputPath,
-      extension: 'mp4',
+      extension: exportOptions.videoFormat.extension,
       temporary: !exportOptions.keepLocalCopy,
     );
     await File(outputPath).parent.create(recursive: true);

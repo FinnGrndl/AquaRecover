@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate release cherry-pick
+    name: Validate release snapshot
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -34,7 +34,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           git fetch origin main --tags
-          source_sha="$(scripts/verify_release_cherry_pick.sh HEAD origin/main)"
+          source_sha="$(scripts/verify_release_snapshot.sh HEAD origin/main)"
           main_sha="$(git rev-parse origin/main)"
           if [[ "$source_sha" != "$main_sha" ]]; then
             echo "Release source $source_sha is not the latest main commit $main_sha." >&2
@@ -126,7 +126,7 @@ jobs:
           name: AquaRecover-Android-${{ needs.validate.outputs.version }}
           path: dist/*.apk
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
 
   windows:
     name: Windows installer
@@ -168,7 +168,7 @@ jobs:
           name: AquaRecover-Windows-${{ needs.validate.outputs.version }}
           path: dist/*.exe
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
 
   macos:
     name: macOS DMG
@@ -264,7 +264,7 @@ jobs:
           name: AquaRecover-macOS-${{ needs.validate.outputs.version }}
           path: dist/*.dmg
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
       - name: Remove temporary keychain
         if: always() && steps.mac-sign.outputs.keychain != ''
         run: security delete-keychain "${{ steps.mac-sign.outputs.keychain }}" || true
@@ -433,7 +433,7 @@ jobs:
           name: AquaRecover-iOS-${{ needs.validate.outputs.version }}
           path: dist/ios/*.ipa
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90
       - name: Remove temporary keychain
         if: always() && steps.ios-sign.outputs.keychain != ''
         run: security delete-keychain "${{ steps.ios-sign.outputs.keychain }}" || true
@@ -536,6 +536,8 @@ jobs:
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" --verify-tag \
               --title "AquaRecover $VERSION" \
-              --generate-notes
+              --generate-notes \
+              --latest
           fi
           gh release upload "$tag" "${assets[@]}" --clobber
+          gh release edit "$tag" --latest

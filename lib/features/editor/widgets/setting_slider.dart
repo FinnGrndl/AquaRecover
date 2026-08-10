@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
 
+import 'precision_wheel.dart';
+
 class SettingSlider extends StatelessWidget {
   const SettingSlider({
     super.key,
@@ -12,6 +14,7 @@ class SettingSlider extends StatelessWidget {
     this.help,
     this.format,
     this.showHeader = true,
+    this.showValue = true,
   });
   final String label;
   final double value;
@@ -22,16 +25,18 @@ class SettingSlider extends StatelessWidget {
   final ValueChanged<double>? onChanged;
   final String Function(double value)? format;
   final bool showHeader;
+  final bool showValue;
 
   @override
   Widget build(BuildContext context) {
-    final valueText = format?.call(value) ?? value.toStringAsFixed(2);
+    String valueText(double current) =>
+        format?.call(current) ?? current.toStringAsFixed(2);
     final secondary = CupertinoDynamicColor.resolve(
       CupertinoColors.secondaryLabel,
       context,
     );
     return Padding(
-      padding: EdgeInsets.only(top: showHeader ? 8 : 4, bottom: 8),
+      padding: EdgeInsets.only(top: showHeader ? 10 : 4, bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -46,27 +51,22 @@ class SettingSlider extends StatelessWidget {
                     ).textTheme.textStyle.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
-                Text(
-                  valueText,
-                  style: CupertinoTheme.of(
-                    context,
-                  ).textTheme.textStyle.copyWith(color: secondary),
-                ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
           ],
-          SizedBox(
-            width: double.infinity,
-            child: CupertinoSlider(
-              value: value.clamp(min, max).toDouble(),
-              min: min,
-              max: max,
-              divisions: divisions,
-              onChanged: onChanged,
-            ),
+          PrecisionWheel(
+            value: value.clamp(min, max).toDouble(),
+            min: min,
+            max: max,
+            divisions: divisions,
+            semanticLabel: label,
+            valueFormatter: valueText,
+            onChanged: onChanged,
+            showValue: showValue,
           ),
-          if (help != null)
+          if (help != null) ...[
+            const SizedBox(height: 12),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -88,6 +88,7 @@ class SettingSlider extends StatelessWidget {
                 ),
               ],
             ),
+          ],
         ],
       ),
     );

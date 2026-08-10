@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -12,11 +13,17 @@ class VideoFramePreviewTile extends StatefulWidget {
     required this.path,
     this.settings,
     this.caption = 'Representative frame',
+    this.position,
+    this.onDurationKnown,
+    this.showCaption = true,
   });
 
   final String path;
   final RestorationSettings? settings;
   final String caption;
+  final Duration? position;
+  final ValueChanged<Duration>? onDurationKnown;
+  final bool showCaption;
 
   static Duration representativePositionFor(Duration duration) {
     if (duration <= const Duration(seconds: 2)) return Duration.zero;
@@ -24,6 +31,16 @@ class VideoFramePreviewTile extends StatefulWidget {
     return quarter > const Duration(seconds: 3)
         ? const Duration(seconds: 3)
         : quarter;
+  }
+
+  static Duration clampPosition(Duration position, Duration duration) {
+    if (position <= Duration.zero || duration <= Duration.zero) {
+      return Duration.zero;
+    }
+    final lastFrame = duration > const Duration(milliseconds: 50)
+        ? duration - const Duration(milliseconds: 50)
+        : Duration.zero;
+    return position > lastFrame ? lastFrame : position;
   }
 
   @override
@@ -34,6 +51,8 @@ class _VideoFramePreviewTileState extends State<VideoFramePreviewTile> {
   VideoPlayerController? _controller;
   Future<void>? _initFuture;
   Duration _framePosition = Duration.zero;
+  Duration? _pendingPosition;
+  bool _seeking = false;
 
   @override
   void initState() {
@@ -47,6 +66,9 @@ class _VideoFramePreviewTileState extends State<VideoFramePreviewTile> {
     if (oldWidget.path != widget.path) {
       _controller?.dispose();
       _open();
+    } else if (oldWidget.position != widget.position &&
+        widget.position != null) {
+      _queueSeek(widget.position!);
     }
   }
 
@@ -60,8 +82,13 @@ class _VideoFramePreviewTileState extends State<VideoFramePreviewTile> {
     final controller = VideoPlayerController.file(File(widget.path));
     _controller = controller;
     _initFuture = controller.initialize().then((_) async {
-      _framePosition = VideoFramePreviewTile.representativePositionFor(
-        controller.value.duration,
+      if (!mounted || !identical(controller, _controller)) return;
+      final duration = controller.value.duration;
+      widget.onDurationKnown?.call(duration);
+      _framePosition = VideoFramePreviewTile.clampPosition(
+        widget.position ??
+            VideoFramePreviewTile.representativePositionFor(duration),
+        duration,
       );
       if (_framePosition > Duration.zero) {
         await controller.seekTo(_framePosition);
@@ -69,6 +96,37 @@ class _VideoFramePreviewTileState extends State<VideoFramePreviewTile> {
       await controller.pause();
       if (mounted) setState(() {});
     });
+  }
+
+  void _queueSeek(Duration position) {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+    _pendingPosition = VideoFramePreviewTile.clampPosition(
+      position,
+      controller.value.duration,
+    );
+    if (!_seeking) unawaited(_drainSeeks(controller));
+  }
+
+  Future<void> _drainSeeks(VideoPlayerController controller) async {
+    _seeking = true;
+    try {
+      while (_pendingPosition != null && identical(controller, _controller)) {
+        final target = _pendingPosition!;
+        _pendingPosition = null;
+        await controller.seekTo(target);
+        await controller.pause();
+        _framePosition = target;
+      }
+      if (mounted && identical(controller, _controller)) setState(() {});
+    } on Object {
+      // A stale seek can fail when the user switches queue items quickly.
+    } finally {
+      _seeking = false;
+      if (_pendingPosition != null && identical(controller, _controller)) {
+        _queueSeek(_pendingPosition!);
+      }
+    }
   }
 
   @override
@@ -106,11 +164,12 @@ class _VideoFramePreviewTileState extends State<VideoFramePreviewTile> {
           fit: StackFit.expand,
           children: [
             Center(child: video),
-            Positioned(
-              left: 10,
-              bottom: 10,
-              child: _label(context, _caption(controller.value.duration)),
-            ),
+            if (widget.showCaption)
+              Positioned(
+                left: 10,
+                bottom: 10,
+                child: _label(context, _caption(controller.value.duration)),
+              ),
           ],
         );
       },

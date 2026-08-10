@@ -14,8 +14,10 @@ No app code sends the media or its settings to a server.
 
 ## Photo-library permissions
 
-iOS import uses the native system picker and does not require broad read access
-to the library. Saving an export requests add-only access. macOS and Android use
+iPhone import uses the native system picker and does not require broad read
+access to the library. iPad uses AquaRecover's PhotoKit browser and therefore
+requests Photos read access while respecting the system's limited-library
+selection. Saving an export requests add-only access. macOS and Android use
 their platform media access flows and should be tested against the current
 limited-library behavior before each store release.
 

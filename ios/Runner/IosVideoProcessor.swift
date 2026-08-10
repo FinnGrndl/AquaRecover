@@ -1,8 +1,152 @@
 import AVFoundation
+import BackgroundTasks
 import CoreImage
 import Flutter
 import Foundation
 import ImageIO
+import UIKit
+
+private protocol VideoExportActivity: AnyObject {
+  func attach(exporter: AVAssetExportSession)
+  func finish(success: Bool)
+}
+
+private final class BackgroundTaskLease: VideoExportActivity {
+  private var identifier: UIBackgroundTaskIdentifier = .invalid
+
+  init(name: String) {
+    identifier = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+      self?.end()
+    }
+  }
+
+  func attach(exporter: AVAssetExportSession) {}
+
+  func finish(success: Bool) {
+    end()
+  }
+
+  private func end() {
+    guard Thread.isMainThread else {
+      DispatchQueue.main.async { [weak self] in self?.end() }
+      return
+    }
+    guard identifier != .invalid else { return }
+    UIApplication.shared.endBackgroundTask(identifier)
+    identifier = .invalid
+  }
+}
+
+@available(iOS 26.0, *)
+private final class ContinuedVideoExportActivity: VideoExportActivity {
+  private let task: BGContinuedProcessingTask
+  private var exporter: AVAssetExportSession?
+  private var progressTimer: Timer?
+  private var expired = false
+
+  init(task: BGContinuedProcessingTask) {
+    self.task = task
+    task.progress.totalUnitCount = 100
+    task.progress.completedUnitCount = 0
+    task.expirationHandler = { [weak self] in
+      self?.expire()
+    }
+  }
+
+  func attach(exporter: AVAssetExportSession) {
+    runOnMain { [weak self] in
+      guard let self else { return }
+      self.exporter = exporter
+      if self.expired {
+        exporter.cancelExport()
+        return
+      }
+      self.progressTimer?.invalidate()
+      self.progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {
+        [weak self, weak exporter] _ in
+        guard let self, let exporter else { return }
+        let completed = Int64((Double(exporter.progress) * 100).rounded())
+        self.task.progress.completedUnitCount = min(99, max(0, completed))
+      }
+    }
+  }
+
+  func finish(success: Bool) {
+    runOnMain { [weak self] in
+      guard let self else { return }
+      self.progressTimer?.invalidate()
+      self.progressTimer = nil
+      if success {
+        self.task.progress.completedUnitCount = 100
+      }
+      self.task.setTaskCompleted(success: success)
+    }
+  }
+
+  private func expire() {
+    runOnMain { [weak self] in
+      guard let self else { return }
+      self.expired = true
+      self.progressTimer?.invalidate()
+      self.progressTimer = nil
+      self.exporter?.cancelExport()
+    }
+  }
+
+  private func runOnMain(_ work: @escaping () -> Void) {
+    if Thread.isMainThread {
+      work()
+    } else {
+      DispatchQueue.main.async(execute: work)
+    }
+  }
+}
+
+@available(iOS 26.0, *)
+private final class ContinuedVideoExportCoordinator {
+  static let shared = ContinuedVideoExportCoordinator()
+
+  private let identifier = "\(Bundle.main.bundleIdentifier ?? "io.github.finngrndl.aquarecover").video-export"
+  private var registered = false
+  private var pendingWork: ((VideoExportActivity) -> Void)?
+
+  func register() {
+    guard !registered else { return }
+    registered = BGTaskScheduler.shared.register(
+      forTaskWithIdentifier: identifier,
+      using: .main
+    ) { [weak self] task in
+      guard let self, let task = task as? BGContinuedProcessingTask else {
+        task.setTaskCompleted(success: false)
+        return
+      }
+      guard let work = self.pendingWork else {
+        task.setTaskCompleted(success: false)
+        return
+      }
+      self.pendingWork = nil
+      work(ContinuedVideoExportActivity(task: task))
+    }
+  }
+
+  func submit(work: @escaping (VideoExportActivity) -> Void) -> Bool {
+    guard registered, pendingWork == nil else { return false }
+    pendingWork = work
+    let request = BGContinuedProcessingTaskRequest(
+      identifier: identifier,
+      title: "Exporting video",
+      subtitle: "AquaRecover is processing your video"
+    )
+    request.strategy = .fail
+    do {
+      try BGTaskScheduler.shared.submit(request)
+      return true
+    } catch {
+      pendingWork = nil
+      return false
+    }
+  }
+}
 
 final class IosVideoProcessor {
   private static let maxImagePixels: CGFloat = 120_000_000
@@ -265,6 +409,9 @@ final class IosVideoProcessor {
 
   static func register(binaryMessenger: FlutterBinaryMessenger) {
     let processor = IosVideoProcessor()
+    if #available(iOS 26.0, *) {
+      ContinuedVideoExportCoordinator.shared.register()
+    }
     let videoChannel = FlutterMethodChannel(name: "aqua_recover/video", binaryMessenger: binaryMessenger)
     videoChannel.setMethodCallHandler { call, result in
       guard call.method == "restoreVideo" else {
@@ -277,25 +424,39 @@ final class IosVideoProcessor {
         result(FlutterError(code: "BAD_ARGS", message: "inputPath and outputPath are required", details: nil))
         return
       }
-
-      DispatchQueue.global(qos: .userInitiated).async {
-        do {
-          try processor.restoreVideo(inputPath: inputPath, outputPath: outputPath, args: args) { exportResult in
-            DispatchQueue.main.async {
-              switch exportResult {
-              case .success(let path):
-                result(path)
-              case .failure(let error):
-                result(FlutterError(code: "VIDEO_EXPORT_FAILED", message: error.localizedDescription, details: nil))
+      let startExport: (VideoExportActivity) -> Void = { activity in
+        DispatchQueue.global(qos: .userInitiated).async {
+          do {
+            try processor.restoreVideo(
+              inputPath: inputPath,
+              outputPath: outputPath,
+              args: args,
+              onExporterReady: activity.attach
+            ) { exportResult in
+              DispatchQueue.main.async {
+                switch exportResult {
+                case .success(let path):
+                  activity.finish(success: true)
+                  result(path)
+                case .failure(let error):
+                  activity.finish(success: false)
+                  result(FlutterError(code: "VIDEO_EXPORT_FAILED", message: error.localizedDescription, details: nil))
+                }
               }
             }
-          }
-        } catch {
-          DispatchQueue.main.async {
-            result(FlutterError(code: "VIDEO_EXPORT_FAILED", message: error.localizedDescription, details: nil))
+          } catch {
+            DispatchQueue.main.async {
+              activity.finish(success: false)
+              result(FlutterError(code: "VIDEO_EXPORT_FAILED", message: error.localizedDescription, details: nil))
+            }
           }
         }
       }
+      if #available(iOS 26.0, *),
+         ContinuedVideoExportCoordinator.shared.submit(work: startExport) {
+        return
+      }
+      startExport(BackgroundTaskLease(name: "AquaRecover video export"))
     }
 
     let imageChannel = FlutterMethodChannel(name: "aqua_recover/image", binaryMessenger: binaryMessenger)
@@ -328,6 +489,7 @@ final class IosVideoProcessor {
     inputPath: String,
     outputPath: String,
     args: [String: Any],
+    onExporterReady: @escaping (AVAssetExportSession) -> Void,
     completion: @escaping (Result<String, Error>) -> Void
   ) throws {
     let inputURL = try checkedInputURL(inputPath)
@@ -399,16 +561,20 @@ final class IosVideoProcessor {
     ) else {
       throw bridgeError("Could not create an AVFoundation export session.")
     }
-    guard exporter.supportedFileTypes.contains(.mp4) else {
-      throw bridgeError("This device cannot export the selected video as MP4.")
+    let outputFileType: AVFileType = exportOptions.videoFormat == "mov" ? .mov : .mp4
+    guard exporter.supportedFileTypes.contains(outputFileType) else {
+      throw bridgeError(
+        "This device cannot export the selected video as \(exportOptions.videoFormat.uppercased())."
+      )
     }
     exporter.outputURL = outputURL
-    exporter.outputFileType = .mp4
+    exporter.outputFileType = outputFileType
     exporter.videoComposition = videoComposition
     exporter.shouldOptimizeForNetworkUse = true
     if exportOptions.stripMetadata {
       exporter.metadata = []
     }
+    onExporterReady(exporter)
 
     exporter.exportAsynchronously {
       switch exporter.status {
@@ -500,8 +666,25 @@ final class IosVideoProcessor {
         y: -output.extent.origin.y
       )
     )
+    let sourceWidth = output.extent.width
+    let sourceHeight = output.extent.height
+    if abs(settings.straightenDegrees) > 0.0000001 {
+      let radians = CGFloat(-settings.straightenDegrees * Double.pi / 180.0)
+      output = output.transformed(by: CGAffineTransform(rotationAngle: radians))
+      output = output.transformed(
+        by: CGAffineTransform(
+          translationX: -output.extent.origin.x,
+          y: -output.extent.origin.y
+        )
+      )
+    }
     let extent = output.extent.integral
-    let crop = settings.cropRect(width: extent.width, height: extent.height)
+    let crop = settings.cropRect(
+      outputWidth: extent.width,
+      outputHeight: extent.height,
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight
+    )
     let coreImageCrop = CGRect(
       x: crop.origin.x,
       y: extent.height - crop.origin.y - crop.height,
@@ -970,11 +1153,13 @@ private struct VideoSettings {
 private struct ExportSettings {
   init(_ values: [String: Any]) {
     imageFormat = values["imageFormat"] as? String ?? "jpeg"
+    videoFormat = values["videoFormat"] as? String ?? "mp4"
     keepAudio = bool(values, key: "keepAudio", fallback: true)
     stripMetadata = bool(values, key: "stripMetadata", fallback: true)
   }
 
   let imageFormat: String
+  let videoFormat: String
   let keepAudio: Bool
   let stripMetadata: Bool
 
@@ -988,6 +1173,8 @@ private struct ImageTransformSettings {
     offsetX = double(values, key: "offsetX", fallback: 0.0)
     offsetY = double(values, key: "offsetY", fallback: 0.0)
     quarterTurns = Int(double(values, key: "quarterTurns", fallback: 0.0))
+    straightenDegrees = double(values, key: "straightenDegrees", fallback: 0.0)
+    customAspectRatio = double(values, key: "customAspectRatio", fallback: 4.0 / 3.0)
     flipHorizontal = bool(values, key: "flipHorizontal", fallback: false)
     flipVertical = bool(values, key: "flipVertical", fallback: false)
   }
@@ -997,6 +1184,8 @@ private struct ImageTransformSettings {
   let offsetX: Double
   let offsetY: Double
   let quarterTurns: Int
+  let straightenDegrees: Double
+  let customAspectRatio: Double
   let flipHorizontal: Bool
   let flipVertical: Bool
 
@@ -1010,17 +1199,27 @@ private struct ImageTransformSettings {
       && abs(offsetX) < 0.0000001
       && abs(offsetY) < 0.0000001
       && normalizedQuarterTurns == 0
+      && abs(straightenDegrees) < 0.0000001
       && !flipHorizontal
       && !flipVertical
   }
 
-  func cropRect(width: CGFloat, height: CGFloat) -> CGRect {
-    let safeWidth = max(1.0, width)
-    let safeHeight = max(1.0, height)
-    let sourceAspect = safeWidth / safeHeight
+  func cropRect(
+    outputWidth: CGFloat,
+    outputHeight: CGFloat,
+    sourceWidth: CGFloat,
+    sourceHeight: CGFloat
+  ) -> CGRect {
+    let safeOutputWidth = max(1.0, outputWidth)
+    let safeOutputHeight = max(1.0, outputHeight)
+    let safeSourceWidth = max(1.0, sourceWidth)
+    let safeSourceHeight = max(1.0, sourceHeight)
+    let sourceAspect = safeSourceWidth / safeSourceHeight
     let portrait = sourceAspect < 1.0
     let targetAspect: CGFloat
     switch aspectRatio {
+    case "freeform":
+      targetAspect = CGFloat(clamp(customAspectRatio, 0.25, 4.0))
     case "square":
       targetAspect = 1.0
     case "fourThree":
@@ -1031,25 +1230,29 @@ private struct ImageTransformSettings {
       targetAspect = sourceAspect
     }
 
-    var normalizedWidth: CGFloat = 1.0
-    var normalizedHeight: CGFloat = 1.0
-    if sourceAspect > targetAspect {
-      normalizedWidth = targetAspect / sourceAspect
-    } else if sourceAspect < targetAspect {
-      normalizedHeight = sourceAspect / targetAspect
-    }
+    let radians = CGFloat(abs(straightenDegrees) * Double.pi / 180.0)
+    let cosine = abs(cos(radians))
+    let sine = abs(sin(radians))
+    let rotationSafety: CGFloat = abs(straightenDegrees) > 0.0000001 ? 0.98 : 1.0
+    let baseHeight = min(
+      safeSourceWidth / (targetAspect * cosine + sine),
+      safeSourceHeight / (targetAspect * sine + cosine)
+    ) * rotationSafety
+    let baseWidth = baseHeight * targetAspect
     let safeZoom = CGFloat(clamp(zoom, 1.0, 4.0))
-    normalizedWidth /= safeZoom
-    normalizedHeight /= safeZoom
+    let cropWidth = max(1.0, min(safeOutputWidth, baseWidth / safeZoom))
+    let cropHeight = max(1.0, min(safeOutputHeight, baseHeight / safeZoom))
+    let baseLeft = (safeOutputWidth - baseWidth) / 2.0
+    let baseTop = (safeOutputHeight - baseHeight) / 2.0
     let safeX = CGFloat(clamp(offsetX, -1.0, 1.0))
     let safeY = CGFloat(clamp(offsetY, -1.0, 1.0))
-    let left = (1.0 - normalizedWidth) * (safeX + 1.0) / 2.0
-    let top = (1.0 - normalizedHeight) * (safeY + 1.0) / 2.0
+    let left = baseLeft + (baseWidth - cropWidth) * (safeX + 1.0) / 2.0
+    let top = baseTop + (baseHeight - cropHeight) * (safeY + 1.0) / 2.0
     return CGRect(
-      x: left * safeWidth,
-      y: top * safeHeight,
-      width: max(1.0, normalizedWidth * safeWidth),
-      height: max(1.0, normalizedHeight * safeHeight)
+      x: left,
+      y: top,
+      width: cropWidth,
+      height: cropHeight
     )
   }
 }

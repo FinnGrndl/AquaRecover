@@ -36,6 +36,7 @@ import 'widgets/app_license_page.dart';
 import 'widgets/batch_edit_copy_sheet.dart';
 import 'widgets/crop_browser.dart';
 import 'widgets/editor_bottom_panel.dart';
+import 'widgets/editor_glass_surface.dart';
 import 'widgets/editor_preview_stage.dart';
 import 'widgets/editor_tool_rail.dart';
 import 'widgets/preset_browser.dart';
@@ -43,6 +44,7 @@ import 'widgets/photo_library_sheet.dart';
 import 'widgets/queue_overview_sheet.dart';
 import 'widgets/raw_video_dialog.dart';
 import 'widgets/setting_slider.dart';
+import 'widgets/video_frame_preview_tile.dart';
 
 class EditorPage extends StatefulWidget {
   const EditorPage({
@@ -78,6 +80,8 @@ class _EditorPageState extends State<EditorPage> {
   final _imagePicker = ImagePicker();
   final _trimStartController = TextEditingController(text: '0');
   final _trimEndController = TextEditingController();
+  final Map<String, Duration> _videoPreviewPositions = {};
+  final Map<String, Duration> _videoDurations = {};
 
   List<MediaJob> _jobs = const [];
   Map<String, MediaEditState> _editStates = {};
@@ -412,6 +416,9 @@ class _EditorPageState extends State<EditorPage> {
                   showHeader: false,
                   borderRadius: 0,
                   transform: _transformSettings,
+                  videoPreviewPosition: _videoPreviewPositions[job.id],
+                  onVideoDurationKnown: (duration) =>
+                      _setVideoDuration(job.id, duration),
                 ),
                 Positioned.fill(
                   child: DecoratedBox(
@@ -659,7 +666,7 @@ class _EditorPageState extends State<EditorPage> {
         final horizontalPadding = wide ? 24.0 : 12.0;
         final bottomPadding = bottomInset + (compact ? 10.0 : 18.0);
         final reservedPreview = compact ? 250.0 : 320.0;
-        final reservedChrome = compact ? 174.0 : 182.0;
+        final reservedChrome = compact ? 164.0 : 172.0;
         final availablePanelHeight =
             constraints.maxHeight -
             reservedPreview -
@@ -668,19 +675,19 @@ class _EditorPageState extends State<EditorPage> {
             bottomInset;
         final preferredPanelHeight = compact
             ? switch (activeGroup) {
-                EditorToolGroup.light => 260.0,
-                EditorToolGroup.presets => 255.0,
-                EditorToolGroup.crop => 250.0,
+                EditorToolGroup.light => 300.0,
+                EditorToolGroup.presets => 280.0,
+                EditorToolGroup.crop => 190.0,
                 EditorToolGroup.effects => 240.0,
-                EditorToolGroup.video => 275.0,
+                EditorToolGroup.video => 290.0,
                 _ => 255.0,
               }
             : switch (activeGroup) {
-                EditorToolGroup.light => 280.0,
-                EditorToolGroup.presets => 275.0,
-                EditorToolGroup.crop => 270.0,
+                EditorToolGroup.light => 320.0,
+                EditorToolGroup.presets => 300.0,
+                EditorToolGroup.crop => 210.0,
                 EditorToolGroup.effects => 260.0,
-                EditorToolGroup.video => 300.0,
+                EditorToolGroup.video => 315.0,
                 _ => 275.0,
               };
         final panelHeight = availablePanelHeight <= 120
@@ -710,12 +717,19 @@ class _EditorPageState extends State<EditorPage> {
                   borderRadius: 0,
                   immersiveTopInset: previewTopInset,
                   immersiveBottomInset:
-                      (panelOpen ? panelHeight + 88 : 122) + bottomInset,
+                      (panelOpen
+                          ? panelHeight +
+                                (activeGroup == EditorToolGroup.crop ? 30 : 70)
+                          : 108) +
+                      bottomInset,
                   transform: _transformSettings,
                   showCropGrid: activeGroup == EditorToolGroup.crop,
                   previewFit: activeGroup == EditorToolGroup.crop
                       ? EditorPreviewFit.fit
                       : _previewFit,
+                  videoPreviewPosition: _videoPreviewPositions[job.id],
+                  onVideoDurationKnown: (duration) =>
+                      _setVideoDuration(job.id, duration),
                 ),
               ),
               onScaleStart: activeGroup == EditorToolGroup.crop
@@ -793,34 +807,36 @@ class _EditorPageState extends State<EditorPage> {
                   brightness: Brightness.dark,
                   primaryColor: CupertinoColors.activeBlue,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    EditorBottomPanel(
-                      group: activeGroup,
-                      open: panelOpen,
-                      height: panelHeight,
-                      onClose: () => setState(() => _toolPanelOpen = false),
-                      child: _toolPanelContent(activeGroup),
-                    ),
-                    if (panelOpen) const SizedBox(height: 2),
-                    if (!panelOpen)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: EditorCollapsedPanelButton(
-                          group: activeGroup,
-                          onPressed: () =>
-                              setState(() => _toolPanelOpen = true),
-                        ),
+                child: BackdropGroup(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      EditorBottomPanel(
+                        group: activeGroup,
+                        open: panelOpen,
+                        height: panelHeight,
+                        onClose: () => setState(() => _toolPanelOpen = false),
+                        child: _toolPanelContent(activeGroup),
                       ),
-                    if (!panelOpen) const SizedBox(height: 2),
-                    EditorToolRail(
-                      groups: groups,
-                      selectedGroup: activeGroup,
-                      panelOpen: panelOpen,
-                      onSelected: _selectToolGroup,
-                    ),
-                  ],
+                      if (panelOpen) const SizedBox(height: 2),
+                      if (!panelOpen)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: EditorCollapsedPanelButton(
+                            group: activeGroup,
+                            onPressed: () =>
+                                setState(() => _toolPanelOpen = true),
+                          ),
+                        ),
+                      if (!panelOpen) const SizedBox(height: 2),
+                      EditorToolRail(
+                        groups: groups,
+                        selectedGroup: activeGroup,
+                        panelOpen: panelOpen,
+                        onSelected: _selectToolGroup,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -838,9 +854,9 @@ class _EditorPageState extends State<EditorPage> {
     final actionLabel = showingSplit
         ? 'Show edited preview'
         : 'Show split preview';
-    final background = showingSplit
+    final tint = showingSplit
         ? CupertinoColors.activeBlue.withValues(alpha: .94)
-        : CupertinoColors.black.withValues(alpha: .56);
+        : const Color(0xff171a20);
     return Tooltip(
       message: actionLabel,
       child: Semantics(
@@ -852,21 +868,31 @@ class _EditorPageState extends State<EditorPage> {
           padding: EdgeInsets.zero,
           minimumSize: const Size(42, 42),
           borderRadius: BorderRadius.circular(99),
-          color: background,
           onPressed: onPressed,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 160),
-            transitionBuilder: (child, animation) => ScaleTransition(
-              scale: animation,
-              child: FadeTransition(opacity: animation, child: child),
-            ),
-            child: Icon(
-              showingSplit
-                  ? CupertinoIcons.photo
-                  : CupertinoIcons.square_split_2x1,
-              key: ValueKey(showingSplit),
-              color: CupertinoColors.white,
-              size: 20,
+          child: EditorGlassSurface(
+            style: EditorGlassStyle.clear,
+            borderRadius: 99,
+            tint: tint,
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: AnimatedSwitcher(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 160),
+                transitionBuilder: (child, animation) => ScaleTransition(
+                  scale: animation,
+                  child: FadeTransition(opacity: animation, child: child),
+                ),
+                child: Icon(
+                  showingSplit
+                      ? CupertinoIcons.photo
+                      : CupertinoIcons.square_split_2x1,
+                  key: ValueKey(showingSplit),
+                  color: CupertinoColors.white,
+                  size: 20,
+                ),
+              ),
             ),
           ),
         ),
@@ -896,19 +922,28 @@ class _EditorPageState extends State<EditorPage> {
           padding: EdgeInsets.zero,
           minimumSize: const Size(42, 42),
           borderRadius: BorderRadius.circular(99),
-          color: CupertinoColors.black.withValues(alpha: .56),
           onPressed: !enabled
               ? null
               : () => setState(() => _previewFit = fit.toggled),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 160),
-            child: Icon(
-              fit == EditorPreviewFit.fit
-                  ? CupertinoIcons.arrow_up_left_arrow_down_right
-                  : CupertinoIcons.arrow_down_right_arrow_up_left,
-              key: ValueKey(fit),
-              color: CupertinoColors.white,
-              size: 19,
+          child: EditorGlassSurface(
+            style: EditorGlassStyle.clear,
+            borderRadius: 99,
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: AnimatedSwitcher(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 160),
+                child: Icon(
+                  fit == EditorPreviewFit.fit
+                      ? CupertinoIcons.arrow_up_left_arrow_down_right
+                      : CupertinoIcons.arrow_down_right_arrow_up_left,
+                  key: ValueKey(fit),
+                  color: CupertinoColors.white,
+                  size: 19,
+                ),
+              ),
             ),
           ),
         ),
@@ -1339,6 +1374,7 @@ class _EditorPageState extends State<EditorPage> {
         ),
         EditorToolGroup.crop => CropBrowser(
           settings: _transformSettings,
+          sourceAspectRatio: _previewAspectRatio(_selectedJob!),
           enabled: !_busy,
           onChanged: _setTransformSettings,
         ),
@@ -1587,6 +1623,8 @@ class _EditorPageState extends State<EditorPage> {
         borderRadius: 16,
         transform: _transformSettings,
         previewFit: EditorPreviewFit.fill,
+        videoPreviewPosition: _videoPreviewPositions[job.id],
+        onVideoDurationKnown: (duration) => _setVideoDuration(job.id, duration),
       ),
     );
   }
@@ -1772,14 +1810,54 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _videoSection(BuildContext panelContext) {
+    final job = _selectedJob;
+    final duration = job == null ? null : _videoDurations[job.id];
+    final position = job == null ? null : _videoPreviewPositions[job.id];
+    final previewEnd = duration == null
+        ? null
+        : VideoFramePreviewTile.clampPosition(duration, duration);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Frame preview updates with the same color settings; full video export depends on the backend.',
+          'Choose the frame used in the editor and export preview. This does not change the exported video timeline.',
           style: _secondaryText(panelContext),
         ),
-        const SizedBox(height: 8),
+        if (job?.kind == MediaKind.video && duration != null) ...[
+          SettingSlider(
+            key: const Key('video_preview_frame'),
+            label: 'Preview frame',
+            value: (position ?? Duration.zero).inMilliseconds / 1000,
+            min: 0,
+            max: (previewEnd!.inMilliseconds / 1000)
+                .clamp(.05, double.infinity)
+                .toDouble(),
+            divisions: (previewEnd.inMilliseconds / 250)
+                .round()
+                .clamp(1, 400)
+                .toInt(),
+            format: (value) => _formatVideoPosition(
+              Duration(milliseconds: (value * 1000).round()),
+            ),
+            onChanged: _busy
+                ? null
+                : (value) => _setVideoPreviewPosition(
+                    job!.id,
+                    Duration(milliseconds: (value * 1000).round()),
+                  ),
+          ),
+        ] else if (job?.kind == MediaKind.video) ...[
+          const SizedBox(height: 10),
+          const Row(
+            children: [
+              CupertinoActivityIndicator(),
+              SizedBox(width: 9),
+              Text('Preparing video timeline…'),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ] else
+          const SizedBox(height: 8),
         _switchRow(
           title: 'Trim video',
           value: _trimEnabled,
@@ -1808,26 +1886,64 @@ class _EditorPageState extends State<EditorPage> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: _busy
-              ? null
-              : () async {
-                  final descriptor = await RawVideoDialog.show(
-                    context,
-                    initial: _rawDescriptor,
-                  );
-                  if (descriptor != null && mounted) {
-                    setState(() => _rawDescriptor = descriptor);
-                  }
-                },
-          child: Text(
-            'RAW video: ${_rawDescriptor.width}x${_rawDescriptor.height} ${_rawDescriptor.frameRate.toStringAsFixed(2)}fps ${_rawDescriptor.pixelFormat}',
+        if (job?.kind == MediaKind.rawVideo) ...[
+          const SizedBox(height: 8),
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: _busy
+                ? null
+                : () async {
+                    final descriptor = await RawVideoDialog.show(
+                      context,
+                      initial: _rawDescriptor,
+                    );
+                    if (descriptor != null && mounted) {
+                      setState(() => _rawDescriptor = descriptor);
+                    }
+                  },
+            child: Text(
+              'RAW video: ${_rawDescriptor.width}x${_rawDescriptor.height} ${_rawDescriptor.frameRate.toStringAsFixed(2)}fps ${_rawDescriptor.pixelFormat}',
+            ),
           ),
-        ),
+        ],
       ],
     );
+  }
+
+  void _setVideoDuration(String jobId, Duration duration) {
+    if (!mounted || duration <= Duration.zero) return;
+    final existingDuration = _videoDurations[jobId];
+    final existingPosition = _videoPreviewPositions[jobId];
+    final nextPosition = VideoFramePreviewTile.clampPosition(
+      existingPosition ??
+          VideoFramePreviewTile.representativePositionFor(duration),
+      duration,
+    );
+    if (existingDuration == duration && existingPosition == nextPosition) {
+      return;
+    }
+    setState(() {
+      _videoDurations[jobId] = duration;
+      _videoPreviewPositions[jobId] = nextPosition;
+    });
+  }
+
+  void _setVideoPreviewPosition(String jobId, Duration position) {
+    final duration = _videoDurations[jobId];
+    if (duration == null) return;
+    setState(() {
+      _videoPreviewPositions[jobId] = VideoFramePreviewTile.clampPosition(
+        position,
+        duration,
+      );
+    });
+  }
+
+  String _formatVideoPosition(Duration position) {
+    final totalSeconds = position.inMilliseconds / 1000;
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds - minutes * 60;
+    return '$minutes:${seconds.toStringAsFixed(1).padLeft(4, '0')}';
   }
 
   Widget _lutSection(BuildContext panelContext) {
@@ -1881,6 +1997,7 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _exportOptionsSection(BuildContext panelContext) {
+    final isVideo = _selectedJob?.kind.isVideo ?? false;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1923,35 +2040,66 @@ class _EditorPageState extends State<EditorPage> {
             },
           ),
           const SizedBox(height: 8),
-          CupertinoSlidingSegmentedControl<ImageOutputFormat>(
-            groupValue: _exportOptions.imageFormat,
-            backgroundColor: CupertinoColors.white.withValues(alpha: .10),
-            thumbColor: CupertinoColors.activeBlue,
-            children: const {
-              ImageOutputFormat.jpeg: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'JPEG',
-                  style: TextStyle(color: CupertinoColors.white),
+          if (isVideo)
+            CupertinoSlidingSegmentedControl<VideoOutputFormat>(
+              key: const Key('video_output_format'),
+              groupValue: _exportOptions.videoFormat,
+              backgroundColor: CupertinoColors.white.withValues(alpha: .10),
+              thumbColor: CupertinoColors.activeBlue,
+              children: {
+                for (final format in VideoOutputFormat.values)
+                  format: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      format.label,
+                      style: const TextStyle(color: CupertinoColors.white),
+                    ),
+                  ),
+              },
+              onValueChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _exportPreset = ExportPreset.proEdit;
+                    _exportOptions = _exportOptions.copyWith(
+                      videoFormat: value,
+                    );
+                  });
+                }
+              },
+            )
+          else
+            CupertinoSlidingSegmentedControl<ImageOutputFormat>(
+              key: const Key('image_output_format'),
+              groupValue: _exportOptions.imageFormat,
+              backgroundColor: CupertinoColors.white.withValues(alpha: .10),
+              thumbColor: CupertinoColors.activeBlue,
+              children: const {
+                ImageOutputFormat.jpeg: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'JPEG',
+                    style: TextStyle(color: CupertinoColors.white),
+                  ),
                 ),
-              ),
-              ImageOutputFormat.png: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'PNG',
-                  style: TextStyle(color: CupertinoColors.white),
+                ImageOutputFormat.png: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'PNG',
+                    style: TextStyle(color: CupertinoColors.white),
+                  ),
                 ),
-              ),
-            },
-            onValueChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _exportPreset = ExportPreset.proEdit;
-                  _exportOptions = _exportOptions.copyWith(imageFormat: value);
-                });
-              }
-            },
-          ),
+              },
+              onValueChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _exportPreset = ExportPreset.proEdit;
+                    _exportOptions = _exportOptions.copyWith(
+                      imageFormat: value,
+                    );
+                  });
+                }
+              },
+            ),
           const SizedBox(height: 8),
           _switchRow(
             title: 'Keep in AquaRecover',
@@ -2026,15 +2174,17 @@ class _EditorPageState extends State<EditorPage> {
               fontSize: 12,
             ),
           ),
-          SettingSlider(
-            label: 'JPEG quality',
-            value: _settings.jpegQuality.toDouble(),
-            min: 70,
-            max: 100,
-            divisions: 30,
-            format: (v) => v.round().toString(),
-            onChanged: (v) => _setJpegQuality(v.round()),
-          ),
+          if (!isVideo && _exportOptions.imageFormat == ImageOutputFormat.jpeg)
+            SettingSlider(
+              key: const Key('jpeg_quality'),
+              label: 'JPEG quality',
+              value: _settings.jpegQuality.toDouble(),
+              min: 70,
+              max: 100,
+              divisions: 30,
+              format: (v) => v.round().toString(),
+              onChanged: (v) => _setJpegQuality(v.round()),
+            ),
           _switchRow(
             title: 'Strip metadata',
             value: _exportOptions.stripMetadata,
@@ -2043,14 +2193,15 @@ class _EditorPageState extends State<EditorPage> {
               () => _exportOptions = _exportOptions.copyWith(stripMetadata: v),
             ),
           ),
-          _switchRow(
-            title: 'Keep video audio',
-            value: _exportOptions.keepAudio,
-            styleContext: panelContext,
-            onChanged: (v) => setState(
-              () => _exportOptions = _exportOptions.copyWith(keepAudio: v),
+          if (isVideo)
+            _switchRow(
+              title: 'Keep video audio',
+              value: _exportOptions.keepAudio,
+              styleContext: panelContext,
+              onChanged: (v) => setState(
+                () => _exportOptions = _exportOptions.copyWith(keepAudio: v),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -2355,7 +2506,7 @@ class _EditorPageState extends State<EditorPage> {
           Padding(
             padding: const EdgeInsets.only(top: 10),
             child: Text(
-              'Export cannot be cancelled safely. Keep the app open until this item finishes.',
+              'The export can continue if you switch apps. Return to AquaRecover to check its progress.',
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: dark
@@ -2403,7 +2554,12 @@ class _EditorPageState extends State<EditorPage> {
       return;
     }
     List<String>? paths;
-    if (Platform.isIOS) {
+    final useSystemPicker = await _photoLibraryService.shouldUseSystemPicker(
+      isIOS: Platform.isIOS,
+      fallbackShortestSide: MediaQuery.sizeOf(context).shortestSide,
+    );
+    if (!mounted) return;
+    if (useSystemPicker) {
       setState(() {
         _busy = true;
         _status = 'Waiting for your Photos selection...';
@@ -2830,6 +2986,8 @@ class _EditorPageState extends State<EditorPage> {
       id: id,
     );
     _editStates.remove(id);
+    _videoPreviewPositions.remove(id);
+    _videoDurations.remove(id);
     _jobs = result.jobs;
     _selectedIndex = result.selectedIndex;
     if (_jobs.isNotEmpty) _loadEditStateForIndex(_selectedIndex);
@@ -2883,6 +3041,8 @@ class _EditorPageState extends State<EditorPage> {
     setState(() {
       _storeSelectedEditState();
       _editStates.remove(id);
+      _videoPreviewPositions.remove(id);
+      _videoDurations.remove(id);
       _jobs = remaining;
       _selectedIndex = result.selectedIndex;
       if (remaining.isNotEmpty) _loadEditStateForIndex(_selectedIndex);
@@ -3060,28 +3220,12 @@ class _EditorPageState extends State<EditorPage> {
     required EdgeInsetsGeometry padding,
     double borderRadius = 20,
   }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: CupertinoColors.black.withValues(alpha: .34),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(
-              color: CupertinoColors.white.withValues(alpha: .18),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: CupertinoColors.black.withValues(alpha: .20),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Padding(padding: padding, child: child),
-        ),
-      ),
+    return EditorGlassSurface(
+      style: EditorGlassStyle.clear,
+      borderRadius: borderRadius,
+      padding: padding,
+      shadow: true,
+      child: child,
     );
   }
 

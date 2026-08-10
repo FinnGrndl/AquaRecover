@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 
 import '../../core/models/media_kind.dart';
 import '../../core/persistence/export_library_service.dart';
+import '../editor/widgets/video_preview_tile.dart';
 
 class ExportLibraryPage extends StatefulWidget {
   const ExportLibraryPage({
@@ -524,12 +525,9 @@ class ExportDetailPage extends StatelessWidget {
                         ),
                       ),
                     )
-                  : const Center(
-                      child: Icon(
-                        CupertinoIcons.film,
-                        color: CupertinoColors.systemGrey,
-                        size: 64,
-                      ),
+                  : Center(
+                      key: const Key('local_export_video_player'),
+                      child: VideoPreviewTile(path: item.path),
                     ),
             ),
             Padding(

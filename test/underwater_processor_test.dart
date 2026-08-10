@@ -19,7 +19,9 @@ import 'package:aqua_recover/core/processing/image_restoration_service.dart';
 import 'package:aqua_recover/core/processing/image_transform_service.dart';
 import 'package:aqua_recover/core/processing/video_restoration_service.dart';
 import 'package:aqua_recover/core/processing/underwater_processor.dart';
+import 'package:aqua_recover/core/photo/photo_library_service.dart';
 import 'package:aqua_recover/core/workflow/editor_workflow.dart';
+import 'package:aqua_recover/core/utils/bounded_concurrency.dart';
 import 'package:aqua_recover/features/editor/editor_page.dart';
 import 'package:aqua_recover/features/editor/editor_tools.dart';
 import 'package:aqua_recover/features/editor/widgets/app_license_page.dart';
@@ -33,9 +35,11 @@ import 'package:aqua_recover/features/editor/widgets/exported_photo_preview.dart
 import 'package:aqua_recover/features/editor/widgets/gpu_preview_filter.dart';
 import 'package:aqua_recover/features/editor/widgets/image_transform_preview.dart';
 import 'package:aqua_recover/features/editor/widgets/preset_browser.dart';
+import 'package:aqua_recover/features/editor/widgets/precision_wheel.dart';
 import 'package:aqua_recover/features/editor/widgets/queue_overview_sheet.dart';
 import 'package:aqua_recover/features/editor/widgets/restored_image_preview.dart';
 import 'package:aqua_recover/features/editor/widgets/video_frame_preview_tile.dart';
+import 'package:aqua_recover/features/editor/widgets/video_preview_tile.dart';
 import 'package:aqua_recover/features/library/export_library_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -167,6 +171,34 @@ void main() {
     expect(rotated.height, 8);
   });
 
+  test('freeform crop and straightening preserve a filled output', () {
+    const settings = ImageTransformSettings(
+      aspectRatio: CropAspectRatio.freeform,
+      customAspectRatio: 1.5,
+      straightenDegrees: 18,
+    );
+    expect(settings.outputAspectRatio(2), 1.5);
+    expect(settings.straightenCoverageScale(2), greaterThan(1));
+
+    final source = img.Image(width: 180, height: 100, numChannels: 4)
+      ..clear(img.ColorRgba8(20, 120, 180, 255));
+    final output = const ImageTransformService().apply(source, settings);
+    expect(output.width / output.height, closeTo(1.5, .03));
+    for (final point in [
+      (0, 0),
+      (output.width - 1, 0),
+      (0, output.height - 1),
+      (output.width - 1, output.height - 1),
+    ]) {
+      expect(output.getPixel(point.$1, point.$2).a, greaterThan(0));
+    }
+
+    final restored = ImageTransformSettings.fromJson(settings.toJson());
+    expect(restored.aspectRatio, CropAspectRatio.freeform);
+    expect(restored.customAspectRatio, 1.5);
+    expect(restored.straightenDegrees, 18);
+  });
+
   test('preset strength preserves later manual offsets', () {
     final full = RestorationPreset.deep.settings;
     final manual = full.copyWith(contrast: full.contrast + .12);
@@ -246,6 +278,40 @@ void main() {
       MediaClassifier.requiresPlatformImageDecode('/tmp/dive.jpg'),
       isFalse,
     );
+  });
+
+  test('iPad imports use the in-app PhotoKit browser', () {
+    expect(
+      PhotoLibraryService.useSystemPicker(isIOS: true, isIPad: false),
+      isTrue,
+    );
+    expect(
+      PhotoLibraryService.useSystemPicker(isIOS: true, isIPad: true),
+      isFalse,
+    );
+    expect(
+      PhotoLibraryService.useSystemPicker(isIOS: false, isIPad: false),
+      isFalse,
+    );
+  });
+
+  test('Photos assets resolve concurrently with a bounded limit', () async {
+    var active = 0;
+    var peak = 0;
+    final resolved = await mapWithConcurrencyLimit<int, int>(
+      [1, 2, 3, 4, 5, 6, 7],
+      maxConcurrent: 3,
+      operation: (value) async {
+        active++;
+        if (active > peak) peak = active;
+        await Future<void>.delayed(const Duration(milliseconds: 2));
+        active--;
+        return value * 2;
+      },
+    );
+
+    expect(resolved, [2, 4, 6, 8, 10, 12, 14]);
+    expect(peak, 3);
   });
 
   test('raw video descriptor rejects unsafe dimensions', () {
@@ -372,6 +438,20 @@ void main() {
     expect(filesOnly.saveToFiles, isTrue);
     expect(filesOnly.toJson()['saveToFiles'], isTrue);
     expect(filesOnly.withFiles(false).keepLocalCopy, isTrue);
+    expect(localOnly.videoFormat, VideoOutputFormat.mp4);
+    expect(localOnly.toJson()['videoFormat'], 'mp4');
+    expect(
+      localOnly.copyWith(videoFormat: VideoOutputFormat.mov).videoFormat,
+      VideoOutputFormat.mov,
+    );
+  });
+
+  test('export formats expose the correct file extensions', () {
+    expect(ImageOutputFormat.jpeg.extension, 'jpg');
+    expect(ImageOutputFormat.png.extension, 'png');
+    expect(VideoOutputFormat.mp4.extension, 'mp4');
+    expect(VideoOutputFormat.mov.extension, 'mov');
+    expect(ExportPreset.proEdit.options.videoFormat, VideoOutputFormat.mov);
   });
 
   test('individual batch export is available for ready or failed items', () {
@@ -448,6 +528,20 @@ void main() {
     expect(metadata.width, 5);
     expect(metadata.height, 3);
     expect(metadata.fileSizeBytes, greaterThan(0));
+  });
+
+  test('media inspection reports the displayed EXIF orientation', () async {
+    final dir = await Directory.systemTemp.createTemp('aqua_recover_exif_');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/portrait.jpg');
+    final image = img.Image(width: 8, height: 4, numChannels: 4)
+      ..exif.imageIfd.orientation = 6;
+    await file.writeAsBytes(img.encodeJpg(image));
+
+    final metadata = await const MediaInspectionService().inspect(file.path);
+
+    expect(metadata.width, 4);
+    expect(metadata.height, 8);
   });
 
   test(
@@ -549,6 +643,13 @@ void main() {
           const Duration(seconds: 20),
         ),
         const Duration(seconds: 3),
+      );
+      expect(
+        VideoFramePreviewTile.clampPosition(
+          const Duration(seconds: 10),
+          const Duration(seconds: 4),
+        ),
+        const Duration(milliseconds: 3950),
       );
     },
   );
@@ -972,6 +1073,73 @@ void main() {
     expect(find.text('Before / after'), findsNothing);
   });
 
+  testWidgets('PNG export hides the JPEG quality control', (tester) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_png_export_options_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/reef.jpg');
+    file.writeAsBytesSync(
+      img.encodeJpg(img.Image(width: 16, height: 12), quality: 90),
+    );
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: EditorPage(
+          initialPaths: [file.path],
+          reviewExportOnStart: true,
+          inspectionService: const _FakeMediaInspectionService(),
+        ),
+      ),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+
+    expect(find.byKey(const Key('image_output_format')), findsOneWidget);
+    expect(find.byKey(const Key('jpeg_quality')), findsOneWidget);
+    final formatControl = tester
+        .widget<CupertinoSlidingSegmentedControl<ImageOutputFormat>>(
+          find.byKey(const Key('image_output_format')),
+        );
+    formatControl.onValueChanged(ImageOutputFormat.png);
+    await tester.pump();
+
+    expect(find.byKey(const Key('jpeg_quality')), findsNothing);
+  });
+
+  testWidgets('video export shows containers instead of image controls', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_video_export_options_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/reef.mp4')..writeAsBytesSync([0]);
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: EditorPage(
+          initialPaths: [file.path],
+          reviewExportOnStart: true,
+          inspectionService: const _FakeVideoInspectionService(),
+        ),
+      ),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+
+    expect(find.byKey(const Key('video_output_format')), findsOneWidget);
+    expect(find.byKey(const Key('image_output_format')), findsNothing);
+    expect(find.byKey(const Key('jpeg_quality')), findsNothing);
+    expect(find.text('Keep video audio'), findsOneWidget);
+  });
+
   testWidgets('local export library opens and deletes an export', (
     tester,
   ) async {
@@ -1015,6 +1183,26 @@ void main() {
 
     expect(service.deleted, [item]);
     expect(find.text('No local exports yet.'), findsOneWidget);
+  });
+
+  testWidgets('local video export opens an embedded player', (tester) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_video_library_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/reef_aqua.mp4')..writeAsBytesSync([0]);
+    final item = LocalExportItem(
+      path: file.path,
+      kind: MediaKind.video,
+      sizeBytes: file.lengthSync(),
+      modified: DateTime(2026, 8, 10),
+    );
+
+    await tester.pumpWidget(CupertinoApp(home: ExportDetailPage(item: item)));
+    await tester.pump();
+
+    expect(find.byKey(const Key('local_export_video_player')), findsOneWidget);
+    expect(find.byType(VideoPreviewTile), findsOneWidget);
   });
 
   testWidgets('local export library batch selects and deletes all exports', (
@@ -1130,7 +1318,7 @@ void main() {
   });
 
   testWidgets(
-    'adjustment browser shows the active value once and uses a full-width slider',
+    'adjustment browser shows the active value once and uses a full-width wheel',
     (tester) async {
       const width = 360.0;
       await tester.pumpWidget(
@@ -1153,10 +1341,85 @@ void main() {
 
       expect(find.text('Water correction'), findsOneWidget);
       expect(find.text('118%'), findsOneWidget);
-      final sliderWidth = tester.getSize(find.byType(CupertinoSlider)).width;
-      expect(sliderWidth, width);
+      final wheelWidth = tester.getSize(find.byType(PrecisionWheel)).width;
+      expect(wheelWidth, width);
+      final wheel = tester.widget<PrecisionWheel>(find.byType(PrecisionWheel));
+      expect(wheel.showValue, isFalse);
+
+      final hint = find.text('Tap a value to restore the preset value');
+      final wheelCenter = tester.getRect(find.byType(PrecisionWheel)).center.dx;
+      expect(tester.getCenter(hint).dx, closeTo(wheelCenter, 1));
+      final valuesBottom = tester
+          .getRect(find.byKey(const Key('all_adjustment_values')))
+          .bottom;
+      final wheelTop = tester.getRect(find.byType(PrecisionWheel)).top;
+      expect(wheelTop - valuesBottom, greaterThanOrEqualTo(12));
     },
   );
+
+  testWidgets('precision wheel moves through discrete adjustment values', (
+    tester,
+  ) async {
+    var value = 50.0;
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: Center(
+          child: SizedBox(
+            width: 320,
+            child: StatefulBuilder(
+              builder: (context, setState) => PrecisionWheel(
+                value: value,
+                min: 0,
+                max: 100,
+                divisions: 100,
+                semanticLabel: 'Strength',
+                valueFormatter: (current) => current.round().toString(),
+                onChanged: (current) => setState(() => value = current),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.drag(find.byType(PrecisionWheel), const Offset(-90, 0));
+    await tester.pumpAndSettle();
+
+    expect(value, greaterThan(50));
+    expect(find.text(value.round().toString()), findsOneWidget);
+  });
+
+  testWidgets('precision wheel emits selection haptics while turning', (
+    tester,
+  ) async {
+    var value = 50.0;
+    var hapticCount = 0;
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: Center(
+          child: SizedBox(
+            width: 320,
+            child: StatefulBuilder(
+              builder: (context, setState) => PrecisionWheel(
+                value: value,
+                min: 0,
+                max: 100,
+                divisions: 100,
+                valueFormatter: (current) => current.round().toString(),
+                onChanged: (current) => setState(() => value = current),
+                hapticFeedback: () => hapticCount++,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.drag(find.byType(PrecisionWheel), const Offset(-90, 0));
+    await tester.pumpAndSettle();
+
+    expect(hapticCount, greaterThan(0));
+  });
 
   testWidgets('adjustment bubble resets only its value to the preset base', (
     tester,
@@ -1229,6 +1492,7 @@ void main() {
         home: StatefulBuilder(
           builder: (context, setState) => CropBrowser(
             settings: settings,
+            sourceAspectRatio: 4 / 3,
             onChanged: (value) => setState(() => settings = value),
           ),
         ),
@@ -1242,6 +1506,11 @@ void main() {
     await tester.tap(find.byKey(const Key('crop_rotate_right')));
     await tester.pump();
     expect(settings.normalizedQuarterTurns, 1);
+
+    await tester.tap(find.text('Free'));
+    await tester.pump();
+    expect(settings.aspectRatio, CropAspectRatio.freeform);
+    expect(find.byKey(const Key('crop_freeform_ratio')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('crop_flip_horizontal')));
     await tester.pump();
@@ -1285,8 +1554,7 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget is Padding &&
-            widget.padding ==
-                const EdgeInsets.fromLTRB(10, topInset, 10, inset),
+            widget.padding == const EdgeInsets.fromLTRB(8, topInset, 8, inset),
       ),
       findsOneWidget,
     );
@@ -1318,6 +1586,50 @@ void main() {
 
     await tester.pumpWidget(preview(EditorPreviewFit.fill));
     expect(observedFit, BoxFit.cover);
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: SizedBox(
+          width: 320,
+          height: 480,
+          child: ImageTransformPreview(
+            settings: const ImageTransformSettings(
+              aspectRatio: CropAspectRatio.square,
+            ),
+            sourceAspectRatio: 16 / 9,
+            builder: (fit, _) {
+              observedFit = fit;
+              return const ColoredBox(color: CupertinoColors.black);
+            },
+          ),
+        ),
+      ),
+    );
+    expect(observedFit, BoxFit.cover);
+  });
+
+  testWidgets('original crop frame follows the oriented photo ratio', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: SizedBox(
+          width: 320,
+          height: 480,
+          child: ImageTransformPreview(
+            settings: const ImageTransformSettings(),
+            sourceAspectRatio: 3 / 4,
+            showGrid: true,
+            builder: (_, _) => const ColoredBox(color: CupertinoColors.black),
+          ),
+        ),
+      ),
+    );
+
+    final frame = tester.getSize(
+      find.byKey(const Key('transform_preview_frame')),
+    );
+    expect(frame.width / frame.height, closeTo(3 / 4, .001));
   });
 
   testWidgets('preview zoom supports pinch inspection and resets by key', (
@@ -1491,6 +1803,23 @@ class _FakeMediaInspectionService extends MediaInspectionService {
       fileSizeBytes: 256,
       width: 16,
       height: 12,
+    ),
+  );
+}
+
+class _FakeVideoInspectionService extends MediaInspectionService {
+  const _FakeVideoInspectionService();
+
+  @override
+  Future<MediaMetadata> inspect(String path) => Future.value(
+    MediaMetadata(
+      path: path,
+      fileName: File(path).uri.pathSegments.last,
+      kind: MediaKind.video,
+      fileSizeBytes: 256,
+      width: 1920,
+      height: 1080,
+      duration: const Duration(seconds: 20),
     ),
   );
 }

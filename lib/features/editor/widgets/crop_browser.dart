@@ -2,50 +2,74 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Tooltip;
 
 import '../../../core/models/image_transform_settings.dart';
+import 'precision_wheel.dart';
 import 'setting_slider.dart';
 
 class CropBrowser extends StatelessWidget {
   const CropBrowser({
     super.key,
     required this.settings,
+    required this.sourceAspectRatio,
     required this.onChanged,
     this.enabled = true,
   });
 
   final ImageTransformSettings settings;
+  final double sourceAspectRatio;
   final ValueChanged<ImageTransformSettings> onChanged;
   final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    final secondary = CupertinoDynamicColor.resolve(
-      CupertinoColors.secondaryLabel,
-      context,
-    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        CupertinoSlidingSegmentedControl<CropAspectRatio>(
-          key: const Key('crop_aspect_ratio'),
-          groupValue: settings.aspectRatio,
-          backgroundColor: CupertinoColors.white.withValues(alpha: .10),
-          thumbColor: CupertinoColors.activeBlue,
-          children: {
-            for (final aspect in CropAspectRatio.values)
-              aspect: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  aspect.label,
-                  style: const TextStyle(color: CupertinoColors.white),
+        SingleChildScrollView(
+          key: const Key('crop_aspect_ratio_scroll'),
+          scrollDirection: Axis.horizontal,
+          child: CupertinoSlidingSegmentedControl<CropAspectRatio>(
+            key: const Key('crop_aspect_ratio'),
+            groupValue: settings.aspectRatio,
+            backgroundColor: CupertinoColors.white.withValues(alpha: .10),
+            thumbColor: CupertinoColors.activeBlue,
+            children: {
+              for (final aspect in CropAspectRatio.values)
+                aspect: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    aspect.label,
+                    style: const TextStyle(color: CupertinoColors.white),
+                  ),
                 ),
-              ),
-          },
-          onValueChanged: (value) {
-            if (enabled && value != null) {
-              onChanged(settings.copyWith(aspectRatio: value));
-            }
-          },
+            },
+            onValueChanged: (value) {
+              if (enabled && value != null) {
+                onChanged(
+                  settings.copyWith(
+                    aspectRatio: value,
+                    customAspectRatio: value == CropAspectRatio.freeform
+                        ? settings.outputAspectRatio(sourceAspectRatio)
+                        : null,
+                  ),
+                );
+              }
+            },
+          ),
         ),
+        if (settings.aspectRatio == CropAspectRatio.freeform)
+          SettingSlider(
+            key: const Key('crop_freeform_ratio'),
+            label: 'Freeform ratio',
+            value: settings.customAspectRatio,
+            min: .5,
+            max: 2,
+            divisions: 60,
+            format: (value) => '${value.toStringAsFixed(2)}:1',
+            onChanged: enabled
+                ? (value) =>
+                      onChanged(settings.copyWith(customAspectRatio: value))
+                : null,
+          ),
         const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -101,31 +125,19 @@ class CropBrowser extends StatelessWidget {
             ),
           ],
         ),
-        SettingSlider(
-          key: const Key('crop_zoom'),
-          label: 'Zoom',
-          value: settings.zoom,
-          min: 1,
-          max: 4,
-          divisions: 60,
-          format: (value) => '${value.toStringAsFixed(1)}x',
-          showHeader: true,
+        const SizedBox(height: 8),
+        PrecisionWheel(
+          key: const Key('crop_straighten'),
+          value: settings.straightenDegrees,
+          min: -45,
+          max: 45,
+          divisions: 90,
+          semanticLabel: 'Straighten',
+          valueFormatter: (value) => '${value.round()}°',
           onChanged: enabled
-              ? (value) => onChanged(settings.copyWith(zoom: value))
+              ? (value) =>
+                    onChanged(settings.copyWith(straightenDegrees: value))
               : null,
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(CupertinoIcons.hand_draw, size: 14, color: secondary),
-            const SizedBox(width: 6),
-            Text(
-              'Pinch to zoom and drag the image to reposition it.',
-              style: CupertinoTheme.of(
-                context,
-              ).textTheme.textStyle.copyWith(fontSize: 12, color: secondary),
-            ),
-          ],
         ),
       ],
     );
@@ -158,7 +170,7 @@ class _CropIconButton extends StatelessWidget {
         label: label,
         selected: selected,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 3),
           child: CupertinoButton(
             padding: EdgeInsets.zero,
             minimumSize: const Size(42, 42),

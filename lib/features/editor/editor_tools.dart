@@ -25,7 +25,7 @@ extension EditorToolGroupX on EditorToolGroup {
     EditorToolGroup.color => 'Water cast and color balance',
     EditorToolGroup.details => 'Haze, clarity, and sharpening',
     EditorToolGroup.effects => 'Look-up table and vignette',
-    EditorToolGroup.video => 'Trim and raw frame settings',
+    EditorToolGroup.video => 'Preview frame and trim',
   };
 
   bool isAvailableFor(MediaKind kind) {

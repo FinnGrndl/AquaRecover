@@ -27,6 +27,8 @@ jobs:
         with:
           ref: ${{ inputs.source_sha }}
           persist-credentials: false
+      - name: Test single-commit release snapshots
+        run: scripts/test_release_snapshot.sh
       - uses: ./.github/actions/setup-flutter
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
       - name: Verify requested source
@@ -48,7 +50,7 @@ jobs:
 
   apple-builds:
     name: Apple debug builds
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

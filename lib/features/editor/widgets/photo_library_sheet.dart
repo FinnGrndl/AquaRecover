@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../../../core/photo/photo_library_service.dart';
+import '../../../core/utils/bounded_concurrency.dart';
 
 class PhotoLibrarySheet extends StatefulWidget {
   const PhotoLibrarySheet({
@@ -272,13 +273,51 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet> {
       _importing = true;
       _error = null;
     });
-    final paths = <String>[];
     try {
-      for (final asset in _selectedAssets.values) {
-        final path = await widget.service.localFilePathFor(asset);
-        if (path != null) paths.add(path);
+      final resolved = await mapWithConcurrencyLimit<AssetEntity, String?>(
+        _selectedAssets.values,
+        maxConcurrent: 3,
+        operation: (asset) async {
+          try {
+            return await widget.service.localFilePathFor(asset);
+          } on Object {
+            return null;
+          }
+        },
+      );
+      final paths = <String>[];
+      var failures = 0;
+      for (final path in resolved) {
+        if (path != null) {
+          paths.add(path);
+        } else {
+          failures++;
+        }
       }
       if (!mounted) return;
+      if (paths.isEmpty) {
+        throw StateError(
+          'None of the selected Photos items could be downloaded. Open them in Photos first, then try again.',
+        );
+      }
+      if (failures > 0) {
+        await showCupertinoDialog<void>(
+          context: context,
+          builder: (dialogContext) => CupertinoAlertDialog(
+            title: const Text('Some items were skipped'),
+            content: Text(
+              '$failures selected item${failures == 1 ? '' : 's'} could not be downloaded from Photos. The remaining ${paths.length} will be imported.',
+            ),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Continue'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+      }
       Navigator.of(context).pop(paths);
     } on Object catch (error) {
       if (!mounted) return;
