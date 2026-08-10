@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../../../core/photo/photo_library_service.dart';
+import '../../../core/utils/bounded_concurrency.dart';
 
 class PhotoLibrarySheet extends StatefulWidget {
   const PhotoLibrarySheet({
@@ -272,18 +273,24 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet> {
       _importing = true;
       _error = null;
     });
-    final paths = <String>[];
-    var failures = 0;
     try {
-      for (final asset in _selectedAssets.values) {
-        try {
-          final path = await widget.service.localFilePathFor(asset);
-          if (path != null) {
-            paths.add(path);
-          } else {
-            failures++;
+      final resolved = await mapWithConcurrencyLimit<AssetEntity, String?>(
+        _selectedAssets.values,
+        maxConcurrent: 3,
+        operation: (asset) async {
+          try {
+            return await widget.service.localFilePathFor(asset);
+          } on Object {
+            return null;
           }
-        } on Object {
+        },
+      );
+      final paths = <String>[];
+      var failures = 0;
+      for (final path in resolved) {
+        if (path != null) {
+          paths.add(path);
+        } else {
           failures++;
         }
       }

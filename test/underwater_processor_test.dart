@@ -21,6 +21,7 @@ import 'package:aqua_recover/core/processing/video_restoration_service.dart';
 import 'package:aqua_recover/core/processing/underwater_processor.dart';
 import 'package:aqua_recover/core/photo/photo_library_service.dart';
 import 'package:aqua_recover/core/workflow/editor_workflow.dart';
+import 'package:aqua_recover/core/utils/bounded_concurrency.dart';
 import 'package:aqua_recover/features/editor/editor_page.dart';
 import 'package:aqua_recover/features/editor/editor_tools.dart';
 import 'package:aqua_recover/features/editor/widgets/app_license_page.dart';
@@ -291,6 +292,25 @@ void main() {
       PhotoLibraryService.useSystemPicker(isIOS: false, isIPad: false),
       isFalse,
     );
+  });
+
+  test('Photos assets resolve concurrently with a bounded limit', () async {
+    var active = 0;
+    var peak = 0;
+    final resolved = await mapWithConcurrencyLimit<int, int>(
+      [1, 2, 3, 4, 5, 6, 7],
+      maxConcurrent: 3,
+      operation: (value) async {
+        active++;
+        if (active > peak) peak = active;
+        await Future<void>.delayed(const Duration(milliseconds: 2));
+        active--;
+        return value * 2;
+      },
+    );
+
+    expect(resolved, [2, 4, 6, 8, 10, 12, 14]);
+    expect(peak, 3);
   });
 
   test('raw video descriptor rejects unsafe dimensions', () {
