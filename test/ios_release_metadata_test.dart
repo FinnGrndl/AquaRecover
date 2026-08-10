@@ -51,4 +51,12 @@ void main() {
           'non-exempt encryption.',
     );
   });
+
+  test('iOS video export requests finite background execution time', () {
+    final source = File(
+      'ios/Runner/IosVideoProcessor.swift',
+    ).readAsStringSync();
+    expect(source, contains('beginBackgroundTask'));
+    expect(source, contains('endBackgroundTask'));
+  });
 }

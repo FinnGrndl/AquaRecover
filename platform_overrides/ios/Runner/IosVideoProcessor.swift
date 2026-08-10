@@ -3,6 +3,27 @@ import CoreImage
 import Flutter
 import Foundation
 import ImageIO
+import UIKit
+
+private final class BackgroundTaskLease {
+  private var identifier: UIBackgroundTaskIdentifier = .invalid
+
+  init(name: String) {
+    identifier = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+      self?.end()
+    }
+  }
+
+  func end() {
+    guard Thread.isMainThread else {
+      DispatchQueue.main.async { [weak self] in self?.end() }
+      return
+    }
+    guard identifier != .invalid else { return }
+    UIApplication.shared.endBackgroundTask(identifier)
+    identifier = .invalid
+  }
+}
 
 final class IosVideoProcessor {
   private static let maxImagePixels: CGFloat = 120_000_000
@@ -277,11 +298,13 @@ final class IosVideoProcessor {
         result(FlutterError(code: "BAD_ARGS", message: "inputPath and outputPath are required", details: nil))
         return
       }
+      let backgroundTask = BackgroundTaskLease(name: "AquaRecover video export")
 
       DispatchQueue.global(qos: .userInitiated).async {
         do {
           try processor.restoreVideo(inputPath: inputPath, outputPath: outputPath, args: args) { exportResult in
             DispatchQueue.main.async {
+              backgroundTask.end()
               switch exportResult {
               case .success(let path):
                 result(path)
@@ -292,6 +315,7 @@ final class IosVideoProcessor {
           }
         } catch {
           DispatchQueue.main.async {
+            backgroundTask.end()
             result(FlutterError(code: "VIDEO_EXPORT_FAILED", message: error.localizedDescription, details: nil))
           }
         }
