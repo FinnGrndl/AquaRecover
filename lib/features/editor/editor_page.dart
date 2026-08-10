@@ -1882,6 +1882,7 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _exportOptionsSection(BuildContext panelContext) {
+    final isVideo = _selectedJob?.kind.isVideo ?? false;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1924,35 +1925,66 @@ class _EditorPageState extends State<EditorPage> {
             },
           ),
           const SizedBox(height: 8),
-          CupertinoSlidingSegmentedControl<ImageOutputFormat>(
-            groupValue: _exportOptions.imageFormat,
-            backgroundColor: CupertinoColors.white.withValues(alpha: .10),
-            thumbColor: CupertinoColors.activeBlue,
-            children: const {
-              ImageOutputFormat.jpeg: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'JPEG',
-                  style: TextStyle(color: CupertinoColors.white),
+          if (isVideo)
+            CupertinoSlidingSegmentedControl<VideoOutputFormat>(
+              key: const Key('video_output_format'),
+              groupValue: _exportOptions.videoFormat,
+              backgroundColor: CupertinoColors.white.withValues(alpha: .10),
+              thumbColor: CupertinoColors.activeBlue,
+              children: {
+                for (final format in VideoOutputFormat.values)
+                  format: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      format.label,
+                      style: const TextStyle(color: CupertinoColors.white),
+                    ),
+                  ),
+              },
+              onValueChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _exportPreset = ExportPreset.proEdit;
+                    _exportOptions = _exportOptions.copyWith(
+                      videoFormat: value,
+                    );
+                  });
+                }
+              },
+            )
+          else
+            CupertinoSlidingSegmentedControl<ImageOutputFormat>(
+              key: const Key('image_output_format'),
+              groupValue: _exportOptions.imageFormat,
+              backgroundColor: CupertinoColors.white.withValues(alpha: .10),
+              thumbColor: CupertinoColors.activeBlue,
+              children: const {
+                ImageOutputFormat.jpeg: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'JPEG',
+                    style: TextStyle(color: CupertinoColors.white),
+                  ),
                 ),
-              ),
-              ImageOutputFormat.png: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'PNG',
-                  style: TextStyle(color: CupertinoColors.white),
+                ImageOutputFormat.png: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'PNG',
+                    style: TextStyle(color: CupertinoColors.white),
+                  ),
                 ),
-              ),
-            },
-            onValueChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _exportPreset = ExportPreset.proEdit;
-                  _exportOptions = _exportOptions.copyWith(imageFormat: value);
-                });
-              }
-            },
-          ),
+              },
+              onValueChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _exportPreset = ExportPreset.proEdit;
+                    _exportOptions = _exportOptions.copyWith(
+                      imageFormat: value,
+                    );
+                  });
+                }
+              },
+            ),
           const SizedBox(height: 8),
           _switchRow(
             title: 'Keep in AquaRecover',
@@ -2027,15 +2059,17 @@ class _EditorPageState extends State<EditorPage> {
               fontSize: 12,
             ),
           ),
-          SettingSlider(
-            label: 'JPEG quality',
-            value: _settings.jpegQuality.toDouble(),
-            min: 70,
-            max: 100,
-            divisions: 30,
-            format: (v) => v.round().toString(),
-            onChanged: (v) => _setJpegQuality(v.round()),
-          ),
+          if (!isVideo && _exportOptions.imageFormat == ImageOutputFormat.jpeg)
+            SettingSlider(
+              key: const Key('jpeg_quality'),
+              label: 'JPEG quality',
+              value: _settings.jpegQuality.toDouble(),
+              min: 70,
+              max: 100,
+              divisions: 30,
+              format: (v) => v.round().toString(),
+              onChanged: (v) => _setJpegQuality(v.round()),
+            ),
           _switchRow(
             title: 'Strip metadata',
             value: _exportOptions.stripMetadata,
@@ -2044,14 +2078,15 @@ class _EditorPageState extends State<EditorPage> {
               () => _exportOptions = _exportOptions.copyWith(stripMetadata: v),
             ),
           ),
-          _switchRow(
-            title: 'Keep video audio',
-            value: _exportOptions.keepAudio,
-            styleContext: panelContext,
-            onChanged: (v) => setState(
-              () => _exportOptions = _exportOptions.copyWith(keepAudio: v),
+          if (isVideo)
+            _switchRow(
+              title: 'Keep video audio',
+              value: _exportOptions.keepAudio,
+              styleContext: panelContext,
+              onChanged: (v) => setState(
+                () => _exportOptions = _exportOptions.copyWith(keepAudio: v),
+              ),
             ),
-          ),
         ],
       ),
     );

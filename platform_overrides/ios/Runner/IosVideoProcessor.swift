@@ -399,11 +399,14 @@ final class IosVideoProcessor {
     ) else {
       throw bridgeError("Could not create an AVFoundation export session.")
     }
-    guard exporter.supportedFileTypes.contains(.mp4) else {
-      throw bridgeError("This device cannot export the selected video as MP4.")
+    let outputFileType: AVFileType = exportOptions.videoFormat == "mov" ? .mov : .mp4
+    guard exporter.supportedFileTypes.contains(outputFileType) else {
+      throw bridgeError(
+        "This device cannot export the selected video as \(exportOptions.videoFormat.uppercased())."
+      )
     }
     exporter.outputURL = outputURL
-    exporter.outputFileType = .mp4
+    exporter.outputFileType = outputFileType
     exporter.videoComposition = videoComposition
     exporter.shouldOptimizeForNetworkUse = true
     if exportOptions.stripMetadata {
@@ -987,11 +990,13 @@ private struct VideoSettings {
 private struct ExportSettings {
   init(_ values: [String: Any]) {
     imageFormat = values["imageFormat"] as? String ?? "jpeg"
+    videoFormat = values["videoFormat"] as? String ?? "mp4"
     keepAudio = bool(values, key: "keepAudio", fallback: true)
     stripMetadata = bool(values, key: "stripMetadata", fallback: true)
   }
 
   let imageFormat: String
+  let videoFormat: String
   let keepAudio: Bool
   let stripMetadata: Bool
 

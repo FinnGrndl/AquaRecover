@@ -5,6 +5,17 @@ extension ImageOutputFormatX on ImageOutputFormat {
   String get extension => this == ImageOutputFormat.jpeg ? 'jpg' : 'png';
 }
 
+enum VideoOutputFormat { mp4, mov }
+
+extension VideoOutputFormatX on VideoOutputFormat {
+  String get label => switch (this) {
+    VideoOutputFormat.mp4 => 'MP4',
+    VideoOutputFormat.mov => 'MOV',
+  };
+
+  String get extension => name;
+}
+
 enum ExportPreset { social, archive, proEdit }
 
 extension ExportPresetX on ExportPreset {
@@ -26,8 +37,15 @@ extension ExportPresetX on ExportPreset {
     ExportPreset.proEdit => ImageOutputFormat.png,
   };
 
+  VideoOutputFormat get videoFormat => switch (this) {
+    ExportPreset.social => VideoOutputFormat.mp4,
+    ExportPreset.archive => VideoOutputFormat.mp4,
+    ExportPreset.proEdit => VideoOutputFormat.mov,
+  };
+
   ExportOptions get options => ExportOptions(
     imageFormat: imageFormat,
+    videoFormat: videoFormat,
     stripMetadata: this != ExportPreset.archive,
     keepLocalCopy: true,
     saveToPhotoLibrary: false,
@@ -39,6 +57,7 @@ extension ExportPresetX on ExportPreset {
 class ExportOptions {
   const ExportOptions({
     this.imageFormat = ImageOutputFormat.jpeg,
+    this.videoFormat = VideoOutputFormat.mp4,
     this.stripMetadata = true,
     this.keepLocalCopy = true,
     this.saveToPhotoLibrary = false,
@@ -47,6 +66,7 @@ class ExportOptions {
   });
 
   final ImageOutputFormat imageFormat;
+  final VideoOutputFormat videoFormat;
   final bool stripMetadata;
   final bool keepLocalCopy;
   final bool saveToPhotoLibrary;
@@ -57,6 +77,7 @@ class ExportOptions {
 
   ExportOptions copyWith({
     ImageOutputFormat? imageFormat,
+    VideoOutputFormat? videoFormat,
     bool? stripMetadata,
     bool? keepLocalCopy,
     bool? saveToPhotoLibrary,
@@ -65,6 +86,7 @@ class ExportOptions {
   }) {
     return ExportOptions(
       imageFormat: imageFormat ?? this.imageFormat,
+      videoFormat: videoFormat ?? this.videoFormat,
       stripMetadata: stripMetadata ?? this.stripMetadata,
       keepLocalCopy: keepLocalCopy ?? this.keepLocalCopy,
       saveToPhotoLibrary: saveToPhotoLibrary ?? this.saveToPhotoLibrary,
@@ -94,6 +116,7 @@ class ExportOptions {
 
   Map<String, Object> toJson() => {
     'imageFormat': imageFormat.name,
+    'videoFormat': videoFormat.name,
     'stripMetadata': stripMetadata,
     'keepLocalCopy': keepLocalCopy,
     'saveToPhotoLibrary': saveToPhotoLibrary,

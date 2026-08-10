@@ -416,6 +416,20 @@ void main() {
     expect(filesOnly.saveToFiles, isTrue);
     expect(filesOnly.toJson()['saveToFiles'], isTrue);
     expect(filesOnly.withFiles(false).keepLocalCopy, isTrue);
+    expect(localOnly.videoFormat, VideoOutputFormat.mp4);
+    expect(localOnly.toJson()['videoFormat'], 'mp4');
+    expect(
+      localOnly.copyWith(videoFormat: VideoOutputFormat.mov).videoFormat,
+      VideoOutputFormat.mov,
+    );
+  });
+
+  test('export formats expose the correct file extensions', () {
+    expect(ImageOutputFormat.jpeg.extension, 'jpg');
+    expect(ImageOutputFormat.png.extension, 'png');
+    expect(VideoOutputFormat.mp4.extension, 'mp4');
+    expect(VideoOutputFormat.mov.extension, 'mov');
+    expect(ExportPreset.proEdit.options.videoFormat, VideoOutputFormat.mov);
   });
 
   test('individual batch export is available for ready or failed items', () {
@@ -1014,6 +1028,41 @@ void main() {
     expect(find.byKey(const Key('exported_photo_image')), findsOneWidget);
     expect(find.byType(CupertinoSlider), findsNothing);
     expect(find.text('Before / after'), findsNothing);
+  });
+
+  testWidgets('PNG export hides the JPEG quality control', (tester) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_png_export_options_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/reef.jpg');
+    file.writeAsBytesSync(
+      img.encodeJpg(img.Image(width: 16, height: 12), quality: 90),
+    );
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: EditorPage(
+          initialPaths: [file.path],
+          reviewExportOnStart: true,
+          inspectionService: const _FakeMediaInspectionService(),
+        ),
+      ),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+
+    expect(find.byKey(const Key('image_output_format')), findsOneWidget);
+    expect(find.byKey(const Key('jpeg_quality')), findsOneWidget);
+    final formatControl = tester
+        .widget<CupertinoSlidingSegmentedControl<ImageOutputFormat>>(
+          find.byKey(const Key('image_output_format')),
+        );
+    formatControl.onValueChanged?.call(ImageOutputFormat.png);
+    await tester.pump();
+
+    expect(find.byKey(const Key('jpeg_quality')), findsNothing);
   });
 
   testWidgets('local export library opens and deletes an export', (
