@@ -59,4 +59,20 @@ void main() {
     expect(source, contains('beginBackgroundTask'));
     expect(source, contains('endBackgroundTask'));
   });
+
+  test('iOS 26 video export registers continued background processing', () {
+    final plist = File('ios/Runner/Info.plist').readAsStringSync();
+    final source = File(
+      'ios/Runner/IosVideoProcessor.swift',
+    ).readAsStringSync();
+    expect(plist, contains(r'$(PRODUCT_BUNDLE_IDENTIFIER).video-export'));
+    expect(
+      RegExp(
+        '<key>UIBackgroundModes</key>\\s*<array>\\s*<string>processing</string>',
+      ).hasMatch(plist),
+      isTrue,
+    );
+    expect(source, contains('BGContinuedProcessingTaskRequest'));
+    expect(source, contains('task.progress.completedUnitCount'));
+  });
 }

@@ -2480,7 +2480,7 @@ class _EditorPageState extends State<EditorPage> {
           Padding(
             padding: const EdgeInsets.only(top: 10),
             child: Text(
-              'The export continues during a brief app switch. Return to AquaRecover to check its progress.',
+              'The export can continue if you switch apps. Return to AquaRecover to check its progress.',
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: dark

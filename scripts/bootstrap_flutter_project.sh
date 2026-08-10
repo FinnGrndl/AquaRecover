@@ -304,6 +304,8 @@ entries = {
     'PHPhotoLibraryPreventAutomaticLimitedAccessAlert': True,
     'LSSupportsOpeningDocumentsInPlace': True,
     'UIFileSharingEnabled': True,
+    'BGTaskSchedulerPermittedIdentifiers': ['$(PRODUCT_BUNDLE_IDENTIFIER).video-export'],
+    'UIBackgroundModes': ['processing'],
 }
 for key, value in entries.items():
     if plist.get(key) != value:

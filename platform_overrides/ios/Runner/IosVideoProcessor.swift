@@ -1,11 +1,17 @@
 import AVFoundation
+import BackgroundTasks
 import CoreImage
 import Flutter
 import Foundation
 import ImageIO
 import UIKit
 
-private final class BackgroundTaskLease {
+private protocol VideoExportActivity: AnyObject {
+  func attach(exporter: AVAssetExportSession)
+  func finish(success: Bool)
+}
+
+private final class BackgroundTaskLease: VideoExportActivity {
   private var identifier: UIBackgroundTaskIdentifier = .invalid
 
   init(name: String) {
@@ -14,7 +20,13 @@ private final class BackgroundTaskLease {
     }
   }
 
-  func end() {
+  func attach(exporter: AVAssetExportSession) {}
+
+  func finish(success: Bool) {
+    end()
+  }
+
+  private func end() {
     guard Thread.isMainThread else {
       DispatchQueue.main.async { [weak self] in self?.end() }
       return
@@ -22,6 +34,117 @@ private final class BackgroundTaskLease {
     guard identifier != .invalid else { return }
     UIApplication.shared.endBackgroundTask(identifier)
     identifier = .invalid
+  }
+}
+
+@available(iOS 26.0, *)
+private final class ContinuedVideoExportActivity: VideoExportActivity {
+  private let task: BGContinuedProcessingTask
+  private var exporter: AVAssetExportSession?
+  private var progressTimer: Timer?
+  private var expired = false
+
+  init(task: BGContinuedProcessingTask) {
+    self.task = task
+    task.progress.totalUnitCount = 100
+    task.progress.completedUnitCount = 0
+    task.expirationHandler = { [weak self] in
+      self?.expire()
+    }
+  }
+
+  func attach(exporter: AVAssetExportSession) {
+    runOnMain { [weak self] in
+      guard let self else { return }
+      self.exporter = exporter
+      if self.expired {
+        exporter.cancelExport()
+        return
+      }
+      self.progressTimer?.invalidate()
+      self.progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {
+        [weak self, weak exporter] _ in
+        guard let self, let exporter else { return }
+        let completed = Int64((Double(exporter.progress) * 100).rounded())
+        self.task.progress.completedUnitCount = min(99, max(0, completed))
+      }
+    }
+  }
+
+  func finish(success: Bool) {
+    runOnMain { [weak self] in
+      guard let self else { return }
+      self.progressTimer?.invalidate()
+      self.progressTimer = nil
+      if success {
+        self.task.progress.completedUnitCount = 100
+      }
+      self.task.setTaskCompleted(success: success)
+    }
+  }
+
+  private func expire() {
+    runOnMain { [weak self] in
+      guard let self else { return }
+      self.expired = true
+      self.progressTimer?.invalidate()
+      self.progressTimer = nil
+      self.exporter?.cancelExport()
+    }
+  }
+
+  private func runOnMain(_ work: @escaping () -> Void) {
+    if Thread.isMainThread {
+      work()
+    } else {
+      DispatchQueue.main.async(execute: work)
+    }
+  }
+}
+
+@available(iOS 26.0, *)
+private final class ContinuedVideoExportCoordinator {
+  static let shared = ContinuedVideoExportCoordinator()
+
+  private let identifier = "\(Bundle.main.bundleIdentifier ?? "io.github.finngrndl.aquarecover").video-export"
+  private var registered = false
+  private var pendingWork: ((VideoExportActivity) -> Void)?
+
+  func register() {
+    guard !registered else { return }
+    registered = BGTaskScheduler.shared.register(
+      forTaskWithIdentifier: identifier,
+      using: .main
+    ) { [weak self] task in
+      guard let self, let task = task as? BGContinuedProcessingTask else {
+        task.setTaskCompleted(success: false)
+        return
+      }
+      guard let work = self.pendingWork else {
+        task.setTaskCompleted(success: false)
+        return
+      }
+      self.pendingWork = nil
+      work(ContinuedVideoExportActivity(task: task))
+    }
+  }
+
+  func submit(work: @escaping (VideoExportActivity) -> Void) -> Bool {
+    guard registered, pendingWork == nil else { return false }
+    pendingWork = work
+    let request = BGContinuedProcessingTaskRequest(
+      identifier: identifier,
+      title: "Exporting video",
+      subtitle: "AquaRecover is processing your video"
+    )
+    request.strategy = .fail
+    do {
+      try BGTaskScheduler.shared.submit(request)
+      return true
+    } catch {
+      pendingWork = nil
+      return false
+    }
   }
 }
 
@@ -286,6 +409,9 @@ final class IosVideoProcessor {
 
   static func register(binaryMessenger: FlutterBinaryMessenger) {
     let processor = IosVideoProcessor()
+    if #available(iOS 26.0, *) {
+      ContinuedVideoExportCoordinator.shared.register()
+    }
     let videoChannel = FlutterMethodChannel(name: "aqua_recover/video", binaryMessenger: binaryMessenger)
     videoChannel.setMethodCallHandler { call, result in
       guard call.method == "restoreVideo" else {
@@ -298,28 +424,39 @@ final class IosVideoProcessor {
         result(FlutterError(code: "BAD_ARGS", message: "inputPath and outputPath are required", details: nil))
         return
       }
-      let backgroundTask = BackgroundTaskLease(name: "AquaRecover video export")
-
-      DispatchQueue.global(qos: .userInitiated).async {
-        do {
-          try processor.restoreVideo(inputPath: inputPath, outputPath: outputPath, args: args) { exportResult in
-            DispatchQueue.main.async {
-              backgroundTask.end()
-              switch exportResult {
-              case .success(let path):
-                result(path)
-              case .failure(let error):
-                result(FlutterError(code: "VIDEO_EXPORT_FAILED", message: error.localizedDescription, details: nil))
+      let startExport: (VideoExportActivity) -> Void = { activity in
+        DispatchQueue.global(qos: .userInitiated).async {
+          do {
+            try processor.restoreVideo(
+              inputPath: inputPath,
+              outputPath: outputPath,
+              args: args,
+              onExporterReady: activity.attach
+            ) { exportResult in
+              DispatchQueue.main.async {
+                switch exportResult {
+                case .success(let path):
+                  activity.finish(success: true)
+                  result(path)
+                case .failure(let error):
+                  activity.finish(success: false)
+                  result(FlutterError(code: "VIDEO_EXPORT_FAILED", message: error.localizedDescription, details: nil))
+                }
               }
             }
-          }
-        } catch {
-          DispatchQueue.main.async {
-            backgroundTask.end()
-            result(FlutterError(code: "VIDEO_EXPORT_FAILED", message: error.localizedDescription, details: nil))
+          } catch {
+            DispatchQueue.main.async {
+              activity.finish(success: false)
+              result(FlutterError(code: "VIDEO_EXPORT_FAILED", message: error.localizedDescription, details: nil))
+            }
           }
         }
       }
+      if #available(iOS 26.0, *),
+         ContinuedVideoExportCoordinator.shared.submit(work: startExport) {
+        return
+      }
+      startExport(BackgroundTaskLease(name: "AquaRecover video export"))
     }
 
     let imageChannel = FlutterMethodChannel(name: "aqua_recover/image", binaryMessenger: binaryMessenger)
@@ -352,6 +489,7 @@ final class IosVideoProcessor {
     inputPath: String,
     outputPath: String,
     args: [String: Any],
+    onExporterReady: @escaping (AVAssetExportSession) -> Void,
     completion: @escaping (Result<String, Error>) -> Void
   ) throws {
     let inputURL = try checkedInputURL(inputPath)
@@ -436,6 +574,7 @@ final class IosVideoProcessor {
     if exportOptions.stripMetadata {
       exporter.metadata = []
     }
+    onExporterReady(exporter)
 
     exporter.exportAsynchronously {
       switch exporter.status {
