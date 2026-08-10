@@ -1,12 +1,17 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:photo_manager/photo_manager.dart';
 
 import '../models/media_kind.dart';
 
 class PhotoLibraryService {
-  const PhotoLibraryService();
+  const PhotoLibraryService({
+    MethodChannel deviceChannel = const MethodChannel('aqua_recover/device'),
+  }) : _deviceChannel = deviceChannel;
+
+  final MethodChannel _deviceChannel;
 
   Future<PermissionState> requestPermission() =>
       PhotoManager.requestPermissionExtend();
@@ -27,7 +32,7 @@ class PhotoLibraryService {
   }) => album.getAssetListPaged(page: page, size: size);
 
   Future<String?> localFilePathFor(AssetEntity asset) async {
-    final file = await asset.originFile;
+    final file = await asset.loadFile(isOrigin: true);
     if (file == null) {
       throw StateError(
         'The selected Photos item is not available locally. Open it in Photos to download the original from iCloud, then import it again.',
@@ -39,6 +44,24 @@ class PhotoLibraryService {
       );
     }
     return file.path;
+  }
+
+  static bool useSystemPicker({required bool isIOS, required bool isIPad}) =>
+      isIOS && !isIPad;
+
+  Future<bool> shouldUseSystemPicker({
+    required bool isIOS,
+    required double fallbackShortestSide,
+  }) async {
+    if (!isIOS) return false;
+    try {
+      final isIPad = await _deviceChannel.invokeMethod<bool>('isPad') ?? false;
+      return useSystemPicker(isIOS: true, isIPad: isIPad);
+    } on PlatformException {
+      return fallbackShortestSide < 600;
+    } on MissingPluginException {
+      return fallbackShortestSide < 600;
+    }
   }
 
   Future<void> saveExport(String outputPath, MediaKind kind) async {

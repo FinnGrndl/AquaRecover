@@ -19,6 +19,7 @@ import 'package:aqua_recover/core/processing/image_restoration_service.dart';
 import 'package:aqua_recover/core/processing/image_transform_service.dart';
 import 'package:aqua_recover/core/processing/video_restoration_service.dart';
 import 'package:aqua_recover/core/processing/underwater_processor.dart';
+import 'package:aqua_recover/core/photo/photo_library_service.dart';
 import 'package:aqua_recover/core/workflow/editor_workflow.dart';
 import 'package:aqua_recover/features/editor/editor_page.dart';
 import 'package:aqua_recover/features/editor/editor_tools.dart';
@@ -272,6 +273,21 @@ void main() {
     );
     expect(
       MediaClassifier.requiresPlatformImageDecode('/tmp/dive.jpg'),
+      isFalse,
+    );
+  });
+
+  test('iPad imports use the in-app PhotoKit browser', () {
+    expect(
+      PhotoLibraryService.useSystemPicker(isIOS: true, isIPad: false),
+      isTrue,
+    );
+    expect(
+      PhotoLibraryService.useSystemPicker(isIOS: true, isIPad: true),
+      isFalse,
+    );
+    expect(
+      PhotoLibraryService.useSystemPicker(isIOS: false, isIPad: false),
       isFalse,
     );
   });

@@ -2404,7 +2404,12 @@ class _EditorPageState extends State<EditorPage> {
       return;
     }
     List<String>? paths;
-    if (Platform.isIOS) {
+    final useSystemPicker = await _photoLibraryService.shouldUseSystemPicker(
+      isIOS: Platform.isIOS,
+      fallbackShortestSide: MediaQuery.sizeOf(context).shortestSide,
+    );
+    if (!mounted) return;
+    if (useSystemPicker) {
       setState(() {
         _busy = true;
         _status = 'Waiting for your Photos selection...';

@@ -273,12 +273,44 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet> {
       _error = null;
     });
     final paths = <String>[];
+    var failures = 0;
     try {
       for (final asset in _selectedAssets.values) {
-        final path = await widget.service.localFilePathFor(asset);
-        if (path != null) paths.add(path);
+        try {
+          final path = await widget.service.localFilePathFor(asset);
+          if (path != null) {
+            paths.add(path);
+          } else {
+            failures++;
+          }
+        } on Object {
+          failures++;
+        }
       }
       if (!mounted) return;
+      if (paths.isEmpty) {
+        throw StateError(
+          'None of the selected Photos items could be downloaded. Open them in Photos first, then try again.',
+        );
+      }
+      if (failures > 0) {
+        await showCupertinoDialog<void>(
+          context: context,
+          builder: (dialogContext) => CupertinoAlertDialog(
+            title: const Text('Some items were skipped'),
+            content: Text(
+              '$failures selected item${failures == 1 ? '' : 's'} could not be downloaded from Photos. The remaining ${paths.length} will be imported.',
+            ),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Continue'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+      }
       Navigator.of(context).pop(paths);
     } on Object catch (error) {
       if (!mounted) return;
