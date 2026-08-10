@@ -88,6 +88,7 @@ class ImageTransformPreview extends StatelessWidget {
         );
         return Center(
           child: SizedBox(
+            key: const Key('transform_preview_frame'),
             width: width,
             height: height,
             child: ClipRect(

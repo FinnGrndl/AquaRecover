@@ -530,6 +530,20 @@ void main() {
     expect(metadata.fileSizeBytes, greaterThan(0));
   });
 
+  test('media inspection reports the displayed EXIF orientation', () async {
+    final dir = await Directory.systemTemp.createTemp('aqua_recover_exif_');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/portrait.jpg');
+    final image = img.Image(width: 8, height: 4, numChannels: 4)
+      ..exif.imageIfd.orientation = 6;
+    await file.writeAsBytes(img.encodeJpg(image));
+
+    final metadata = await const MediaInspectionService().inspect(file.path);
+
+    expect(metadata.width, 4);
+    expect(metadata.height, 8);
+  });
+
   test(
     'media inspection reports unsupported and missing files cleanly',
     () async {
@@ -1540,8 +1554,7 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget is Padding &&
-            widget.padding ==
-                const EdgeInsets.fromLTRB(10, topInset, 10, inset),
+            widget.padding == const EdgeInsets.fromLTRB(8, topInset, 8, inset),
       ),
       findsOneWidget,
     );
@@ -1593,6 +1606,30 @@ void main() {
       ),
     );
     expect(observedFit, BoxFit.cover);
+  });
+
+  testWidgets('original crop frame follows the oriented photo ratio', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: SizedBox(
+          width: 320,
+          height: 480,
+          child: ImageTransformPreview(
+            settings: const ImageTransformSettings(),
+            sourceAspectRatio: 3 / 4,
+            showGrid: true,
+            builder: (_, _) => const ColoredBox(color: CupertinoColors.black),
+          ),
+        ),
+      ),
+    );
+
+    final frame = tester.getSize(
+      find.byKey(const Key('transform_preview_frame')),
+    );
+    expect(frame.width / frame.height, closeTo(3 / 4, .001));
   });
 
   testWidgets('preview zoom supports pinch inspection and resets by key', (

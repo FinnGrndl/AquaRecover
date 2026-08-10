@@ -270,9 +270,9 @@ class EditorPreviewStage extends StatelessWidget {
       color: CupertinoColors.black,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          10,
+          8,
           immersiveTopInset,
-          10,
+          8,
           immersiveBottomInset,
         ),
         child: split,
@@ -326,9 +326,9 @@ class EditorPreviewStage extends StatelessWidget {
         ),
         Padding(
           padding: EdgeInsets.fromLTRB(
-            10,
+            8,
             immersiveTopInset,
-            10,
+            8,
             immersiveBottomInset,
           ),
           child: foreground,

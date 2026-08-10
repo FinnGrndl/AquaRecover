@@ -55,6 +55,15 @@ class MediaInspectionService {
     if (info == null) {
       throw const FormatException('The selected image could not be decoded.');
     }
-    return (info.width, info.height);
+    var width = info.width;
+    var height = info.height;
+    final extension = MediaClassifier.extensionOf(file.path);
+    if (extension == 'jpg' || extension == 'jpeg') {
+      final orientation = img.decodeJpgExif(bytes)?.imageIfd.orientation;
+      if (orientation != null && orientation >= 5 && orientation <= 8) {
+        (width, height) = (height, width);
+      }
+    }
+    return (width, height);
   }
 }
