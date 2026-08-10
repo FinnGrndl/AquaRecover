@@ -36,9 +36,10 @@ class AdjustmentBrowser extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Align(
-          alignment: Alignment.centerRight,
+          alignment: Alignment.center,
           child: Text(
             'Tap a value to restore the preset value',
+            textAlign: TextAlign.center,
             style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
               color: CupertinoDynamicColor.resolve(
                 CupertinoColors.secondaryLabel,
@@ -48,7 +49,7 @@ class AdjustmentBrowser extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 12),
         SizedBox(
           height: 82,
           child: ListView.separated(
@@ -75,6 +76,7 @@ class AdjustmentBrowser extends StatelessWidget {
             },
           ),
         ),
+        const SizedBox(height: 12),
         SettingSlider(
           key: Key('active_adjustment_${active.id}'),
           label: active.label,
@@ -85,6 +87,7 @@ class AdjustmentBrowser extends StatelessWidget {
           help: active.help,
           format: active.format,
           showHeader: false,
+          showValue: false,
           onChanged: enabled
               ? (value) => onChanged(active.apply(settings, value))
               : null,

@@ -35,6 +35,7 @@ import 'package:aqua_recover/features/editor/widgets/exported_photo_preview.dart
 import 'package:aqua_recover/features/editor/widgets/gpu_preview_filter.dart';
 import 'package:aqua_recover/features/editor/widgets/image_transform_preview.dart';
 import 'package:aqua_recover/features/editor/widgets/preset_browser.dart';
+import 'package:aqua_recover/features/editor/widgets/precision_wheel.dart';
 import 'package:aqua_recover/features/editor/widgets/queue_overview_sheet.dart';
 import 'package:aqua_recover/features/editor/widgets/restored_image_preview.dart';
 import 'package:aqua_recover/features/editor/widgets/video_frame_preview_tile.dart';
@@ -1303,7 +1304,7 @@ void main() {
   });
 
   testWidgets(
-    'adjustment browser shows the active value once and uses a full-width slider',
+    'adjustment browser shows the active value once and uses a full-width wheel',
     (tester) async {
       const width = 360.0;
       await tester.pumpWidget(
@@ -1326,10 +1327,85 @@ void main() {
 
       expect(find.text('Water correction'), findsOneWidget);
       expect(find.text('118%'), findsOneWidget);
-      final sliderWidth = tester.getSize(find.byType(CupertinoSlider)).width;
-      expect(sliderWidth, width);
+      final wheelWidth = tester.getSize(find.byType(PrecisionWheel)).width;
+      expect(wheelWidth, width);
+      final wheel = tester.widget<PrecisionWheel>(find.byType(PrecisionWheel));
+      expect(wheel.showValue, isFalse);
+
+      final hint = find.text('Tap a value to restore the preset value');
+      final wheelCenter = tester.getRect(find.byType(PrecisionWheel)).center.dx;
+      expect(tester.getCenter(hint).dx, closeTo(wheelCenter, 1));
+      final valuesBottom = tester
+          .getRect(find.byKey(const Key('all_adjustment_values')))
+          .bottom;
+      final wheelTop = tester.getRect(find.byType(PrecisionWheel)).top;
+      expect(wheelTop - valuesBottom, greaterThanOrEqualTo(12));
     },
   );
+
+  testWidgets('precision wheel moves through discrete adjustment values', (
+    tester,
+  ) async {
+    var value = 50.0;
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: Center(
+          child: SizedBox(
+            width: 320,
+            child: StatefulBuilder(
+              builder: (context, setState) => PrecisionWheel(
+                value: value,
+                min: 0,
+                max: 100,
+                divisions: 100,
+                semanticLabel: 'Strength',
+                valueFormatter: (current) => current.round().toString(),
+                onChanged: (current) => setState(() => value = current),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.drag(find.byType(PrecisionWheel), const Offset(-90, 0));
+    await tester.pumpAndSettle();
+
+    expect(value, greaterThan(50));
+    expect(find.text(value.round().toString()), findsOneWidget);
+  });
+
+  testWidgets('precision wheel emits selection haptics while turning', (
+    tester,
+  ) async {
+    var value = 50.0;
+    var hapticCount = 0;
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: Center(
+          child: SizedBox(
+            width: 320,
+            child: StatefulBuilder(
+              builder: (context, setState) => PrecisionWheel(
+                value: value,
+                min: 0,
+                max: 100,
+                divisions: 100,
+                valueFormatter: (current) => current.round().toString(),
+                onChanged: (current) => setState(() => value = current),
+                hapticFeedback: () => hapticCount++,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.drag(find.byType(PrecisionWheel), const Offset(-90, 0));
+    await tester.pumpAndSettle();
+
+    expect(hapticCount, greaterThan(0));
+  });
 
   testWidgets('adjustment bubble resets only its value to the preset base', (
     tester,
