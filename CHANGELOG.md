@@ -27,6 +27,7 @@ semantic versioning; the number after `+` is the platform build number.
 - Show media-specific format controls
 - Keep iOS exports active during app switches
 - Honor photo orientation in crop previews
+- Build Apple checks with Xcode 26
 
 ### Performance
 
