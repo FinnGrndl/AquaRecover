@@ -1,8 +1,7 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/cupertino.dart';
 
 import '../editor_tools.dart';
+import 'editor_glass_surface.dart';
 
 class EditorCollapsedPanelButton extends StatelessWidget {
   const EditorCollapsedPanelButton({
@@ -24,45 +23,28 @@ class EditorCollapsedPanelButton extends StatelessWidget {
         padding: EdgeInsets.zero,
         minimumSize: Size.zero,
         onPressed: onPressed,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: const Color(0xff24272b).withValues(alpha: .58),
-                borderRadius: BorderRadius.circular(99),
-                border: Border.all(
-                  color: CupertinoColors.white.withValues(alpha: .20),
+        child: EditorGlassSurface(
+          style: EditorGlassStyle.clear,
+          borderRadius: 99,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Open ${group.label}',
+                style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                  color: CupertinoColors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
                 ),
               ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 9,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Open ${group.label}',
-                      style: CupertinoTheme.of(context).textTheme.textStyle
-                          .copyWith(
-                            color: CupertinoColors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                          ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      CupertinoIcons.chevron_up,
-                      color: CupertinoColors.white,
-                      size: 14,
-                    ),
-                  ],
-                ),
+              const SizedBox(width: 6),
+              const Icon(
+                CupertinoIcons.chevron_up,
+                color: CupertinoColors.white,
+                size: 14,
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -94,61 +76,43 @@ class EditorBottomPanel extends StatelessWidget {
       curve: Curves.easeOut,
       height: height,
       margin: const EdgeInsets.fromLTRB(6, 0, 6, 7),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xff22252a).withValues(alpha: .62),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: CupertinoColors.white.withValues(alpha: .14),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: CupertinoColors.black.withValues(alpha: .18),
-                  blurRadius: 24,
-                  offset: const Offset(0, 10),
+      child: EditorGlassSurface(
+        borderRadius: 24,
+        shadow: true,
+        child: Semantics(
+          container: true,
+          label: '${group.label} tools',
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CupertinoScrollbar(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(14, 48, 14, 18),
+                  children: [child],
                 ),
-              ],
-            ),
-            child: Semantics(
-              container: true,
-              label: '${group.label} tools',
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CupertinoScrollbar(
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(14, 34, 14, 16),
-                      children: [child],
-                    ),
-                  ),
-                  Positioned(
-                    top: 2,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: CupertinoButton(
-                        key: const Key('editor_tool_panel_close'),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 6,
-                        ),
-                        minimumSize: Size.zero,
-                        onPressed: onClose,
-                        child: Icon(
-                          CupertinoIcons.chevron_down,
-                          size: 17,
-                          color: CupertinoColors.white.withValues(alpha: .66),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
               ),
-            ),
+              Positioned(
+                top: 2,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: CupertinoButton(
+                    key: const Key('editor_tool_panel_close'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 6,
+                    ),
+                    minimumSize: const Size(44, 38),
+                    onPressed: onClose,
+                    child: Icon(
+                      CupertinoIcons.chevron_down,
+                      size: 17,
+                      color: CupertinoColors.white.withValues(alpha: .72),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

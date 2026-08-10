@@ -36,6 +36,7 @@ import 'widgets/app_license_page.dart';
 import 'widgets/batch_edit_copy_sheet.dart';
 import 'widgets/crop_browser.dart';
 import 'widgets/editor_bottom_panel.dart';
+import 'widgets/editor_glass_surface.dart';
 import 'widgets/editor_preview_stage.dart';
 import 'widgets/editor_tool_rail.dart';
 import 'widgets/preset_browser.dart';
@@ -674,19 +675,19 @@ class _EditorPageState extends State<EditorPage> {
             bottomInset;
         final preferredPanelHeight = compact
             ? switch (activeGroup) {
-                EditorToolGroup.light => 260.0,
-                EditorToolGroup.presets => 255.0,
+                EditorToolGroup.light => 300.0,
+                EditorToolGroup.presets => 280.0,
                 EditorToolGroup.crop => 330.0,
                 EditorToolGroup.effects => 240.0,
-                EditorToolGroup.video => 275.0,
+                EditorToolGroup.video => 290.0,
                 _ => 255.0,
               }
             : switch (activeGroup) {
-                EditorToolGroup.light => 280.0,
-                EditorToolGroup.presets => 275.0,
+                EditorToolGroup.light => 320.0,
+                EditorToolGroup.presets => 300.0,
                 EditorToolGroup.crop => 350.0,
                 EditorToolGroup.effects => 260.0,
-                EditorToolGroup.video => 300.0,
+                EditorToolGroup.video => 315.0,
                 _ => 275.0,
               };
         final panelHeight = availablePanelHeight <= 120
@@ -802,34 +803,36 @@ class _EditorPageState extends State<EditorPage> {
                   brightness: Brightness.dark,
                   primaryColor: CupertinoColors.activeBlue,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    EditorBottomPanel(
-                      group: activeGroup,
-                      open: panelOpen,
-                      height: panelHeight,
-                      onClose: () => setState(() => _toolPanelOpen = false),
-                      child: _toolPanelContent(activeGroup),
-                    ),
-                    if (panelOpen) const SizedBox(height: 2),
-                    if (!panelOpen)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: EditorCollapsedPanelButton(
-                          group: activeGroup,
-                          onPressed: () =>
-                              setState(() => _toolPanelOpen = true),
-                        ),
+                child: BackdropGroup(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      EditorBottomPanel(
+                        group: activeGroup,
+                        open: panelOpen,
+                        height: panelHeight,
+                        onClose: () => setState(() => _toolPanelOpen = false),
+                        child: _toolPanelContent(activeGroup),
                       ),
-                    if (!panelOpen) const SizedBox(height: 2),
-                    EditorToolRail(
-                      groups: groups,
-                      selectedGroup: activeGroup,
-                      panelOpen: panelOpen,
-                      onSelected: _selectToolGroup,
-                    ),
-                  ],
+                      if (panelOpen) const SizedBox(height: 2),
+                      if (!panelOpen)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: EditorCollapsedPanelButton(
+                            group: activeGroup,
+                            onPressed: () =>
+                                setState(() => _toolPanelOpen = true),
+                          ),
+                        ),
+                      if (!panelOpen) const SizedBox(height: 2),
+                      EditorToolRail(
+                        groups: groups,
+                        selectedGroup: activeGroup,
+                        panelOpen: panelOpen,
+                        onSelected: _selectToolGroup,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -847,9 +850,9 @@ class _EditorPageState extends State<EditorPage> {
     final actionLabel = showingSplit
         ? 'Show edited preview'
         : 'Show split preview';
-    final background = showingSplit
+    final tint = showingSplit
         ? CupertinoColors.activeBlue.withValues(alpha: .94)
-        : CupertinoColors.black.withValues(alpha: .56);
+        : const Color(0xff171a20);
     return Tooltip(
       message: actionLabel,
       child: Semantics(
@@ -861,21 +864,31 @@ class _EditorPageState extends State<EditorPage> {
           padding: EdgeInsets.zero,
           minimumSize: const Size(42, 42),
           borderRadius: BorderRadius.circular(99),
-          color: background,
           onPressed: onPressed,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 160),
-            transitionBuilder: (child, animation) => ScaleTransition(
-              scale: animation,
-              child: FadeTransition(opacity: animation, child: child),
-            ),
-            child: Icon(
-              showingSplit
-                  ? CupertinoIcons.photo
-                  : CupertinoIcons.square_split_2x1,
-              key: ValueKey(showingSplit),
-              color: CupertinoColors.white,
-              size: 20,
+          child: EditorGlassSurface(
+            style: EditorGlassStyle.clear,
+            borderRadius: 99,
+            tint: tint,
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: AnimatedSwitcher(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 160),
+                transitionBuilder: (child, animation) => ScaleTransition(
+                  scale: animation,
+                  child: FadeTransition(opacity: animation, child: child),
+                ),
+                child: Icon(
+                  showingSplit
+                      ? CupertinoIcons.photo
+                      : CupertinoIcons.square_split_2x1,
+                  key: ValueKey(showingSplit),
+                  color: CupertinoColors.white,
+                  size: 20,
+                ),
+              ),
             ),
           ),
         ),
@@ -905,19 +918,28 @@ class _EditorPageState extends State<EditorPage> {
           padding: EdgeInsets.zero,
           minimumSize: const Size(42, 42),
           borderRadius: BorderRadius.circular(99),
-          color: CupertinoColors.black.withValues(alpha: .56),
           onPressed: !enabled
               ? null
               : () => setState(() => _previewFit = fit.toggled),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 160),
-            child: Icon(
-              fit == EditorPreviewFit.fit
-                  ? CupertinoIcons.arrow_up_left_arrow_down_right
-                  : CupertinoIcons.arrow_down_right_arrow_up_left,
-              key: ValueKey(fit),
-              color: CupertinoColors.white,
-              size: 19,
+          child: EditorGlassSurface(
+            style: EditorGlassStyle.clear,
+            borderRadius: 99,
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: AnimatedSwitcher(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 160),
+                child: Icon(
+                  fit == EditorPreviewFit.fit
+                      ? CupertinoIcons.arrow_up_left_arrow_down_right
+                      : CupertinoIcons.arrow_down_right_arrow_up_left,
+                  key: ValueKey(fit),
+                  color: CupertinoColors.white,
+                  size: 19,
+                ),
+              ),
             ),
           ),
         ),
@@ -3194,28 +3216,12 @@ class _EditorPageState extends State<EditorPage> {
     required EdgeInsetsGeometry padding,
     double borderRadius = 20,
   }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: CupertinoColors.black.withValues(alpha: .34),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(
-              color: CupertinoColors.white.withValues(alpha: .18),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: CupertinoColors.black.withValues(alpha: .20),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Padding(padding: padding, child: child),
-        ),
-      ),
+    return EditorGlassSurface(
+      style: EditorGlassStyle.clear,
+      borderRadius: borderRadius,
+      padding: padding,
+      shadow: true,
+      child: child,
     );
   }
 

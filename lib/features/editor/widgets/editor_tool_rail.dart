@@ -1,8 +1,7 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/cupertino.dart';
 
 import '../editor_tools.dart';
+import 'editor_glass_surface.dart';
 
 class EditorToolRail extends StatelessWidget {
   const EditorToolRail({
@@ -22,37 +21,24 @@ class EditorToolRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 68,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xff202328).withValues(alpha: .58),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: CupertinoColors.white.withValues(alpha: .13),
+      child: EditorGlassSurface(
+        style: EditorGlassStyle.clear,
+        borderRadius: 22,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          children: [
+            for (var index = 0; index < groups.length; index++) ...[
+              if (index > 0) const SizedBox(width: 8),
+              Expanded(
+                child: _ToolButton(
+                  key: Key('editor_tool_${groups[index].name}'),
+                  group: groups[index],
+                  selected: groups[index] == selectedGroup && panelOpen,
+                  onPressed: () => onSelected(groups[index]),
+                ),
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Row(
-                children: [
-                  for (var index = 0; index < groups.length; index++) ...[
-                    if (index > 0) const SizedBox(width: 8),
-                    Expanded(
-                      child: _ToolButton(
-                        key: Key('editor_tool_${groups[index].name}'),
-                        group: groups[index],
-                        selected: groups[index] == selectedGroup && panelOpen,
-                        onPressed: () => onSelected(groups[index]),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
+            ],
+          ],
         ),
       ),
     );
