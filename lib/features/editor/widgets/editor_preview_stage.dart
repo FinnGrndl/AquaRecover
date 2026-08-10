@@ -93,6 +93,8 @@ class EditorPreviewStage extends StatelessWidget {
     this.transform = const ImageTransformSettings(),
     this.showCropGrid = false,
     this.previewFit = EditorPreviewFit.fit,
+    this.videoPreviewPosition,
+    this.onVideoDurationKnown,
   });
 
   final MediaJob job;
@@ -107,6 +109,8 @@ class EditorPreviewStage extends StatelessWidget {
   final ImageTransformSettings transform;
   final bool showCropGrid;
   final EditorPreviewFit previewFit;
+  final Duration? videoPreviewPosition;
+  final ValueChanged<Duration>? onVideoDurationKnown;
 
   @override
   Widget build(BuildContext context) {
@@ -222,13 +226,20 @@ class EditorPreviewStage extends StatelessWidget {
 
   Widget _videoPreview(BuildContext context) {
     final original = _fitPreview(
-      VideoFramePreviewTile(path: job.inputPath, caption: 'Frame preview'),
+      VideoFramePreviewTile(
+        path: job.inputPath,
+        caption: 'Frame preview',
+        position: videoPreviewPosition,
+        onDurationKnown: onVideoDurationKnown,
+      ),
     );
     final edited = _fitPreview(
       VideoFramePreviewTile(
         path: job.inputPath,
         settings: settings,
         caption: 'Frame preview',
+        position: videoPreviewPosition,
+        onDurationKnown: onVideoDurationKnown,
       ),
     );
     return switch (compareMode) {

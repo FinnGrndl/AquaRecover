@@ -43,6 +43,7 @@ import 'widgets/photo_library_sheet.dart';
 import 'widgets/queue_overview_sheet.dart';
 import 'widgets/raw_video_dialog.dart';
 import 'widgets/setting_slider.dart';
+import 'widgets/video_frame_preview_tile.dart';
 
 class EditorPage extends StatefulWidget {
   const EditorPage({
@@ -78,6 +79,8 @@ class _EditorPageState extends State<EditorPage> {
   final _imagePicker = ImagePicker();
   final _trimStartController = TextEditingController(text: '0');
   final _trimEndController = TextEditingController();
+  final Map<String, Duration> _videoPreviewPositions = {};
+  final Map<String, Duration> _videoDurations = {};
 
   List<MediaJob> _jobs = const [];
   Map<String, MediaEditState> _editStates = {};
@@ -412,6 +415,9 @@ class _EditorPageState extends State<EditorPage> {
                   showHeader: false,
                   borderRadius: 0,
                   transform: _transformSettings,
+                  videoPreviewPosition: _videoPreviewPositions[job.id],
+                  onVideoDurationKnown: (duration) =>
+                      _setVideoDuration(job.id, duration),
                 ),
                 Positioned.fill(
                   child: DecoratedBox(
@@ -716,6 +722,9 @@ class _EditorPageState extends State<EditorPage> {
                   previewFit: activeGroup == EditorToolGroup.crop
                       ? EditorPreviewFit.fit
                       : _previewFit,
+                  videoPreviewPosition: _videoPreviewPositions[job.id],
+                  onVideoDurationKnown: (duration) =>
+                      _setVideoDuration(job.id, duration),
                 ),
               ),
               onScaleStart: activeGroup == EditorToolGroup.crop
@@ -1588,6 +1597,8 @@ class _EditorPageState extends State<EditorPage> {
         borderRadius: 16,
         transform: _transformSettings,
         previewFit: EditorPreviewFit.fill,
+        videoPreviewPosition: _videoPreviewPositions[job.id],
+        onVideoDurationKnown: (duration) => _setVideoDuration(job.id, duration),
       ),
     );
   }
@@ -1773,14 +1784,54 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _videoSection(BuildContext panelContext) {
+    final job = _selectedJob;
+    final duration = job == null ? null : _videoDurations[job.id];
+    final position = job == null ? null : _videoPreviewPositions[job.id];
+    final previewEnd = duration == null
+        ? null
+        : VideoFramePreviewTile.clampPosition(duration, duration);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Frame preview updates with the same color settings; full video export depends on the backend.',
+          'Choose the frame used in the editor and export preview. This does not change the exported video timeline.',
           style: _secondaryText(panelContext),
         ),
-        const SizedBox(height: 8),
+        if (job?.kind == MediaKind.video && duration != null) ...[
+          SettingSlider(
+            key: const Key('video_preview_frame'),
+            label: 'Preview frame',
+            value: (position ?? Duration.zero).inMilliseconds / 1000,
+            min: 0,
+            max: (previewEnd!.inMilliseconds / 1000)
+                .clamp(.05, double.infinity)
+                .toDouble(),
+            divisions: (previewEnd.inMilliseconds / 250)
+                .round()
+                .clamp(1, 400)
+                .toInt(),
+            format: (value) => _formatVideoPosition(
+              Duration(milliseconds: (value * 1000).round()),
+            ),
+            onChanged: _busy
+                ? null
+                : (value) => _setVideoPreviewPosition(
+                    job!.id,
+                    Duration(milliseconds: (value * 1000).round()),
+                  ),
+          ),
+        ] else if (job?.kind == MediaKind.video) ...[
+          const SizedBox(height: 10),
+          const Row(
+            children: [
+              CupertinoActivityIndicator(),
+              SizedBox(width: 9),
+              Text('Preparing video timeline…'),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ] else
+          const SizedBox(height: 8),
         _switchRow(
           title: 'Trim video',
           value: _trimEnabled,
@@ -1809,26 +1860,64 @@ class _EditorPageState extends State<EditorPage> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: _busy
-              ? null
-              : () async {
-                  final descriptor = await RawVideoDialog.show(
-                    context,
-                    initial: _rawDescriptor,
-                  );
-                  if (descriptor != null && mounted) {
-                    setState(() => _rawDescriptor = descriptor);
-                  }
-                },
-          child: Text(
-            'RAW video: ${_rawDescriptor.width}x${_rawDescriptor.height} ${_rawDescriptor.frameRate.toStringAsFixed(2)}fps ${_rawDescriptor.pixelFormat}',
+        if (job?.kind == MediaKind.rawVideo) ...[
+          const SizedBox(height: 8),
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: _busy
+                ? null
+                : () async {
+                    final descriptor = await RawVideoDialog.show(
+                      context,
+                      initial: _rawDescriptor,
+                    );
+                    if (descriptor != null && mounted) {
+                      setState(() => _rawDescriptor = descriptor);
+                    }
+                  },
+            child: Text(
+              'RAW video: ${_rawDescriptor.width}x${_rawDescriptor.height} ${_rawDescriptor.frameRate.toStringAsFixed(2)}fps ${_rawDescriptor.pixelFormat}',
+            ),
           ),
-        ),
+        ],
       ],
     );
+  }
+
+  void _setVideoDuration(String jobId, Duration duration) {
+    if (!mounted || duration <= Duration.zero) return;
+    final existingDuration = _videoDurations[jobId];
+    final existingPosition = _videoPreviewPositions[jobId];
+    final nextPosition = VideoFramePreviewTile.clampPosition(
+      existingPosition ??
+          VideoFramePreviewTile.representativePositionFor(duration),
+      duration,
+    );
+    if (existingDuration == duration && existingPosition == nextPosition) {
+      return;
+    }
+    setState(() {
+      _videoDurations[jobId] = duration;
+      _videoPreviewPositions[jobId] = nextPosition;
+    });
+  }
+
+  void _setVideoPreviewPosition(String jobId, Duration position) {
+    final duration = _videoDurations[jobId];
+    if (duration == null) return;
+    setState(() {
+      _videoPreviewPositions[jobId] = VideoFramePreviewTile.clampPosition(
+        position,
+        duration,
+      );
+    });
+  }
+
+  String _formatVideoPosition(Duration position) {
+    final totalSeconds = position.inMilliseconds / 1000;
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds - minutes * 60;
+    return '$minutes:${seconds.toStringAsFixed(1).padLeft(4, '0')}';
   }
 
   Widget _lutSection(BuildContext panelContext) {
@@ -2871,6 +2960,8 @@ class _EditorPageState extends State<EditorPage> {
       id: id,
     );
     _editStates.remove(id);
+    _videoPreviewPositions.remove(id);
+    _videoDurations.remove(id);
     _jobs = result.jobs;
     _selectedIndex = result.selectedIndex;
     if (_jobs.isNotEmpty) _loadEditStateForIndex(_selectedIndex);
@@ -2924,6 +3015,8 @@ class _EditorPageState extends State<EditorPage> {
     setState(() {
       _storeSelectedEditState();
       _editStates.remove(id);
+      _videoPreviewPositions.remove(id);
+      _videoDurations.remove(id);
       _jobs = remaining;
       _selectedIndex = result.selectedIndex;
       if (remaining.isNotEmpty) _loadEditStateForIndex(_selectedIndex);

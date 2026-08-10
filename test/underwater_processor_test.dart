@@ -37,6 +37,7 @@ import 'package:aqua_recover/features/editor/widgets/preset_browser.dart';
 import 'package:aqua_recover/features/editor/widgets/queue_overview_sheet.dart';
 import 'package:aqua_recover/features/editor/widgets/restored_image_preview.dart';
 import 'package:aqua_recover/features/editor/widgets/video_frame_preview_tile.dart';
+import 'package:aqua_recover/features/editor/widgets/video_preview_tile.dart';
 import 'package:aqua_recover/features/library/export_library_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -608,6 +609,13 @@ void main() {
         ),
         const Duration(seconds: 3),
       );
+      expect(
+        VideoFramePreviewTile.clampPosition(
+          const Duration(seconds: 10),
+          const Duration(seconds: 4),
+        ),
+        const Duration(milliseconds: 3950),
+      );
     },
   );
 
@@ -1059,10 +1067,42 @@ void main() {
         .widget<CupertinoSlidingSegmentedControl<ImageOutputFormat>>(
           find.byKey(const Key('image_output_format')),
         );
-    formatControl.onValueChanged?.call(ImageOutputFormat.png);
+    formatControl.onValueChanged(ImageOutputFormat.png);
     await tester.pump();
 
     expect(find.byKey(const Key('jpeg_quality')), findsNothing);
+  });
+
+  testWidgets('video export shows containers instead of image controls', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_video_export_options_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/reef.mp4')..writeAsBytesSync([0]);
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: EditorPage(
+          initialPaths: [file.path],
+          reviewExportOnStart: true,
+          inspectionService: const _FakeVideoInspectionService(),
+        ),
+      ),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+
+    expect(find.byKey(const Key('video_output_format')), findsOneWidget);
+    expect(find.byKey(const Key('image_output_format')), findsNothing);
+    expect(find.byKey(const Key('jpeg_quality')), findsNothing);
+    expect(find.text('Keep video audio'), findsOneWidget);
   });
 
   testWidgets('local export library opens and deletes an export', (
@@ -1108,6 +1148,26 @@ void main() {
 
     expect(service.deleted, [item]);
     expect(find.text('No local exports yet.'), findsOneWidget);
+  });
+
+  testWidgets('local video export opens an embedded player', (tester) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_video_library_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/reef_aqua.mp4')..writeAsBytesSync([0]);
+    final item = LocalExportItem(
+      path: file.path,
+      kind: MediaKind.video,
+      sizeBytes: file.lengthSync(),
+      modified: DateTime(2026, 8, 10),
+    );
+
+    await tester.pumpWidget(CupertinoApp(home: ExportDetailPage(item: item)));
+    await tester.pump();
+
+    expect(find.byKey(const Key('local_export_video_player')), findsOneWidget);
+    expect(find.byType(VideoPreviewTile), findsOneWidget);
   });
 
   testWidgets('local export library batch selects and deletes all exports', (
@@ -1610,6 +1670,23 @@ class _FakeMediaInspectionService extends MediaInspectionService {
       fileSizeBytes: 256,
       width: 16,
       height: 12,
+    ),
+  );
+}
+
+class _FakeVideoInspectionService extends MediaInspectionService {
+  const _FakeVideoInspectionService();
+
+  @override
+  Future<MediaMetadata> inspect(String path) => Future.value(
+    MediaMetadata(
+      path: path,
+      fileName: File(path).uri.pathSegments.last,
+      kind: MediaKind.video,
+      fileSizeBytes: 256,
+      width: 1920,
+      height: 1080,
+      duration: const Duration(seconds: 20),
     ),
   );
 }
