@@ -1301,6 +1301,10 @@ void main() {
     );
 
     expect(find.text('Presets panel'), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.rectangle_grid_2x2), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.slider_horizontal_3), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.crop_rotate), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.color_filter), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('editor_tool_light')));
     await tester.pumpAndSettle();

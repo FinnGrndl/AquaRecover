@@ -983,34 +983,99 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _editorTopBar(MediaJob job) {
     final title = job.displayName ?? p.basename(job.inputPath);
-    return _floatingGlass(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      borderRadius: 22,
-      child: Row(
-        children: [
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            minimumSize: Size.zero,
+    return _navigationToolbar(
+      leadingLabel: 'Library',
+      onLeadingPressed: _busy
+          ? null
+          : () => setState(() => _step = EditorWorkflowStep.import),
+      title: title,
+      subtitle: '${_settings.preset.label} - ${job.kind.label}',
+      trailingWidth: 46,
+      trailingTint: CupertinoColors.systemGrey,
+      trailing: Tooltip(
+        message: 'Review export',
+        child: Semantics(
+          button: true,
+          label: 'Review export',
+          child: CupertinoButton(
+            key: const Key('editor_review_export'),
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(44, 44),
+            borderRadius: BorderRadius.circular(99),
             onPressed: _busy
                 ? null
-                : () => setState(() => _step = EditorWorkflowStep.import),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  CupertinoIcons.chevron_left,
-                  size: 18,
-                  color: CupertinoColors.white,
-                ),
-                SizedBox(width: 4),
-                Text('Library', style: TextStyle(color: CupertinoColors.white)),
-              ],
+                : () => setState(() => _step = EditorWorkflowStep.export),
+            child: Icon(
+              CupertinoIcons.check_mark,
+              color: CupertinoColors.white.withValues(alpha: _busy ? .38 : 1),
+              size: 21,
             ),
           ),
-          const SizedBox(width: 6),
-          Expanded(
+        ),
+      ),
+    );
+  }
+
+  Widget _exportTopBar(MediaJob job) {
+    final videoUnavailable =
+        job.kind.isVideo &&
+        !VideoRestorationService.isBackendAvailableOnCurrentPlatform;
+    final actionLabel = _busy
+        ? 'Exporting...'
+        : _jobs.length > 1
+        ? 'Export all'
+        : 'Export';
+    return _navigationToolbar(
+      leadingLabel: 'Edit',
+      onLeadingPressed: _busy
+          ? null
+          : () => setState(() => _step = EditorWorkflowStep.edit),
+      title: 'Export',
+      subtitle: _friendlyMediaName(job),
+      trailingWidth: _jobs.length > 1 ? 104 : 82,
+      trailingTint: CupertinoColors.activeBlue,
+      trailing: CupertinoButton(
+        key: const Key('export_commit'),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+        minimumSize: const Size(44, 44),
+        borderRadius: BorderRadius.circular(99),
+        onPressed: (_busy || videoUnavailable) ? null : _commitExport,
+        child: Text(
+          actionLabel,
+          maxLines: 1,
+          style: TextStyle(
+            color: CupertinoColors.white.withValues(
+              alpha: (_busy || videoUnavailable) ? .38 : 1,
+            ),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navigationToolbar({
+    required String leadingLabel,
+    required VoidCallback? onLeadingPressed,
+    required String title,
+    required String subtitle,
+    required double trailingWidth,
+    required Widget trailing,
+    Color? trailingTint,
+  }) {
+    const leadingWidth = 108.0;
+    return SizedBox(
+      height: 48,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned(
+            left: leadingWidth + 8,
+            right: trailingWidth + 8,
+            top: 3,
+            bottom: 3,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   title,
@@ -1021,119 +1086,87 @@ class _EditorPageState extends State<EditorPage> {
                       .copyWith(
                         color: CupertinoColors.white,
                         fontWeight: FontWeight.w700,
+                        shadows: const [
+                          Shadow(
+                            color: Color(0x99000000),
+                            blurRadius: 8,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
                       ),
                 ),
                 Text(
-                  '${_settings.preset.label} - ${job.kind.label}',
+                  subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: CupertinoTheme.of(context).textTheme.textStyle
                       .copyWith(
                         color: CupertinoColors.white.withValues(alpha: .72),
-                        fontSize: 12,
+                        fontSize: 11,
+                        shadows: const [
+                          Shadow(color: Color(0xaa000000), blurRadius: 7),
+                        ],
                       ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 6),
-          Tooltip(
-            message: 'Review export',
-            child: Semantics(
-              button: true,
-              label: 'Review export',
-              child: CupertinoButton(
-                key: const Key('editor_review_export'),
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(44, 38),
-                borderRadius: BorderRadius.circular(16),
-                color: CupertinoColors.systemGrey.withValues(alpha: .72),
-                onPressed: _busy
-                    ? null
-                    : () => setState(() => _step = EditorWorkflowStep.export),
-                child: const Icon(
-                  CupertinoIcons.check_mark,
-                  color: CupertinoColors.white,
-                  size: 21,
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: leadingWidth,
+              height: 46,
+              child: EditorGlassSurface(
+                style: EditorGlassStyle.clear,
+                borderRadius: 99,
+                shadow: true,
+                child: CupertinoButton(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(44, 44),
+                  borderRadius: BorderRadius.circular(99),
+                  onPressed: onLeadingPressed,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        CupertinoIcons.chevron_back,
+                        size: 20,
+                        color: CupertinoColors.white.withValues(
+                          alpha: onLeadingPressed == null ? .38 : 1,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Flexible(
+                        child: Text(
+                          leadingLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: CupertinoColors.white.withValues(
+                              alpha: onLeadingPressed == null ? .38 : 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _exportTopBar(MediaJob job) {
-    final videoUnavailable =
-        job.kind.isVideo &&
-        !VideoRestorationService.isBackendAvailableOnCurrentPlatform;
-    return _floatingGlass(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      borderRadius: 22,
-      child: Row(
-        children: [
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            minimumSize: Size.zero,
-            onPressed: _busy
-                ? null
-                : () => setState(() => _step = EditorWorkflowStep.edit),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  CupertinoIcons.chevron_left,
-                  size: 18,
-                  color: CupertinoColors.white,
-                ),
-                SizedBox(width: 4),
-                Text('Edit', style: TextStyle(color: CupertinoColors.white)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Export',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: CupertinoTheme.of(context).textTheme.textStyle
-                      .copyWith(
-                        color: CupertinoColors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                Text(
-                  _friendlyMediaName(job),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: CupertinoTheme.of(context).textTheme.textStyle
-                      .copyWith(
-                        color: CupertinoColors.white.withValues(alpha: .72),
-                        fontSize: 12,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          CupertinoButton.filled(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            minimumSize: Size.zero,
-            onPressed: (_busy || videoUnavailable) ? null : _commitExport,
-            child: Text(
-              _busy
-                  ? 'Exporting...'
-                  : _jobs.length > 1
-                  ? 'Export all'
-                  : 'Export',
+          Align(
+            alignment: Alignment.centerRight,
+            child: SizedBox(
+              width: trailingWidth,
+              height: 46,
+              child: EditorGlassSurface(
+                style: EditorGlassStyle.clear,
+                borderRadius: 99,
+                tint: trailingTint,
+                shadow: true,
+                child: trailing,
+              ),
             ),
           ),
         ],
@@ -1158,7 +1191,8 @@ class _EditorPageState extends State<EditorPage> {
         children: [
           _editorIconButton(
             key: const Key('editor_previous_item'),
-            icon: CupertinoIcons.chevron_left,
+            icon: CupertinoIcons.chevron_back,
+            tooltip: 'Previous item',
             onPressed: _busy || _selectedIndex <= 0
                 ? null
                 : () => _selectJobIndex(_selectedIndex - 1),
@@ -1228,7 +1262,8 @@ class _EditorPageState extends State<EditorPage> {
           const SizedBox(width: 6),
           _editorIconButton(
             key: const Key('editor_next_item'),
-            icon: CupertinoIcons.chevron_right,
+            icon: CupertinoIcons.chevron_forward,
+            tooltip: 'Next item',
             onPressed: _busy || _selectedIndex >= total - 1
                 ? null
                 : () => _selectJobIndex(_selectedIndex + 1),
@@ -1246,12 +1281,9 @@ class _EditorPageState extends State<EditorPage> {
   }) {
     final button = CupertinoButton(
       key: key,
-      padding: const EdgeInsets.all(7),
-      minimumSize: Size.zero,
+      padding: const EdgeInsets.all(8),
+      minimumSize: const Size(34, 34),
       borderRadius: BorderRadius.circular(99),
-      color: CupertinoColors.white.withValues(
-        alpha: onPressed == null ? .08 : .16,
-      ),
       onPressed: onPressed,
       child: Icon(
         icon,
