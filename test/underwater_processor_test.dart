@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -831,7 +832,7 @@ void main() {
     expect(find.text('Open-source licenses'), findsOneWidget);
   });
 
-  testWidgets('queue overview shows thumbnails and removes pending items', (
+  testWidgets('queue overview locks item changes while export is active', (
     tester,
   ) async {
     final removed = <String>[];
@@ -874,13 +875,18 @@ void main() {
           .onPressed,
       isNull,
     );
+    expect(
+      tester
+          .widget<CupertinoButton>(
+            find.byKey(const Key('queue_remove_pending')),
+          )
+          .onPressed,
+      isNull,
+    );
 
-    await tester.tap(find.byKey(const Key('queue_remove_pending')));
-    await tester.pump();
-
-    expect(removed, ['pending']);
-    expect(find.text('Pending.jpg'), findsNothing);
-    expect(find.text('1 item in the queue'), findsOneWidget);
+    expect(removed, isEmpty);
+    expect(find.text('Pending.jpg'), findsOneWidget);
+    expect(find.text('2 items in the queue'), findsOneWidget);
   });
 
   testWidgets('batch edit picker applies to selected targets', (tester) async {
@@ -971,6 +977,47 @@ void main() {
     await tester.tap(queueItem);
     await tester.pump(const Duration(milliseconds: 350));
     expect(find.byKey(const Key('editor_review_export')), findsOneWidget);
+  });
+
+  testWidgets('export ignores a repeated tap while the first export runs', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_export_lock_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final input = File('${directory.path}/input.jpg');
+    input.writeAsBytesSync(
+      img.encodeJpg(img.Image(width: 16, height: 12), quality: 90),
+    );
+    final imageService = _BlockingImageRestorationService();
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: EditorPage(
+          initialPaths: [input.path],
+          reviewExportOnStart: true,
+          inspectionService: const _FakeMediaInspectionService(),
+          imageService: imageService,
+        ),
+      ),
+    );
+    for (var i = 0; i < 6; i++) {
+      await tester.pump();
+    }
+
+    final exportButton = find.byKey(const Key('export_commit'));
+    expect(exportButton, findsOneWidget);
+    await tester.tap(exportButton);
+    await tester.tap(exportButton);
+    await tester.pump();
+
+    expect(imageService.calls, 1);
+    expect(tester.widget<CupertinoButton>(exportButton).onPressed, isNull);
   });
 
   testWidgets('copy to all requires confirmation and keeps per-photo edits', (
@@ -1826,6 +1873,23 @@ class _FakeVideoInspectionService extends MediaInspectionService {
       duration: const Duration(seconds: 20),
     ),
   );
+}
+
+class _BlockingImageRestorationService extends ImageRestorationService {
+  final Completer<String> _result = Completer<String>();
+  int calls = 0;
+
+  @override
+  Future<String> restoreFile(
+    String inputPath,
+    RestorationSettings settings, {
+    ExportOptions exportOptions = const ExportOptions(),
+    LutProfile lutProfile = LutProfile.none,
+    ImageTransformSettings transform = const ImageTransformSettings(),
+  }) {
+    calls++;
+    return _result.future;
+  }
 }
 
 double _meanAbsDelta(img.Image a, img.Image b) {

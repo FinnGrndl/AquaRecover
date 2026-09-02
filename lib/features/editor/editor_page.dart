@@ -56,6 +56,7 @@ class EditorPage extends StatefulWidget {
     this.reviewExportOnStart = false,
     this.libraryOnStart = false,
     this.inspectionService = const MediaInspectionService(),
+    this.imageService = const ImageRestorationService(),
   });
 
   final List<String> initialPaths;
@@ -65,13 +66,14 @@ class EditorPage extends StatefulWidget {
   final bool reviewExportOnStart;
   final bool libraryOnStart;
   final MediaInspectionService inspectionService;
+  final ImageRestorationService imageService;
 
   @override
   State<EditorPage> createState() => _EditorPageState();
 }
 
 class _EditorPageState extends State<EditorPage> {
-  final _imageService = const ImageRestorationService();
+  late final ImageRestorationService _imageService = widget.imageService;
   final _videoService = const VideoRestorationService();
   final _rawService = RawProcessingService();
   final _photoLibraryService = const PhotoLibraryService();
@@ -101,9 +103,12 @@ class _EditorPageState extends State<EditorPage> {
   EditorCompareMode _compareMode = EditorCompareMode.edited;
   EditorPreviewFit _previewFit = EditorPreviewFit.fit;
   bool _busy = false;
+  bool _exportStartPending = false;
   bool _cancelRequested = false;
   double _cropGestureStartZoom = 1;
   String? _status = 'Ready.';
+
+  bool get _exportOperationActive => _busy || _exportStartPending;
 
   MediaJob? get _selectedJob {
     if (_jobs.isEmpty) return null;
@@ -1020,14 +1025,14 @@ class _EditorPageState extends State<EditorPage> {
     final videoUnavailable =
         job.kind.isVideo &&
         !VideoRestorationService.isBackendAvailableOnCurrentPlatform;
-    final actionLabel = _busy
+    final actionLabel = _exportOperationActive
         ? 'Exporting...'
         : _jobs.length > 1
         ? 'Export all'
         : 'Export';
     return _navigationToolbar(
       leadingLabel: 'Edit',
-      onLeadingPressed: _busy
+      onLeadingPressed: _exportOperationActive
           ? null
           : () => setState(() => _step = EditorWorkflowStep.edit),
       title: 'Export',
@@ -1039,13 +1044,15 @@ class _EditorPageState extends State<EditorPage> {
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
         minimumSize: const Size(44, 44),
         borderRadius: BorderRadius.circular(99),
-        onPressed: (_busy || videoUnavailable) ? null : _commitExport,
+        onPressed: (_exportOperationActive || videoUnavailable)
+            ? null
+            : _commitExport,
         child: Text(
           actionLabel,
           maxLines: 1,
           style: TextStyle(
             color: CupertinoColors.white.withValues(
-              alpha: (_busy || videoUnavailable) ? .38 : 1,
+              alpha: (_exportOperationActive || videoUnavailable) ? .38 : 1,
             ),
             fontWeight: FontWeight.w600,
           ),
@@ -1480,7 +1487,7 @@ class _EditorPageState extends State<EditorPage> {
             children: [
               Expanded(
                 child: CupertinoButton(
-                  onPressed: _busy
+                  onPressed: _exportOperationActive
                       ? null
                       : () => setState(() => _step = EditorWorkflowStep.edit),
                   child: const Text('Back to edit'),
@@ -1489,9 +1496,11 @@ class _EditorPageState extends State<EditorPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: CupertinoButton.filled(
-                  onPressed: (_busy || videoUnavailable) ? null : _commitExport,
+                  onPressed: (_exportOperationActive || videoUnavailable)
+                      ? null
+                      : _commitExport,
                   child: Text(
-                    _busy
+                    _exportOperationActive
                         ? 'Exporting...'
                         : _jobs.length > 1
                         ? 'Export all'
@@ -1680,7 +1689,7 @@ class _EditorPageState extends State<EditorPage> {
         !VideoRestorationService.isBackendAvailableOnCurrentPlatform;
     final canExportSelected =
         selected != null &&
-        !_busy &&
+        !_exportOperationActive &&
         !videoUnavailable &&
         selected.status.canStartIndividualExport;
     final actionLabel = switch (selected?.status) {
@@ -1735,7 +1744,7 @@ class _EditorPageState extends State<EditorPage> {
                   vertical: 8,
                 ),
                 minimumSize: Size.zero,
-                onPressed: _busy ? null : _showQueueOverview,
+                onPressed: _exportOperationActive ? null : _showQueueOverview,
                 child: const Text('Manage'),
               ),
             ],
@@ -2068,7 +2077,9 @@ class _EditorPageState extends State<EditorPage> {
                 ),
             },
             onValueChanged: (value) {
-              if (value != null) _applyExportPreset(value);
+              if (value != null && !_exportOperationActive) {
+                _applyExportPreset(value);
+              }
             },
           ),
           const SizedBox(height: 8),
@@ -2089,7 +2100,7 @@ class _EditorPageState extends State<EditorPage> {
                   ),
               },
               onValueChanged: (value) {
-                if (value != null) {
+                if (value != null && !_exportOperationActive) {
                   setState(() {
                     _exportPreset = ExportPreset.proEdit;
                     _exportOptions = _exportOptions.copyWith(
@@ -2122,7 +2133,7 @@ class _EditorPageState extends State<EditorPage> {
                 ),
               },
               onValueChanged: (value) {
-                if (value != null) {
+                if (value != null && !_exportOperationActive) {
                   setState(() {
                     _exportPreset = ExportPreset.proEdit;
                     _exportOptions = _exportOptions.copyWith(
@@ -2186,7 +2197,7 @@ class _EditorPageState extends State<EditorPage> {
                       vertical: 5,
                     ),
                     minimumSize: Size.zero,
-                    onPressed: _busy
+                    onPressed: _exportOperationActive
                         ? null
                         : () => unawaited(_chooseExportDirectory()),
                     child: const Text('Change'),
@@ -2215,7 +2226,9 @@ class _EditorPageState extends State<EditorPage> {
               max: 100,
               divisions: 30,
               format: (v) => v.round().toString(),
-              onChanged: (v) => _setJpegQuality(v.round()),
+              onChanged: _exportOperationActive
+                  ? null
+                  : (v) => _setJpegQuality(v.round()),
             ),
           _switchRow(
             title: 'Strip metadata',
@@ -2722,14 +2735,51 @@ class _EditorPageState extends State<EditorPage> {
     });
   }
 
-  Future<void> _commitExport() async {
-    if (!await _prepareExportDestinations()) return;
-    await (_jobs.length > 1 ? _processQueue() : _processSelected());
-  }
+  Future<void> _commitExport() => _startExport(selectedOnly: false);
 
-  Future<void> _commitSelectedExport() async {
-    if (!await _prepareExportDestinations()) return;
-    await _processSelected();
+  Future<void> _commitSelectedExport() => _startExport(selectedOnly: true);
+
+  Future<void> _startExport({required bool selectedOnly}) async {
+    if (_exportOperationActive || _jobs.isEmpty) return;
+    final selectedId = _selectedJob?.id;
+    if (selectedId == null) return;
+    setState(() {
+      _exportStartPending = true;
+      _status = 'Preparing export...';
+    });
+    try {
+      if (!await _prepareExportDestinations() || !mounted) return;
+      if (selectedOnly || _jobs.length == 1) {
+        await _processSelected(selectedId);
+      } else {
+        await _processQueue();
+      }
+    } on Object catch (error) {
+      if (!mounted) return;
+      final message = _friendlyError(error);
+      setState(() {
+        _jobs = [
+          for (final job in _jobs)
+            if (job.status == JobStatus.processing)
+              job.copyWith(
+                status: JobStatus.failed,
+                error: message,
+                progress: 0,
+              )
+            else
+              job,
+        ];
+        _status = 'Failed: $message';
+      });
+      await _showAlert('Export failed', message);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _exportStartPending = false;
+          _busy = false;
+        });
+      }
+    }
   }
 
   Future<bool> _prepareExportDestinations() async {
@@ -2739,10 +2789,11 @@ class _EditorPageState extends State<EditorPage> {
     return _chooseExportDirectory();
   }
 
-  Future<void> _processSelected() async {
-    final selected = _selectedJob;
-    if (selected == null) return;
-    final exported = await _processJob(_selectedIndex);
+  Future<void> _processSelected(String id) async {
+    final selectedIndex = _jobs.indexWhere((job) => job.id == id);
+    if (selectedIndex < 0) return;
+    final selected = _jobs[selectedIndex];
+    final exported = await _processJob(id);
     if (!exported || !mounted) return;
     setState(() {
       _removeExportedJobFromQueue(selected.id);
@@ -2772,7 +2823,7 @@ class _EditorPageState extends State<EditorPage> {
         setState(() => _removeExportedJobFromQueue(id));
         continue;
       }
-      final exported = await _processJob(index, partOfBatch: true);
+      final exported = await _processJob(id, partOfBatch: true);
       if (exported && mounted) {
         exportedCount++;
         setState(() => _removeExportedJobFromQueue(id));
@@ -2796,8 +2847,9 @@ class _EditorPageState extends State<EditorPage> {
     }
   }
 
-  Future<bool> _processJob(int index, {bool partOfBatch = false}) async {
-    if (index < 0 || index >= _jobs.length) return false;
+  Future<bool> _processJob(String id, {bool partOfBatch = false}) async {
+    var index = _jobs.indexWhere((job) => job.id == id);
+    if (index < 0) return false;
     if (!partOfBatch && _busy) return false;
     var job = _jobs[index];
     if (job.kind.isVideo &&
@@ -2834,6 +2886,8 @@ class _EditorPageState extends State<EditorPage> {
         rawDescriptor = descriptor;
       }
     }
+    index = _jobs.indexWhere((item) => item.id == id);
+    if (index < 0 || !mounted) return false;
     setState(() {
       _storeSelectedEditState();
       if (!partOfBatch) {
@@ -2856,6 +2910,8 @@ class _EditorPageState extends State<EditorPage> {
     String? generatedOutput;
     try {
       final trim = _currentTrimSettings();
+      index = _jobs.indexWhere((item) => item.id == id);
+      if (index < 0) return false;
       job = _jobs[index];
       final output = switch (job.kind) {
         MediaKind.photo => await _restorePhoto(job.inputPath),
@@ -2913,8 +2969,8 @@ class _EditorPageState extends State<EditorPage> {
       }
       if (!mounted) return false;
       setState(() {
-        _updateJob(
-          index,
+        _updateJobById(
+          id,
           (old) => old.copyWith(
             status: JobStatus.complete,
             outputPath: _exportOptions.keepLocalCopy ? output : null,
@@ -2935,8 +2991,8 @@ class _EditorPageState extends State<EditorPage> {
       if (!mounted) return false;
       final message = _friendlyError(error);
       setState(() {
-        _updateJob(
-          index,
+        _updateJobById(
+          id,
           (old) => old.copyWith(
             status: JobStatus.failed,
             error: message,
@@ -3010,6 +3066,11 @@ class _EditorPageState extends State<EditorPage> {
     _jobs = copy;
   }
 
+  void _updateJobById(String id, MediaJob Function(MediaJob old) update) {
+    final index = _jobs.indexWhere((job) => job.id == id);
+    if (index >= 0) _updateJob(index, update);
+  }
+
   void _removeExportedJobFromQueue(String id) {
     _storeSelectedEditState();
     final result = removeMediaJobFromQueue(
@@ -3033,7 +3094,7 @@ class _EditorPageState extends State<EditorPage> {
       builder: (_) => QueueOverviewSheet(
         jobs: _jobs,
         selectedJobId: _selectedJob?.id,
-        busy: _busy,
+        busy: _exportOperationActive,
         onSelected: (id) => _selectJob(id, openEditor: openEditorOnSelect),
         onRemove: _removeJob,
       ),
@@ -3042,12 +3103,14 @@ class _EditorPageState extends State<EditorPage> {
 
   void _selectJob(String id, {bool openEditor = false}) {
     final index = _jobs.indexWhere((job) => job.id == id);
-    if (index < 0 || _busy) return;
+    if (index < 0 || _exportOperationActive) return;
     _selectJobIndex(index, openEditor: openEditor);
   }
 
   void _selectJobIndex(int index, {bool openEditor = false}) {
-    if (index < 0 || index >= _jobs.length || _busy) return;
+    if (index < 0 || index >= _jobs.length || _exportOperationActive) {
+      return;
+    }
     setState(() {
       _storeSelectedEditState();
       _selectedIndex = index;
@@ -3060,8 +3123,7 @@ class _EditorPageState extends State<EditorPage> {
     final index = _jobs.indexWhere((job) => job.id == id);
     if (index < 0) return false;
     final removed = _jobs[index];
-    if (removed.status == JobStatus.processing ||
-        (_busy && removed.status != JobStatus.pending)) {
+    if (removed.status == JobStatus.processing || _exportOperationActive) {
       return false;
     }
     final result = removeMediaJobFromQueue(
@@ -3163,6 +3225,7 @@ class _EditorPageState extends State<EditorPage> {
           path,
         );
       }
+      if (!mounted) return false;
       setState(() {
         _exportDirectoryPath = path;
         _exportOptions = _exportOptions.withFiles(true);
@@ -3362,7 +3425,7 @@ class _EditorPageState extends State<EditorPage> {
           CupertinoSwitch(
             key: controlKey,
             value: value,
-            onChanged: _busy ? null : onChanged,
+            onChanged: _exportOperationActive ? null : onChanged,
           ),
         ],
       ),
