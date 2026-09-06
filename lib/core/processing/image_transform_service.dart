@@ -23,16 +23,45 @@ class ImageTransformService {
     }
 
     final targetAspect = settings.outputAspectRatio(sourceAspectRatio);
-    final straighten = settings.straightenDegrees.clamp(-45.0, 45.0);
-    final widthBeforeStraighten = output.width.toDouble();
-    final heightBeforeStraighten = output.height.toDouble();
-    if (straighten.abs() > .0000001) {
-      output = img.copyRotate(
+    final normalizedCrop = settings.normalizedCropRect(sourceAspectRatio);
+    final cropX = (normalizedCrop.left * output.width)
+        .floor()
+        .clamp(0, output.width - 1)
+        .toInt();
+    final cropY = (normalizedCrop.top * output.height)
+        .floor()
+        .clamp(0, output.height - 1)
+        .toInt();
+    final cropWidth = (normalizedCrop.width * output.width)
+        .round()
+        .clamp(1, output.width - cropX)
+        .toInt();
+    final cropHeight = (normalizedCrop.height * output.height)
+        .round()
+        .clamp(1, output.height - cropY)
+        .toInt();
+    if (cropX != 0 ||
+        cropY != 0 ||
+        cropWidth != output.width ||
+        cropHeight != output.height) {
+      output = img.copyCrop(
         output,
-        angle: straighten,
-        interpolation: img.Interpolation.cubic,
+        x: cropX,
+        y: cropY,
+        width: cropWidth,
+        height: cropHeight,
       );
     }
+
+    final straighten = settings.straightenDegrees.clamp(-45.0, 45.0);
+    if (straighten.abs() < .0000001) return output;
+    final widthBeforeStraighten = output.width.toDouble();
+    final heightBeforeStraighten = output.height.toDouble();
+    output = img.copyRotate(
+      output,
+      angle: straighten,
+      interpolation: img.Interpolation.cubic,
+    );
 
     final baseCrop = _largestSafeCrop(
       outputWidth: output.width.toDouble(),
@@ -42,19 +71,10 @@ class ImageTransformService {
       targetAspect: targetAspect,
       angleDegrees: straighten,
     );
-    final safeZoom = settings.zoom.clamp(1.0, 4.0).toDouble();
-    final cropWidth = baseCrop.width / safeZoom;
-    final cropHeight = baseCrop.height / safeZoom;
-    final safeX = settings.offsetX.clamp(-1.0, 1.0).toDouble();
-    final safeY = settings.offsetY.clamp(-1.0, 1.0).toDouble();
-    final cropLeft =
-        baseCrop.left + (baseCrop.width - cropWidth) * (safeX + 1) / 2;
-    final cropTop =
-        baseCrop.top + (baseCrop.height - cropHeight) * (safeY + 1) / 2;
-    final x = cropLeft.floor().clamp(0, output.width - 1).toInt();
-    final y = cropTop.floor().clamp(0, output.height - 1).toInt();
-    final width = cropWidth.round().clamp(1, output.width - x).toInt();
-    final height = cropHeight.round().clamp(1, output.height - y).toInt();
+    final x = baseCrop.left.floor().clamp(0, output.width - 1).toInt();
+    final y = baseCrop.top.floor().clamp(0, output.height - 1).toInt();
+    final width = baseCrop.width.round().clamp(1, output.width - x).toInt();
+    final height = baseCrop.height.round().clamp(1, output.height - y).toInt();
     if (x == 0 && y == 0 && width == output.width && height == output.height) {
       return output;
     }

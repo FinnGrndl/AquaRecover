@@ -60,6 +60,7 @@ class EditorPage extends StatefulWidget {
     this.inspectionService = const MediaInspectionService(),
     this.imageService = const ImageRestorationService(),
     this.photoMediaPicker,
+    this.onShowTutorial,
   });
 
   final List<String> initialPaths;
@@ -71,6 +72,7 @@ class EditorPage extends StatefulWidget {
   final MediaInspectionService inspectionService;
   final ImageRestorationService imageService;
   final PhotoMediaPicker? photoMediaPicker;
+  final VoidCallback? onShowTutorial;
 
   @override
   State<EditorPage> createState() => _EditorPageState();
@@ -105,11 +107,11 @@ class _EditorPageState extends State<EditorPage> {
   String _selectedAdjustmentId = 'recovery';
   bool _toolPanelOpen = true;
   EditorCompareMode _compareMode = EditorCompareMode.edited;
+  EditorCompareMode _exportCompareMode = EditorCompareMode.split;
   EditorPreviewFit _previewFit = EditorPreviewFit.fit;
   bool _busy = false;
   bool _exportStartPending = false;
   bool _cancelRequested = false;
-  double _cropGestureStartZoom = 1;
   String? _status = 'Ready.';
 
   bool get _exportOperationActive => _busy || _exportStartPending;
@@ -726,13 +728,12 @@ class _EditorPageState extends State<EditorPage> {
                   borderRadius: 0,
                   immersiveTopInset: previewTopInset,
                   immersiveBottomInset:
-                      (panelOpen
-                          ? panelHeight +
-                                (activeGroup == EditorToolGroup.crop ? 30 : 70)
-                          : 108) +
-                      bottomInset,
+                      (panelOpen ? panelHeight + 70 : 108) + bottomInset,
                   transform: _transformSettings,
                   showCropGrid: activeGroup == EditorToolGroup.crop,
+                  onTransformChanged: activeGroup == EditorToolGroup.crop
+                      ? _setTransformSettings
+                      : null,
                   previewFit: activeGroup == EditorToolGroup.crop
                       ? EditorPreviewFit.fit
                       : _previewFit,
@@ -741,12 +742,6 @@ class _EditorPageState extends State<EditorPage> {
                       _setVideoDuration(job.id, duration),
                 ),
               ),
-              onScaleStart: activeGroup == EditorToolGroup.crop
-                  ? _startCropGesture
-                  : null,
-              onScaleUpdate: activeGroup == EditorToolGroup.crop
-                  ? _updateCropGesture
-                  : null,
               heldIndicator: Positioned(
                 top:
                     topInset +
@@ -858,6 +853,7 @@ class _EditorPageState extends State<EditorPage> {
   Widget _previewCompareButton({
     required EditorCompareMode mode,
     required VoidCallback onPressed,
+    Key buttonKey = const Key('editor_preview_compare'),
   }) {
     final showingSplit = mode.isSplit;
     final actionLabel = showingSplit
@@ -873,7 +869,7 @@ class _EditorPageState extends State<EditorPage> {
         selected: showingSplit,
         label: actionLabel,
         child: CupertinoButton(
-          key: const Key('editor_preview_compare'),
+          key: buttonKey,
           padding: EdgeInsets.zero,
           minimumSize: const Size(42, 42),
           borderRadius: BorderRadius.circular(99),
@@ -911,6 +907,11 @@ class _EditorPageState extends State<EditorPage> {
 
   void _toggleComparePreview() {
     setState(() => _compareMode = _compareMode.toggled);
+  }
+
+  void _toggleExportComparePreview() {
+    HapticFeedback.selectionClick();
+    setState(() => _exportCompareMode = _exportCompareMode.toggled);
   }
 
   Widget _previewFitButton({
@@ -960,36 +961,6 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  void _startCropGesture(ScaleStartDetails details) {
-    _cropGestureStartZoom = _transformSettings.zoom;
-  }
-
-  void _updateCropGesture(ScaleUpdateDetails details) {
-    if (_busy) return;
-    final zoom = (_cropGestureStartZoom * details.scale)
-        .clamp(1.0, 4.0)
-        .toDouble();
-    final movementScale = 150 * zoom;
-    final offsetX =
-        (_transformSettings.offsetX -
-                details.focalPointDelta.dx / movementScale)
-            .clamp(-1.0, 1.0)
-            .toDouble();
-    final offsetY =
-        (_transformSettings.offsetY -
-                details.focalPointDelta.dy / movementScale)
-            .clamp(-1.0, 1.0)
-            .toDouble();
-    setState(() {
-      _transformSettings = _transformSettings.copyWith(
-        zoom: zoom,
-        offsetX: offsetX,
-        offsetY: offsetY,
-      );
-      _storeSelectedEditState();
-    });
-  }
-
   Widget _editorTopBar(MediaJob job) {
     final title = job.displayName ?? p.basename(job.inputPath);
     return _navigationToolbar(
@@ -1000,7 +971,7 @@ class _EditorPageState extends State<EditorPage> {
       title: title,
       subtitle: '${_settings.preset.label} - ${job.kind.label}',
       trailingWidth: 46,
-      trailingTint: CupertinoColors.systemGrey,
+      trailingTint: CupertinoColors.activeBlue,
       trailing: Tooltip(
         message: 'Review export',
         child: Semantics(
@@ -1011,6 +982,8 @@ class _EditorPageState extends State<EditorPage> {
             padding: EdgeInsets.zero,
             minimumSize: const Size(44, 44),
             borderRadius: BorderRadius.circular(99),
+            color: CupertinoColors.activeBlue,
+            disabledColor: CupertinoColors.activeBlue.withValues(alpha: .38),
             onPressed: _busy
                 ? null
                 : () => setState(() => _step = EditorWorkflowStep.export),
@@ -1034,6 +1007,7 @@ class _EditorPageState extends State<EditorPage> {
         : _jobs.length > 1
         ? 'Export all'
         : 'Export';
+    final exportEnabled = !_exportOperationActive && !videoUnavailable;
     return _navigationToolbar(
       leadingLabel: 'Edit',
       onLeadingPressed: _exportOperationActive
@@ -1041,24 +1015,57 @@ class _EditorPageState extends State<EditorPage> {
           : () => setState(() => _step = EditorWorkflowStep.edit),
       title: 'Export',
       subtitle: _friendlyMediaName(job),
-      trailingWidth: _jobs.length > 1 ? 104 : 82,
+      trailingWidth: _jobs.length > 1 || _exportOperationActive ? 108 : 82,
       trailingTint: CupertinoColors.activeBlue,
-      trailing: CupertinoButton(
-        key: const Key('export_commit'),
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-        minimumSize: const Size(44, 44),
-        borderRadius: BorderRadius.circular(99),
-        onPressed: (_exportOperationActive || videoUnavailable)
-            ? null
-            : _commitExport,
-        child: Text(
-          actionLabel,
-          maxLines: 1,
-          style: TextStyle(
-            color: CupertinoColors.white.withValues(
-              alpha: (_exportOperationActive || videoUnavailable) ? .38 : 1,
-            ),
-            fontWeight: FontWeight.w600,
+      trailing: Semantics(
+        button: true,
+        enabled: exportEnabled,
+        label: actionLabel,
+        liveRegion: _exportOperationActive,
+        child: CupertinoButton(
+          key: const Key('export_commit'),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          minimumSize: const Size(44, 44),
+          borderRadius: BorderRadius.circular(99),
+          color: CupertinoColors.activeBlue,
+          disabledColor: CupertinoColors.activeBlue.withValues(alpha: .38),
+          onPressed: exportEnabled ? _commitExport : null,
+          child: AnimatedSwitcher(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 160),
+            child: _exportOperationActive
+                ? const Row(
+                    key: Key('export_commit_progress'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CupertinoActivityIndicator(
+                        radius: 8,
+                        color: CupertinoColors.white,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Exporting',
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: CupertinoColors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    actionLabel,
+                    key: const Key('export_commit_label'),
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: CupertinoColors.white.withValues(
+                        alpha: exportEnabled ? 1 : .62,
+                      ),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
           ),
         ),
       ),
@@ -1659,17 +1666,42 @@ class _EditorPageState extends State<EditorPage> {
     final sourceAspectRatio = _previewAspectRatio(job);
     return AspectRatio(
       aspectRatio: _transformSettings.outputAspectRatio(sourceAspectRatio),
-      child: EditorPreviewStage(
-        job: job,
-        settings: _settings,
-        compareMode: EditorCompareMode.split,
-        lutProfile: _lutProfile,
-        showHeader: false,
-        borderRadius: 16,
-        transform: _transformSettings,
-        previewFit: EditorPreviewFit.fill,
-        videoPreviewPosition: _videoPreviewPositions[job.id],
-        onVideoDurationKnown: (duration) => _setVideoDuration(job.id, duration),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          EditorHoldPreview(
+            key: const Key('export_preview_hold'),
+            compareMode: _exportCompareMode,
+            previewBuilder: (mode) => EditorPreviewStage(
+              key: const Key('export_preview_stage'),
+              job: job,
+              settings: _settings,
+              compareMode: mode,
+              lutProfile: _lutProfile,
+              showHeader: false,
+              borderRadius: 16,
+              transform: _transformSettings,
+              previewFit: EditorPreviewFit.fill,
+              videoPreviewPosition: _videoPreviewPositions[job.id],
+              onVideoDurationKnown: (duration) =>
+                  _setVideoDuration(job.id, duration),
+            ),
+            heldIndicator: Positioned(
+              left: 10,
+              top: 10,
+              child: _darkPill('Original'),
+            ),
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: _previewCompareButton(
+              buttonKey: const Key('export_preview_compare'),
+              mode: _exportCompareMode,
+              onPressed: _toggleExportComparePreview,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3315,6 +3347,17 @@ class _EditorPageState extends State<EditorPage> {
           ),
         ),
         actions: [
+          if (widget.onShowTutorial != null)
+            CupertinoDialogAction(
+              onPressed: () {
+                final navigator = Navigator.of(context);
+                navigator.pop();
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) widget.onShowTutorial?.call();
+                });
+              },
+              child: const Text('Quick Tour'),
+            ),
           CupertinoDialogAction(
             onPressed: () {
               final navigator = Navigator.of(context);
@@ -3431,7 +3474,10 @@ class _EditorPageState extends State<EditorPage> {
     if (width == null || height == null || width <= 0 || height <= 0) {
       return 4 / 3;
     }
-    return (width / height).clamp(.68, 1.65).toDouble();
+    // Crop geometry must use the real source ratio. Clamping it makes the
+    // overlay disagree with portrait and panoramic media and can place the
+    // requested crop outside the actual image.
+    return width / height;
   }
 
   Widget _switchRow({

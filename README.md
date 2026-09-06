@@ -28,6 +28,8 @@ Signed iOS builds are distributed privately through TestFlight.
 
 ## How the app behaves
 
+- A short, skippable Quick Tour explains the workflow on first launch. It can
+  be opened again from the app information dialog at any time.
 - Selecting one image opens the editor after the initial preview is ready.
 - Selecting several images creates one batch automatically. No output file is
   written until an export action is confirmed in the export view.
@@ -126,13 +128,15 @@ The preview button switches between the edited image and a side-by-side split.
 The adjacent view button switches between fitting the complete image and
 filling the preview area. Outside the Crop tab, a two-finger pinch zooms the
 preview for detail inspection and a double-tap resets that view. Pressing and
-holding the normal edited preview temporarily shows the original. The Crop tab
-applies a nondestructive crop, 90-degree rotation, straightening, horizontal or
-vertical flip, and its own pinch positioning. Original, square, 4:3, 16:9, and
-freeform aspect ratios are available; portrait media keeps the corresponding
-portrait orientation. A selected aspect ratio always fills the crop frame, so
-the frame cannot extend beyond the source image. LUT selection and intensity
-live in the dedicated **LUT** tab.
+holding the normal edited preview temporarily shows the original. These compare
+controls remain available during export review. The Crop tab applies a
+nondestructive crop, 90-degree rotation, straightening, horizontal or vertical
+flip, and its own pinch positioning. Every edge and corner of the crop frame can
+be dragged; fixed formats preserve their ratio while **Free** allows independent
+resizing. Original, square, 4:3, 16:9, and freeform aspect ratios are available;
+portrait media keeps the corresponding portrait orientation. A selected aspect
+ratio always fills the crop frame, so the frame cannot extend beyond the source
+image. LUT selection and intensity live in the dedicated **LUT** tab.
 
 ## Platform support
 

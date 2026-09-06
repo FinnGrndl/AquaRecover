@@ -38,6 +38,10 @@ class NormalizedCropRect {
   final double top;
   final double width;
   final double height;
+
+  double get right => left + width;
+
+  double get bottom => top + height;
 }
 
 class ImageTransformSettings {
@@ -99,10 +103,12 @@ class ImageTransformSettings {
   double straightenCoverageScale(double sourceAspectRatio) {
     final degrees = straightenDegrees.clamp(-45.0, 45.0).abs();
     if (degrees < .0000001) return 1;
-    final source = orientedSourceAspectRatio(sourceAspectRatio);
     final target = outputAspectRatio(sourceAspectRatio);
-    final sourceWidth = source > target ? source : target;
-    final sourceHeight = source > target ? 1.0 : target / source;
+    // BoxFit.cover paints the selected crop into the target viewport before
+    // the straighten transform runs. Its painted bounds therefore have the
+    // target ratio, regardless of the uncropped source dimensions.
+    final sourceWidth = target;
+    const sourceHeight = 1.0;
     final radians = degrees * math.pi / 180;
     final cosine = math.cos(radians).abs();
     final sine = math.sin(radians).abs();
@@ -136,6 +142,70 @@ class ImageTransformSettings {
       top: (1 - height) * (safeY + 1) / 2,
       width: width,
       height: height,
+    );
+  }
+
+  /// Returns settings that describe [rect] in the oriented source image.
+  ///
+  /// Crop gestures work with a normalized rectangle while the persisted edit
+  /// model uses aspect ratio, zoom, and offsets. Keeping the conversion here
+  /// makes preview gestures and the full-resolution export use the same crop.
+  ImageTransformSettings withNormalizedCropRect(
+    NormalizedCropRect rect,
+    double sourceAspectRatio,
+  ) {
+    final oriented = orientedSourceAspectRatio(sourceAspectRatio);
+    final left = rect.left.clamp(0.0, .9999).toDouble();
+    final top = rect.top.clamp(0.0, .9999).toDouble();
+    final right = rect.right.clamp(left + .0001, 1.0).toDouble();
+    final bottom = rect.bottom.clamp(top + .0001, 1.0).toDouble();
+    final requestedWidth = right - left;
+    final requestedHeight = bottom - top;
+    final requestedAspect = (requestedWidth * oriented / requestedHeight)
+        .clamp(.25, 4.0)
+        .toDouble();
+    final nextCustomAspect = aspectRatio == CropAspectRatio.freeform
+        ? requestedAspect
+        : customAspectRatio;
+    final target = aspectRatio.resolve(
+      oriented,
+      customAspectRatio: nextCustomAspect,
+    );
+
+    var baseWidth = 1.0;
+    var baseHeight = 1.0;
+    if (oriented > target) {
+      baseWidth = target / oriented;
+    } else if (oriented < target) {
+      baseHeight = oriented / target;
+    }
+    final zoom = math
+        .min(baseWidth / requestedWidth, baseHeight / requestedHeight)
+        .clamp(1.0, 4.0)
+        .toDouble();
+    final width = baseWidth / zoom;
+    final height = baseHeight / zoom;
+    final centerX = (left + right) / 2;
+    final centerY = (top + bottom) / 2;
+    final resolvedLeft = (centerX - width / 2)
+        .clamp(0.0, 1.0 - width)
+        .toDouble();
+    final resolvedTop = (centerY - height / 2)
+        .clamp(0.0, 1.0 - height)
+        .toDouble();
+    final horizontalTravel = 1 - width;
+    final verticalTravel = 1 - height;
+    final x = horizontalTravel <= .0000001
+        ? 0.0
+        : (resolvedLeft / horizontalTravel * 2 - 1).clamp(-1.0, 1.0).toDouble();
+    final y = verticalTravel <= .0000001
+        ? 0.0
+        : (resolvedTop / verticalTravel * 2 - 1).clamp(-1.0, 1.0).toDouble();
+    return copyWith(
+      customAspectRatio: nextCustomAspect,
+      zoom: zoom,
+      offsetX: x,
+      offsetY: y,
     );
   }
 
