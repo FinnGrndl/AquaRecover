@@ -8,6 +8,7 @@ semantic versioning; the number after `+` is the platform build number.
 ### Added
 
 - Adopt Apple-style toolbars and stabilize export (#19)
+- Edit crop and export page (#21)
 
 ### Fixed
 
