@@ -979,6 +979,37 @@ void main() {
     expect(find.byKey(const Key('editor_review_export')), findsOneWidget);
   });
 
+  testWidgets('interactive Photos import always opens the editor', (
+    tester,
+  ) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'aquarecover_photo_picker_route_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/picked-photo.jpg');
+    file.writeAsBytesSync(
+      img.encodeJpg(img.Image(width: 16, height: 12), quality: 90),
+    );
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: EditorPage(
+          reviewExportOnStart: true,
+          inspectionService: const _FakeMediaInspectionService(),
+          photoMediaPicker: () async => [file.path],
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('start_choose_photos')));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump();
+    }
+
+    expect(find.byKey(const Key('editor_review_export')), findsOneWidget);
+    expect(find.byKey(const Key('export_commit')), findsNothing);
+  });
+
   testWidgets('export ignores a repeated tap while the first export runs', (
     tester,
   ) async {
