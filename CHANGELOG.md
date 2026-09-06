@@ -8,6 +8,10 @@ semantic versioning; the number after `+` is the platform build number.
 ### Added
 
 - Adopt Apple-style toolbars and stabilize export (#19)
+
+### Fixed
+
+- Open photo imports in editor (#20)
 ## 1.2.0 - 2026-08-10
 
 ### Added
