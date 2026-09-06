@@ -46,6 +46,8 @@ import 'widgets/raw_video_dialog.dart';
 import 'widgets/setting_slider.dart';
 import 'widgets/video_frame_preview_tile.dart';
 
+typedef PhotoMediaPicker = Future<List<String>> Function();
+
 class EditorPage extends StatefulWidget {
   const EditorPage({
     super.key,
@@ -57,6 +59,7 @@ class EditorPage extends StatefulWidget {
     this.libraryOnStart = false,
     this.inspectionService = const MediaInspectionService(),
     this.imageService = const ImageRestorationService(),
+    this.photoMediaPicker,
   });
 
   final List<String> initialPaths;
@@ -67,6 +70,7 @@ class EditorPage extends StatefulWidget {
   final bool libraryOnStart;
   final MediaInspectionService inspectionService;
   final ImageRestorationService imageService;
+  final PhotoMediaPicker? photoMediaPicker;
 
   @override
   State<EditorPage> createState() => _EditorPageState();
@@ -582,7 +586,7 @@ class _EditorPageState extends State<EditorPage> {
           ),
         ),
         const SizedBox(height: 28),
-        if (_supportsPhotoLibrary) ...[
+        if (_supportsPhotoLibrary || widget.photoMediaPicker != null) ...[
           CupertinoButton(
             key: const Key('start_choose_photos'),
             color: CupertinoColors.white,
@@ -2590,45 +2594,51 @@ class _EditorPageState extends State<EditorPage> {
       setState(() => _status = 'No file selected.');
       return;
     }
-    await _addPaths(paths, MediaSource.files);
+    await _addPaths(
+      paths,
+      MediaSource.files,
+      destination: EditorWorkflowStep.edit,
+    );
   }
 
   Future<void> _importFromPhotos() async {
-    if (!_supportsPhotoLibrary) {
+    if (!_supportsPhotoLibrary && widget.photoMediaPicker == null) {
       await _pickFiles();
       return;
     }
     List<String>? paths;
-    final useSystemPicker = await _photoLibraryService.shouldUseSystemPicker(
-      isIOS: Platform.isIOS,
-      fallbackShortestSide: MediaQuery.sizeOf(context).shortestSide,
-    );
-    if (!mounted) return;
-    if (useSystemPicker) {
-      setState(() {
-        _busy = true;
-        _status = 'Waiting for your Photos selection...';
-      });
-      try {
-        final picked = await _imagePicker.pickMultipleMedia(
-          requestFullMetadata: false,
-        );
-        paths = picked.map((file) => file.path).toList(growable: false);
-      } on Object catch (error) {
+    try {
+      if (widget.photoMediaPicker != null) {
+        paths = await _runPhotoPicker(widget.photoMediaPicker!);
+      } else {
+        final useSystemPicker = await _photoLibraryService
+            .shouldUseSystemPicker(
+              isIOS: Platform.isIOS,
+              fallbackShortestSide: MediaQuery.sizeOf(context).shortestSide,
+            );
         if (!mounted) return;
-        setState(() {
-          _busy = false;
-          _status = 'Photos import failed: ${_friendlyError(error)}';
-        });
-        await _showAlert('Photos import failed', _friendlyError(error));
-        return;
+        if (useSystemPicker) {
+          paths = await _runPhotoPicker(() async {
+            final picked = await _imagePicker.pickMultipleMedia(
+              requestFullMetadata: false,
+            );
+            return picked.map((file) => file.path).toList(growable: false);
+          });
+        } else {
+          paths = await showCupertinoModalPopup<List<String>>(
+            context: context,
+            builder: (_) => PhotoLibrarySheet(service: _photoLibraryService),
+          );
+        }
       }
-      if (mounted) setState(() => _busy = false);
-    } else {
-      paths = await showCupertinoModalPopup<List<String>>(
-        context: context,
-        builder: (_) => PhotoLibrarySheet(service: _photoLibraryService),
-      );
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _status = 'Photos import failed: ${_friendlyError(error)}';
+      });
+      await _showAlert('Photos import failed', _friendlyError(error));
+      return;
     }
     if (paths == null || paths.isEmpty) {
       if (mounted) {
@@ -2636,7 +2646,23 @@ class _EditorPageState extends State<EditorPage> {
       }
       return;
     }
-    await _addPaths(paths, MediaSource.photos);
+    await _addPaths(
+      paths,
+      MediaSource.photos,
+      destination: EditorWorkflowStep.edit,
+    );
+  }
+
+  Future<List<String>> _runPhotoPicker(PhotoMediaPicker picker) async {
+    setState(() {
+      _busy = true;
+      _status = 'Waiting for your Photos selection...';
+    });
+    try {
+      return await picker();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   bool get _supportsPhotoLibrary =>
@@ -2658,7 +2684,11 @@ class _EditorPageState extends State<EditorPage> {
     });
   }
 
-  Future<void> _addPaths(List<String> paths, MediaSource source) async {
+  Future<void> _addPaths(
+    List<String> paths,
+    MediaSource source, {
+    EditorWorkflowStep? destination,
+  }) async {
     setState(() {
       _busy = true;
       _status = 'Inspecting imported media...';
@@ -2718,11 +2748,13 @@ class _EditorPageState extends State<EditorPage> {
       }
       _selectedIndex = startIndex;
       _loadEditStateForIndex(startIndex);
-      _step = widget.libraryOnStart
-          ? EditorWorkflowStep.import
-          : widget.reviewExportOnStart
-          ? EditorWorkflowStep.export
-          : EditorWorkflowStep.edit;
+      _step =
+          destination ??
+          (widget.libraryOnStart
+              ? EditorWorkflowStep.import
+              : widget.reviewExportOnStart
+              ? EditorWorkflowStep.export
+              : EditorWorkflowStep.edit);
       _selectedToolGroup = widget.initialToolGroup ?? EditorToolGroup.presets;
       _selectedAdjustmentId = 'recovery';
       _toolPanelOpen = true;
