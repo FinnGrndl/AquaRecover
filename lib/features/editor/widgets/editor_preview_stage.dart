@@ -92,6 +92,7 @@ class EditorPreviewStage extends StatelessWidget {
     this.immersiveTopInset = 54,
     this.transform = const ImageTransformSettings(),
     this.showCropGrid = false,
+    this.onTransformChanged,
     this.previewFit = EditorPreviewFit.fit,
     this.videoPreviewPosition,
     this.onVideoDurationKnown,
@@ -108,6 +109,7 @@ class EditorPreviewStage extends StatelessWidget {
   final double immersiveTopInset;
   final ImageTransformSettings transform;
   final bool showCropGrid;
+  final ValueChanged<ImageTransformSettings>? onTransformChanged;
   final EditorPreviewFit previewFit;
   final Duration? videoPreviewPosition;
   final ValueChanged<Duration>? onVideoDurationKnown;
@@ -200,6 +202,9 @@ class EditorPreviewStage extends StatelessWidget {
       settings: transform,
       sourceAspectRatio: sourceAspect,
       showGrid: showCropGrid && compareMode != EditorCompareMode.split,
+      onCropChanged: showCropGrid && compareMode != EditorCompareMode.split
+          ? onTransformChanged
+          : null,
       previewFit: previewFit,
       builder: builder,
     );
