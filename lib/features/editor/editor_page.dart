@@ -46,6 +46,8 @@ import 'widgets/raw_video_dialog.dart';
 import 'widgets/setting_slider.dart';
 import 'widgets/video_frame_preview_tile.dart';
 
+typedef PhotoMediaPicker = Future<List<String>> Function();
+
 class EditorPage extends StatefulWidget {
   const EditorPage({
     super.key,
@@ -56,6 +58,8 @@ class EditorPage extends StatefulWidget {
     this.reviewExportOnStart = false,
     this.libraryOnStart = false,
     this.inspectionService = const MediaInspectionService(),
+    this.imageService = const ImageRestorationService(),
+    this.photoMediaPicker,
   });
 
   final List<String> initialPaths;
@@ -65,13 +69,15 @@ class EditorPage extends StatefulWidget {
   final bool reviewExportOnStart;
   final bool libraryOnStart;
   final MediaInspectionService inspectionService;
+  final ImageRestorationService imageService;
+  final PhotoMediaPicker? photoMediaPicker;
 
   @override
   State<EditorPage> createState() => _EditorPageState();
 }
 
 class _EditorPageState extends State<EditorPage> {
-  final _imageService = const ImageRestorationService();
+  late final ImageRestorationService _imageService = widget.imageService;
   final _videoService = const VideoRestorationService();
   final _rawService = RawProcessingService();
   final _photoLibraryService = const PhotoLibraryService();
@@ -101,9 +107,12 @@ class _EditorPageState extends State<EditorPage> {
   EditorCompareMode _compareMode = EditorCompareMode.edited;
   EditorPreviewFit _previewFit = EditorPreviewFit.fit;
   bool _busy = false;
+  bool _exportStartPending = false;
   bool _cancelRequested = false;
   double _cropGestureStartZoom = 1;
   String? _status = 'Ready.';
+
+  bool get _exportOperationActive => _busy || _exportStartPending;
 
   MediaJob? get _selectedJob {
     if (_jobs.isEmpty) return null;
@@ -577,7 +586,7 @@ class _EditorPageState extends State<EditorPage> {
           ),
         ),
         const SizedBox(height: 28),
-        if (_supportsPhotoLibrary) ...[
+        if (_supportsPhotoLibrary || widget.photoMediaPicker != null) ...[
           CupertinoButton(
             key: const Key('start_choose_photos'),
             color: CupertinoColors.white,
@@ -983,34 +992,101 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _editorTopBar(MediaJob job) {
     final title = job.displayName ?? p.basename(job.inputPath);
-    return _floatingGlass(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      borderRadius: 22,
-      child: Row(
-        children: [
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            minimumSize: Size.zero,
+    return _navigationToolbar(
+      leadingLabel: 'Library',
+      onLeadingPressed: _busy
+          ? null
+          : () => setState(() => _step = EditorWorkflowStep.import),
+      title: title,
+      subtitle: '${_settings.preset.label} - ${job.kind.label}',
+      trailingWidth: 46,
+      trailingTint: CupertinoColors.systemGrey,
+      trailing: Tooltip(
+        message: 'Review export',
+        child: Semantics(
+          button: true,
+          label: 'Review export',
+          child: CupertinoButton(
+            key: const Key('editor_review_export'),
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(44, 44),
+            borderRadius: BorderRadius.circular(99),
             onPressed: _busy
                 ? null
-                : () => setState(() => _step = EditorWorkflowStep.import),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  CupertinoIcons.chevron_left,
-                  size: 18,
-                  color: CupertinoColors.white,
-                ),
-                SizedBox(width: 4),
-                Text('Library', style: TextStyle(color: CupertinoColors.white)),
-              ],
+                : () => setState(() => _step = EditorWorkflowStep.export),
+            child: Icon(
+              CupertinoIcons.check_mark,
+              color: CupertinoColors.white.withValues(alpha: _busy ? .38 : 1),
+              size: 21,
             ),
           ),
-          const SizedBox(width: 6),
-          Expanded(
+        ),
+      ),
+    );
+  }
+
+  Widget _exportTopBar(MediaJob job) {
+    final videoUnavailable =
+        job.kind.isVideo &&
+        !VideoRestorationService.isBackendAvailableOnCurrentPlatform;
+    final actionLabel = _exportOperationActive
+        ? 'Exporting...'
+        : _jobs.length > 1
+        ? 'Export all'
+        : 'Export';
+    return _navigationToolbar(
+      leadingLabel: 'Edit',
+      onLeadingPressed: _exportOperationActive
+          ? null
+          : () => setState(() => _step = EditorWorkflowStep.edit),
+      title: 'Export',
+      subtitle: _friendlyMediaName(job),
+      trailingWidth: _jobs.length > 1 ? 104 : 82,
+      trailingTint: CupertinoColors.activeBlue,
+      trailing: CupertinoButton(
+        key: const Key('export_commit'),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+        minimumSize: const Size(44, 44),
+        borderRadius: BorderRadius.circular(99),
+        onPressed: (_exportOperationActive || videoUnavailable)
+            ? null
+            : _commitExport,
+        child: Text(
+          actionLabel,
+          maxLines: 1,
+          style: TextStyle(
+            color: CupertinoColors.white.withValues(
+              alpha: (_exportOperationActive || videoUnavailable) ? .38 : 1,
+            ),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navigationToolbar({
+    required String leadingLabel,
+    required VoidCallback? onLeadingPressed,
+    required String title,
+    required String subtitle,
+    required double trailingWidth,
+    required Widget trailing,
+    Color? trailingTint,
+  }) {
+    const leadingWidth = 108.0;
+    return SizedBox(
+      height: 48,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned(
+            left: leadingWidth + 8,
+            right: trailingWidth + 8,
+            top: 3,
+            bottom: 3,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   title,
@@ -1021,119 +1097,87 @@ class _EditorPageState extends State<EditorPage> {
                       .copyWith(
                         color: CupertinoColors.white,
                         fontWeight: FontWeight.w700,
+                        shadows: const [
+                          Shadow(
+                            color: Color(0x99000000),
+                            blurRadius: 8,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
                       ),
                 ),
                 Text(
-                  '${_settings.preset.label} - ${job.kind.label}',
+                  subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: CupertinoTheme.of(context).textTheme.textStyle
                       .copyWith(
                         color: CupertinoColors.white.withValues(alpha: .72),
-                        fontSize: 12,
+                        fontSize: 11,
+                        shadows: const [
+                          Shadow(color: Color(0xaa000000), blurRadius: 7),
+                        ],
                       ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 6),
-          Tooltip(
-            message: 'Review export',
-            child: Semantics(
-              button: true,
-              label: 'Review export',
-              child: CupertinoButton(
-                key: const Key('editor_review_export'),
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(44, 38),
-                borderRadius: BorderRadius.circular(16),
-                color: CupertinoColors.systemGrey.withValues(alpha: .72),
-                onPressed: _busy
-                    ? null
-                    : () => setState(() => _step = EditorWorkflowStep.export),
-                child: const Icon(
-                  CupertinoIcons.check_mark,
-                  color: CupertinoColors.white,
-                  size: 21,
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: leadingWidth,
+              height: 46,
+              child: EditorGlassSurface(
+                style: EditorGlassStyle.clear,
+                borderRadius: 99,
+                shadow: true,
+                child: CupertinoButton(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(44, 44),
+                  borderRadius: BorderRadius.circular(99),
+                  onPressed: onLeadingPressed,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        CupertinoIcons.chevron_back,
+                        size: 20,
+                        color: CupertinoColors.white.withValues(
+                          alpha: onLeadingPressed == null ? .38 : 1,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Flexible(
+                        child: Text(
+                          leadingLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: CupertinoColors.white.withValues(
+                              alpha: onLeadingPressed == null ? .38 : 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _exportTopBar(MediaJob job) {
-    final videoUnavailable =
-        job.kind.isVideo &&
-        !VideoRestorationService.isBackendAvailableOnCurrentPlatform;
-    return _floatingGlass(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      borderRadius: 22,
-      child: Row(
-        children: [
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            minimumSize: Size.zero,
-            onPressed: _busy
-                ? null
-                : () => setState(() => _step = EditorWorkflowStep.edit),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  CupertinoIcons.chevron_left,
-                  size: 18,
-                  color: CupertinoColors.white,
-                ),
-                SizedBox(width: 4),
-                Text('Edit', style: TextStyle(color: CupertinoColors.white)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Export',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: CupertinoTheme.of(context).textTheme.textStyle
-                      .copyWith(
-                        color: CupertinoColors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                Text(
-                  _friendlyMediaName(job),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: CupertinoTheme.of(context).textTheme.textStyle
-                      .copyWith(
-                        color: CupertinoColors.white.withValues(alpha: .72),
-                        fontSize: 12,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          CupertinoButton.filled(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            minimumSize: Size.zero,
-            onPressed: (_busy || videoUnavailable) ? null : _commitExport,
-            child: Text(
-              _busy
-                  ? 'Exporting...'
-                  : _jobs.length > 1
-                  ? 'Export all'
-                  : 'Export',
+          Align(
+            alignment: Alignment.centerRight,
+            child: SizedBox(
+              width: trailingWidth,
+              height: 46,
+              child: EditorGlassSurface(
+                style: EditorGlassStyle.clear,
+                borderRadius: 99,
+                tint: trailingTint,
+                shadow: true,
+                child: trailing,
+              ),
             ),
           ),
         ],
@@ -1158,7 +1202,8 @@ class _EditorPageState extends State<EditorPage> {
         children: [
           _editorIconButton(
             key: const Key('editor_previous_item'),
-            icon: CupertinoIcons.chevron_left,
+            icon: CupertinoIcons.chevron_back,
+            tooltip: 'Previous item',
             onPressed: _busy || _selectedIndex <= 0
                 ? null
                 : () => _selectJobIndex(_selectedIndex - 1),
@@ -1228,7 +1273,8 @@ class _EditorPageState extends State<EditorPage> {
           const SizedBox(width: 6),
           _editorIconButton(
             key: const Key('editor_next_item'),
-            icon: CupertinoIcons.chevron_right,
+            icon: CupertinoIcons.chevron_forward,
+            tooltip: 'Next item',
             onPressed: _busy || _selectedIndex >= total - 1
                 ? null
                 : () => _selectJobIndex(_selectedIndex + 1),
@@ -1246,12 +1292,9 @@ class _EditorPageState extends State<EditorPage> {
   }) {
     final button = CupertinoButton(
       key: key,
-      padding: const EdgeInsets.all(7),
-      minimumSize: Size.zero,
+      padding: const EdgeInsets.all(8),
+      minimumSize: const Size(34, 34),
       borderRadius: BorderRadius.circular(99),
-      color: CupertinoColors.white.withValues(
-        alpha: onPressed == null ? .08 : .16,
-      ),
       onPressed: onPressed,
       child: Icon(
         icon,
@@ -1448,7 +1491,7 @@ class _EditorPageState extends State<EditorPage> {
             children: [
               Expanded(
                 child: CupertinoButton(
-                  onPressed: _busy
+                  onPressed: _exportOperationActive
                       ? null
                       : () => setState(() => _step = EditorWorkflowStep.edit),
                   child: const Text('Back to edit'),
@@ -1457,9 +1500,11 @@ class _EditorPageState extends State<EditorPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: CupertinoButton.filled(
-                  onPressed: (_busy || videoUnavailable) ? null : _commitExport,
+                  onPressed: (_exportOperationActive || videoUnavailable)
+                      ? null
+                      : _commitExport,
                   child: Text(
-                    _busy
+                    _exportOperationActive
                         ? 'Exporting...'
                         : _jobs.length > 1
                         ? 'Export all'
@@ -1648,7 +1693,7 @@ class _EditorPageState extends State<EditorPage> {
         !VideoRestorationService.isBackendAvailableOnCurrentPlatform;
     final canExportSelected =
         selected != null &&
-        !_busy &&
+        !_exportOperationActive &&
         !videoUnavailable &&
         selected.status.canStartIndividualExport;
     final actionLabel = switch (selected?.status) {
@@ -1703,7 +1748,7 @@ class _EditorPageState extends State<EditorPage> {
                   vertical: 8,
                 ),
                 minimumSize: Size.zero,
-                onPressed: _busy ? null : _showQueueOverview,
+                onPressed: _exportOperationActive ? null : _showQueueOverview,
                 child: const Text('Manage'),
               ),
             ],
@@ -2036,7 +2081,9 @@ class _EditorPageState extends State<EditorPage> {
                 ),
             },
             onValueChanged: (value) {
-              if (value != null) _applyExportPreset(value);
+              if (value != null && !_exportOperationActive) {
+                _applyExportPreset(value);
+              }
             },
           ),
           const SizedBox(height: 8),
@@ -2057,7 +2104,7 @@ class _EditorPageState extends State<EditorPage> {
                   ),
               },
               onValueChanged: (value) {
-                if (value != null) {
+                if (value != null && !_exportOperationActive) {
                   setState(() {
                     _exportPreset = ExportPreset.proEdit;
                     _exportOptions = _exportOptions.copyWith(
@@ -2090,7 +2137,7 @@ class _EditorPageState extends State<EditorPage> {
                 ),
               },
               onValueChanged: (value) {
-                if (value != null) {
+                if (value != null && !_exportOperationActive) {
                   setState(() {
                     _exportPreset = ExportPreset.proEdit;
                     _exportOptions = _exportOptions.copyWith(
@@ -2154,7 +2201,7 @@ class _EditorPageState extends State<EditorPage> {
                       vertical: 5,
                     ),
                     minimumSize: Size.zero,
-                    onPressed: _busy
+                    onPressed: _exportOperationActive
                         ? null
                         : () => unawaited(_chooseExportDirectory()),
                     child: const Text('Change'),
@@ -2183,7 +2230,9 @@ class _EditorPageState extends State<EditorPage> {
               max: 100,
               divisions: 30,
               format: (v) => v.round().toString(),
-              onChanged: (v) => _setJpegQuality(v.round()),
+              onChanged: _exportOperationActive
+                  ? null
+                  : (v) => _setJpegQuality(v.round()),
             ),
           _switchRow(
             title: 'Strip metadata',
@@ -2545,45 +2594,51 @@ class _EditorPageState extends State<EditorPage> {
       setState(() => _status = 'No file selected.');
       return;
     }
-    await _addPaths(paths, MediaSource.files);
+    await _addPaths(
+      paths,
+      MediaSource.files,
+      destination: EditorWorkflowStep.edit,
+    );
   }
 
   Future<void> _importFromPhotos() async {
-    if (!_supportsPhotoLibrary) {
+    if (!_supportsPhotoLibrary && widget.photoMediaPicker == null) {
       await _pickFiles();
       return;
     }
     List<String>? paths;
-    final useSystemPicker = await _photoLibraryService.shouldUseSystemPicker(
-      isIOS: Platform.isIOS,
-      fallbackShortestSide: MediaQuery.sizeOf(context).shortestSide,
-    );
-    if (!mounted) return;
-    if (useSystemPicker) {
-      setState(() {
-        _busy = true;
-        _status = 'Waiting for your Photos selection...';
-      });
-      try {
-        final picked = await _imagePicker.pickMultipleMedia(
-          requestFullMetadata: false,
-        );
-        paths = picked.map((file) => file.path).toList(growable: false);
-      } on Object catch (error) {
+    try {
+      if (widget.photoMediaPicker != null) {
+        paths = await _runPhotoPicker(widget.photoMediaPicker!);
+      } else {
+        final useSystemPicker = await _photoLibraryService
+            .shouldUseSystemPicker(
+              isIOS: Platform.isIOS,
+              fallbackShortestSide: MediaQuery.sizeOf(context).shortestSide,
+            );
         if (!mounted) return;
-        setState(() {
-          _busy = false;
-          _status = 'Photos import failed: ${_friendlyError(error)}';
-        });
-        await _showAlert('Photos import failed', _friendlyError(error));
-        return;
+        if (useSystemPicker) {
+          paths = await _runPhotoPicker(() async {
+            final picked = await _imagePicker.pickMultipleMedia(
+              requestFullMetadata: false,
+            );
+            return picked.map((file) => file.path).toList(growable: false);
+          });
+        } else {
+          paths = await showCupertinoModalPopup<List<String>>(
+            context: context,
+            builder: (_) => PhotoLibrarySheet(service: _photoLibraryService),
+          );
+        }
       }
-      if (mounted) setState(() => _busy = false);
-    } else {
-      paths = await showCupertinoModalPopup<List<String>>(
-        context: context,
-        builder: (_) => PhotoLibrarySheet(service: _photoLibraryService),
-      );
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _status = 'Photos import failed: ${_friendlyError(error)}';
+      });
+      await _showAlert('Photos import failed', _friendlyError(error));
+      return;
     }
     if (paths == null || paths.isEmpty) {
       if (mounted) {
@@ -2591,7 +2646,23 @@ class _EditorPageState extends State<EditorPage> {
       }
       return;
     }
-    await _addPaths(paths, MediaSource.photos);
+    await _addPaths(
+      paths,
+      MediaSource.photos,
+      destination: EditorWorkflowStep.edit,
+    );
+  }
+
+  Future<List<String>> _runPhotoPicker(PhotoMediaPicker picker) async {
+    setState(() {
+      _busy = true;
+      _status = 'Waiting for your Photos selection...';
+    });
+    try {
+      return await picker();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   bool get _supportsPhotoLibrary =>
@@ -2613,7 +2684,11 @@ class _EditorPageState extends State<EditorPage> {
     });
   }
 
-  Future<void> _addPaths(List<String> paths, MediaSource source) async {
+  Future<void> _addPaths(
+    List<String> paths,
+    MediaSource source, {
+    EditorWorkflowStep? destination,
+  }) async {
     setState(() {
       _busy = true;
       _status = 'Inspecting imported media...';
@@ -2673,11 +2748,13 @@ class _EditorPageState extends State<EditorPage> {
       }
       _selectedIndex = startIndex;
       _loadEditStateForIndex(startIndex);
-      _step = widget.libraryOnStart
-          ? EditorWorkflowStep.import
-          : widget.reviewExportOnStart
-          ? EditorWorkflowStep.export
-          : EditorWorkflowStep.edit;
+      _step =
+          destination ??
+          (widget.libraryOnStart
+              ? EditorWorkflowStep.import
+              : widget.reviewExportOnStart
+              ? EditorWorkflowStep.export
+              : EditorWorkflowStep.edit);
       _selectedToolGroup = widget.initialToolGroup ?? EditorToolGroup.presets;
       _selectedAdjustmentId = 'recovery';
       _toolPanelOpen = true;
@@ -2690,14 +2767,51 @@ class _EditorPageState extends State<EditorPage> {
     });
   }
 
-  Future<void> _commitExport() async {
-    if (!await _prepareExportDestinations()) return;
-    await (_jobs.length > 1 ? _processQueue() : _processSelected());
-  }
+  Future<void> _commitExport() => _startExport(selectedOnly: false);
 
-  Future<void> _commitSelectedExport() async {
-    if (!await _prepareExportDestinations()) return;
-    await _processSelected();
+  Future<void> _commitSelectedExport() => _startExport(selectedOnly: true);
+
+  Future<void> _startExport({required bool selectedOnly}) async {
+    if (_exportOperationActive || _jobs.isEmpty) return;
+    final selectedId = _selectedJob?.id;
+    if (selectedId == null) return;
+    setState(() {
+      _exportStartPending = true;
+      _status = 'Preparing export...';
+    });
+    try {
+      if (!await _prepareExportDestinations() || !mounted) return;
+      if (selectedOnly || _jobs.length == 1) {
+        await _processSelected(selectedId);
+      } else {
+        await _processQueue();
+      }
+    } on Object catch (error) {
+      if (!mounted) return;
+      final message = _friendlyError(error);
+      setState(() {
+        _jobs = [
+          for (final job in _jobs)
+            if (job.status == JobStatus.processing)
+              job.copyWith(
+                status: JobStatus.failed,
+                error: message,
+                progress: 0,
+              )
+            else
+              job,
+        ];
+        _status = 'Failed: $message';
+      });
+      await _showAlert('Export failed', message);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _exportStartPending = false;
+          _busy = false;
+        });
+      }
+    }
   }
 
   Future<bool> _prepareExportDestinations() async {
@@ -2707,10 +2821,11 @@ class _EditorPageState extends State<EditorPage> {
     return _chooseExportDirectory();
   }
 
-  Future<void> _processSelected() async {
-    final selected = _selectedJob;
-    if (selected == null) return;
-    final exported = await _processJob(_selectedIndex);
+  Future<void> _processSelected(String id) async {
+    final selectedIndex = _jobs.indexWhere((job) => job.id == id);
+    if (selectedIndex < 0) return;
+    final selected = _jobs[selectedIndex];
+    final exported = await _processJob(id);
     if (!exported || !mounted) return;
     setState(() {
       _removeExportedJobFromQueue(selected.id);
@@ -2740,7 +2855,7 @@ class _EditorPageState extends State<EditorPage> {
         setState(() => _removeExportedJobFromQueue(id));
         continue;
       }
-      final exported = await _processJob(index, partOfBatch: true);
+      final exported = await _processJob(id, partOfBatch: true);
       if (exported && mounted) {
         exportedCount++;
         setState(() => _removeExportedJobFromQueue(id));
@@ -2764,8 +2879,9 @@ class _EditorPageState extends State<EditorPage> {
     }
   }
 
-  Future<bool> _processJob(int index, {bool partOfBatch = false}) async {
-    if (index < 0 || index >= _jobs.length) return false;
+  Future<bool> _processJob(String id, {bool partOfBatch = false}) async {
+    var index = _jobs.indexWhere((job) => job.id == id);
+    if (index < 0) return false;
     if (!partOfBatch && _busy) return false;
     var job = _jobs[index];
     if (job.kind.isVideo &&
@@ -2802,6 +2918,8 @@ class _EditorPageState extends State<EditorPage> {
         rawDescriptor = descriptor;
       }
     }
+    index = _jobs.indexWhere((item) => item.id == id);
+    if (index < 0 || !mounted) return false;
     setState(() {
       _storeSelectedEditState();
       if (!partOfBatch) {
@@ -2824,6 +2942,8 @@ class _EditorPageState extends State<EditorPage> {
     String? generatedOutput;
     try {
       final trim = _currentTrimSettings();
+      index = _jobs.indexWhere((item) => item.id == id);
+      if (index < 0) return false;
       job = _jobs[index];
       final output = switch (job.kind) {
         MediaKind.photo => await _restorePhoto(job.inputPath),
@@ -2881,8 +3001,8 @@ class _EditorPageState extends State<EditorPage> {
       }
       if (!mounted) return false;
       setState(() {
-        _updateJob(
-          index,
+        _updateJobById(
+          id,
           (old) => old.copyWith(
             status: JobStatus.complete,
             outputPath: _exportOptions.keepLocalCopy ? output : null,
@@ -2903,8 +3023,8 @@ class _EditorPageState extends State<EditorPage> {
       if (!mounted) return false;
       final message = _friendlyError(error);
       setState(() {
-        _updateJob(
-          index,
+        _updateJobById(
+          id,
           (old) => old.copyWith(
             status: JobStatus.failed,
             error: message,
@@ -2978,6 +3098,11 @@ class _EditorPageState extends State<EditorPage> {
     _jobs = copy;
   }
 
+  void _updateJobById(String id, MediaJob Function(MediaJob old) update) {
+    final index = _jobs.indexWhere((job) => job.id == id);
+    if (index >= 0) _updateJob(index, update);
+  }
+
   void _removeExportedJobFromQueue(String id) {
     _storeSelectedEditState();
     final result = removeMediaJobFromQueue(
@@ -3001,7 +3126,7 @@ class _EditorPageState extends State<EditorPage> {
       builder: (_) => QueueOverviewSheet(
         jobs: _jobs,
         selectedJobId: _selectedJob?.id,
-        busy: _busy,
+        busy: _exportOperationActive,
         onSelected: (id) => _selectJob(id, openEditor: openEditorOnSelect),
         onRemove: _removeJob,
       ),
@@ -3010,12 +3135,14 @@ class _EditorPageState extends State<EditorPage> {
 
   void _selectJob(String id, {bool openEditor = false}) {
     final index = _jobs.indexWhere((job) => job.id == id);
-    if (index < 0 || _busy) return;
+    if (index < 0 || _exportOperationActive) return;
     _selectJobIndex(index, openEditor: openEditor);
   }
 
   void _selectJobIndex(int index, {bool openEditor = false}) {
-    if (index < 0 || index >= _jobs.length || _busy) return;
+    if (index < 0 || index >= _jobs.length || _exportOperationActive) {
+      return;
+    }
     setState(() {
       _storeSelectedEditState();
       _selectedIndex = index;
@@ -3028,8 +3155,7 @@ class _EditorPageState extends State<EditorPage> {
     final index = _jobs.indexWhere((job) => job.id == id);
     if (index < 0) return false;
     final removed = _jobs[index];
-    if (removed.status == JobStatus.processing ||
-        (_busy && removed.status != JobStatus.pending)) {
+    if (removed.status == JobStatus.processing || _exportOperationActive) {
       return false;
     }
     final result = removeMediaJobFromQueue(
@@ -3131,6 +3257,7 @@ class _EditorPageState extends State<EditorPage> {
           path,
         );
       }
+      if (!mounted) return false;
       setState(() {
         _exportDirectoryPath = path;
         _exportOptions = _exportOptions.withFiles(true);
@@ -3330,7 +3457,7 @@ class _EditorPageState extends State<EditorPage> {
           CupertinoSwitch(
             key: controlKey,
             value: value,
-            onChanged: _busy ? null : onChanged,
+            onChanged: _exportOperationActive ? null : onChanged,
           ),
         ],
       ),

@@ -65,7 +65,7 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
-                      'The active item is locked. Ready items can still be removed.',
+                      'Queue changes are locked until the current export finishes.',
                       style: TextStyle(fontSize: 13),
                     ),
                   ),
@@ -130,7 +130,7 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
   Widget _jobTile(BuildContext context, MediaJob job, int index) {
     final selected = job.id == _selectedJobId;
     final primary = CupertinoTheme.of(context).primaryColor;
-    final canRemove = !widget.busy || job.status == JobStatus.pending;
+    final canRemove = !widget.busy;
     final details = <String>[
       job.kind.label,
       job.source.label,
