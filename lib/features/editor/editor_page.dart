@@ -586,7 +586,7 @@ class _EditorPageState extends State<EditorPage> {
           ),
         ),
         const SizedBox(height: 28),
-        if (_supportsPhotoLibrary) ...[
+        if (_supportsPhotoLibrary || widget.photoMediaPicker != null) ...[
           CupertinoButton(
             key: const Key('start_choose_photos'),
             color: CupertinoColors.white,
