@@ -2,8 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'core/persistence/first_run_tutorial_store.dart';
 import 'features/editor/editor_page.dart';
 import 'features/editor/editor_tools.dart';
+import 'features/onboarding/first_run_tutorial_gate.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +25,8 @@ class AquaRecoverApp extends StatelessWidget {
     this.initialCompareMode,
     this.reviewExportOnStart = false,
     this.libraryOnStart = false,
+    this.showTutorialOnLaunch = true,
+    this.tutorialStore,
   });
 
   final List<String> initialPaths;
@@ -31,6 +35,8 @@ class AquaRecoverApp extends StatelessWidget {
   final EditorCompareMode? initialCompareMode;
   final bool reviewExportOnStart;
   final bool libraryOnStart;
+  final bool showTutorialOnLaunch;
+  final FirstRunTutorialStore? tutorialStore;
 
   @override
   Widget build(BuildContext context) {
@@ -43,13 +49,23 @@ class AquaRecoverApp extends StatelessWidget {
         scaffoldBackgroundColor: CupertinoColors.systemGroupedBackground,
         barBackgroundColor: CupertinoColors.systemBackground,
       ),
-      home: EditorPage(
-        initialPaths: initialPaths,
-        openPhotosOnStart: openPhotosOnStart,
-        initialToolGroup: initialToolGroup,
-        initialCompareMode: initialCompareMode,
-        reviewExportOnStart: reviewExportOnStart,
-        libraryOnStart: libraryOnStart,
+      home: FirstRunTutorialGate(
+        store: tutorialStore ?? FileFirstRunTutorialStore(),
+        showOnLaunch:
+            showTutorialOnLaunch &&
+            initialPaths.isEmpty &&
+            !openPhotosOnStart &&
+            !reviewExportOnStart &&
+            !libraryOnStart,
+        builder: (context, showTutorial) => EditorPage(
+          initialPaths: initialPaths,
+          openPhotosOnStart: openPhotosOnStart,
+          initialToolGroup: initialToolGroup,
+          initialCompareMode: initialCompareMode,
+          reviewExportOnStart: reviewExportOnStart,
+          libraryOnStart: libraryOnStart,
+          onShowTutorial: showTutorial,
+        ),
       ),
     );
   }

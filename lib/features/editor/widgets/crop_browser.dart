@@ -61,9 +61,9 @@ class CropBrowser extends StatelessWidget {
             key: const Key('crop_freeform_ratio'),
             label: 'Freeform ratio',
             value: settings.customAspectRatio,
-            min: .5,
-            max: 2,
-            divisions: 60,
+            min: .25,
+            max: 4,
+            divisions: 150,
             format: (value) => '${value.toStringAsFixed(2)}:1',
             onChanged: enabled
                 ? (value) =>

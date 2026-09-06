@@ -179,7 +179,7 @@ void main() {
       straightenDegrees: 18,
     );
     expect(settings.outputAspectRatio(2), 1.5);
-    expect(settings.straightenCoverageScale(2), greaterThan(1));
+    expect(settings.straightenCoverageScale(2), greaterThan(1.35));
 
     final source = img.Image(width: 180, height: 100, numChannels: 4)
       ..clear(img.ColorRgba8(20, 120, 180, 255));
@@ -193,11 +193,63 @@ void main() {
     ]) {
       expect(output.getPixel(point.$1, point.$2).a, greaterThan(0));
     }
+    for (var x = 0; x < output.width; x++) {
+      expect(output.getPixel(x, 0).a, greaterThan(0));
+      expect(output.getPixel(x, output.height - 1).a, greaterThan(0));
+    }
+    for (var y = 0; y < output.height; y++) {
+      expect(output.getPixel(0, y).a, greaterThan(0));
+      expect(output.getPixel(output.width - 1, y).a, greaterThan(0));
+    }
 
     final restored = ImageTransformSettings.fromJson(settings.toJson());
     expect(restored.aspectRatio, CropAspectRatio.freeform);
     expect(restored.customAspectRatio, 1.5);
     expect(restored.straightenDegrees, 18);
+  });
+
+  test('normalized crop rectangles round-trip through crop settings', () {
+    const settings = ImageTransformSettings(
+      aspectRatio: CropAspectRatio.freeform,
+    );
+    const requested = NormalizedCropRect(
+      left: .1,
+      top: .2,
+      width: .6,
+      height: .6,
+    );
+
+    final updated = settings.withNormalizedCropRect(requested, 4 / 3);
+    final resolved = updated.normalizedCropRect(4 / 3);
+
+    expect(updated.customAspectRatio, closeTo(4 / 3, .0001));
+    expect(updated.zoom, closeTo(5 / 3, .0001));
+    expect(resolved.left, closeTo(requested.left, .0001));
+    expect(resolved.top, closeTo(requested.top, .0001));
+    expect(resolved.width, closeTo(requested.width, .0001));
+    expect(resolved.height, closeTo(requested.height, .0001));
+  });
+
+  test('pixel export honors crop offsets across the oriented source', () {
+    final source = img.Image(width: 12, height: 6, numChannels: 4);
+    for (var y = 0; y < source.height; y++) {
+      for (var x = 0; x < source.width; x++) {
+        source.setPixelRgba(x, y, x * 10, y * 20, 0, 255);
+      }
+    }
+    const settings = ImageTransformSettings(
+      aspectRatio: CropAspectRatio.square,
+      zoom: 2,
+      offsetX: -1,
+      offsetY: 1,
+    );
+
+    final output = const ImageTransformService().apply(source, settings);
+
+    expect(output.width, 3);
+    expect(output.height, 3);
+    expect(output.getPixel(0, 0).r, source.getPixel(0, 3).r);
+    expect(output.getPixel(0, 0).g, source.getPixel(0, 3).g);
   });
 
   test('preset strength preserves later manual offsets', () {
@@ -1603,6 +1655,81 @@ void main() {
     expect(settings.isIdentity, isTrue);
   });
 
+  testWidgets('freeform crop edges set a custom rectangle', (tester) async {
+    var settings = const ImageTransformSettings(
+      aspectRatio: CropAspectRatio.freeform,
+    );
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: StatefulBuilder(
+          builder: (context, setState) => SizedBox(
+            width: 320,
+            height: 480,
+            child: ImageTransformPreview(
+              settings: settings,
+              sourceAspectRatio: 4 / 3,
+              showGrid: true,
+              onCropChanged: (value) => setState(() => settings = value),
+              builder: (_, _) => const ColoredBox(color: CupertinoColors.black),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final surface = find.byKey(const Key('crop_gesture_surface'));
+    final frame = tester.getRect(surface);
+    await tester.dragFrom(
+      Offset(frame.right - 2, frame.center.dy),
+      const Offset(-80, 0),
+    );
+    await tester.pump();
+
+    final crop = settings.normalizedCropRect(4 / 3);
+    final expectedWidth = (frame.width - 80) / frame.width;
+    expect(settings.customAspectRatio, closeTo(expectedWidth * (4 / 3), .03));
+    expect(crop.left, closeTo(0, .03));
+    expect(crop.width, closeTo(expectedWidth, .03));
+    expect(crop.height, closeTo(1, .03));
+  });
+
+  testWidgets('fixed crop corner keeps its aspect ratio', (tester) async {
+    var settings = const ImageTransformSettings(
+      aspectRatio: CropAspectRatio.square,
+    );
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: StatefulBuilder(
+          builder: (context, setState) => SizedBox(
+            width: 320,
+            height: 480,
+            child: ImageTransformPreview(
+              settings: settings,
+              sourceAspectRatio: 4 / 3,
+              showGrid: true,
+              onCropChanged: (value) => setState(() => settings = value),
+              builder: (_, _) => const ColoredBox(color: CupertinoColors.black),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final frame = tester.getRect(find.byKey(const Key('crop_gesture_surface')));
+    await tester.dragFrom(
+      frame.topLeft + const Offset(2, 2),
+      const Offset(80, 20),
+    );
+    await tester.pump();
+
+    final crop = settings.normalizedCropRect(4 / 3);
+    final expectedScale = (frame.width - 80) / frame.width;
+    expect(settings.zoom, closeTo(1 / expectedScale, .03));
+    expect(crop.width * (4 / 3) / crop.height, closeTo(1, .001));
+    expect(crop.left, greaterThan(.12));
+    expect(crop.top, greaterThan(0));
+  });
+
   testWidgets('immersive split preview reserves space for editor tools', (
     tester,
   ) async {
@@ -1712,6 +1839,48 @@ void main() {
       find.byKey(const Key('transform_preview_frame')),
     );
     expect(frame.width / frame.height, closeTo(3 / 4, .001));
+  });
+
+  testWidgets('crop preview applies zoom and offset before straightening', (
+    tester,
+  ) async {
+    const zoom = 1.7;
+    const offset = Alignment(.6, -.4);
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: SizedBox(
+          width: 320,
+          height: 480,
+          child: ImageTransformPreview(
+            settings: const ImageTransformSettings(
+              aspectRatio: CropAspectRatio.square,
+              zoom: zoom,
+              offsetX: .6,
+              offsetY: -.4,
+              straightenDegrees: 15,
+            ),
+            sourceAspectRatio: 4 / 3,
+            builder: (_, _) => const ColoredBox(color: CupertinoColors.black),
+          ),
+        ),
+      ),
+    );
+
+    final manualZoom = find.byWidgetPredicate((widget) {
+      if (widget is! Transform) return false;
+      final matrix = widget.transform;
+      return (matrix.entry(0, 0) - zoom).abs() < .0001 &&
+          matrix.entry(0, 1).abs() < .0001;
+    });
+    final straighten = find.byWidgetPredicate((widget) {
+      if (widget is! Transform) return false;
+      return widget.transform.entry(0, 1).abs() > .01;
+    });
+
+    expect(manualZoom, findsOneWidget);
+    expect(straighten, findsOneWidget);
+    expect(tester.widget<Transform>(manualZoom).alignment, offset);
+    expect(find.ancestor(of: manualZoom, matching: straighten), findsOneWidget);
   });
 
   testWidgets('preview zoom supports pinch inspection and resets by key', (

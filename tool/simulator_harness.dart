@@ -51,6 +51,7 @@ Future<void> main() async {
       initialCompareMode: initialCompareMode,
       reviewExportOnStart: reviewExport,
       libraryOnStart: libraryOnStart,
+      showTutorialOnLaunch: false,
     ),
   );
 }
