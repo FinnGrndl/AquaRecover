@@ -13,6 +13,7 @@ git config user.email "release-test@example.invalid"
 mkdir scripts
 cp "$script_dir/update_release_line.sh" scripts/
 cp "$script_dir/verify_release_snapshot.sh" scripts/
+cp "$script_dir/verify_version_source.sh" scripts/
 chmod +x scripts/*.sh
 
 printf 'version: 1.1.0+8\n' >pubspec.yaml
@@ -39,6 +40,21 @@ printf 'version: 1.1.2+10\n' >pubspec.yaml
 git add pubspec.yaml
 git commit -q -m "chore(release): prepare v1.1.2"
 source_sha="$(git rev-parse HEAD)"
+source_parent="$(git rev-parse HEAD^)"
+if [[ "$(scripts/verify_version_source.sh "$source_sha" main)" != "$source_parent" ]]; then
+  echo "Version verifier did not return the prepared commit parent." >&2
+  exit 1
+fi
+
+git switch -q -c invalid-version-source
+printf 'unexpected version payload\n' >unexpected.txt
+git add unexpected.txt
+git commit -q -m "chore(release): prepare v1.1.2"
+if scripts/verify_version_source.sh HEAD invalid-version-source >/dev/null 2>&1; then
+  echo "Version verifier accepted a non-generated file." >&2
+  exit 1
+fi
+git switch -q main
 
 git switch -q release/1
 scripts/update_release_line.sh main >/dev/null

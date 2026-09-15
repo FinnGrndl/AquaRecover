@@ -10,6 +10,7 @@ on:
 permissions:
   actions: read
   contents: read
+  pull-requests: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -28,7 +29,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Verify exact tested main tree
+      - name: Verify versioned and PR-validated main tree
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -40,6 +41,7 @@ jobs:
             echo "Release source $source_sha is not the latest main commit $main_sha." >&2
             exit 1
           fi
+          merge_sha="$(scripts/verify_version_source.sh "$source_sha" origin/main)"
           version_with_build="$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml)"
           version="${version_with_build%%+*}"
           build_number="${version_with_build##*+}"
@@ -60,15 +62,27 @@ jobs:
               exit 1
             fi
           fi
-          ci_run_id="$(
-            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$source_sha&status=success&per_page=100" \
-              --jq '.workflow_runs[] | select(.event == "workflow_dispatch") | .id' | head -n 1
+          pr_record="$(
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              "repos/$GITHUB_REPOSITORY/commits/$merge_sha/pulls?per_page=100" \
+              --jq ".[] | select(.merged_at != null and .base.ref == \"main\" and .merge_commit_sha == \"$merge_sha\") | [.number, .head.sha] | @tsv" |
+              head -n 1
           )"
-          if [[ -z "$ci_run_id" ]]; then
-            echo "No successful dispatched CI run found for $source_sha." >&2
+          if [[ -z "$pr_record" ]]; then
+            echo "No merged main pull request found for $merge_sha." >&2
             exit 1
           fi
-          echo "Validated by CI run $ci_run_id."
+          IFS=$'\t' read -r pr_number pr_head_sha <<< "$pr_record"
+          ci_run_id="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$pr_head_sha&status=success&per_page=100" \
+              --jq '.workflow_runs[] | select(.event == "pull_request") | .id' | head -n 1
+          )"
+          if [[ -z "$ci_run_id" ]]; then
+            echo "No successful pull-request CI run found for PR #$pr_number at $pr_head_sha." >&2
+            exit 1
+          fi
+          echo "Validated by PR #$pr_number and CI run $ci_run_id."
           {
             echo "source_sha=$source_sha"
             echo "version=$version"
