@@ -558,7 +558,9 @@ class _ImportDemo extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
             child: Text(
               count == 1
                   ? 'The photo opens directly in the editor.'
@@ -636,18 +638,25 @@ class _EditorDemo extends StatelessWidget {
                   Positioned(
                     top: 8,
                     right: 8,
-                    child: CupertinoButton(
-                      key: const Key('tutorial_compare_toggle'),
-                      minimumSize: const Size(44, 44),
-                      padding: EdgeInsets.zero,
-                      color: const Color(0xff161a20).withValues(alpha: .82),
-                      borderRadius: BorderRadius.circular(22),
-                      onPressed: onToggleSplit,
-                      child: Icon(
-                        split
-                            ? CupertinoIcons.arrow_up_left_arrow_down_right
-                            : CupertinoIcons.square_split_2x1,
-                        size: 19,
+                    child: Semantics(
+                      button: true,
+                      selected: split,
+                      label: split
+                          ? 'Show edited preview'
+                          : 'Show split preview',
+                      child: CupertinoButton(
+                        key: const Key('tutorial_compare_toggle'),
+                        minimumSize: const Size(44, 44),
+                        padding: EdgeInsets.zero,
+                        color: const Color(0xff161a20).withValues(alpha: .82),
+                        borderRadius: BorderRadius.circular(22),
+                        onPressed: onToggleSplit,
+                        child: Icon(
+                          split
+                              ? CupertinoIcons.photo
+                              : CupertinoIcons.square_split_2x1,
+                          size: 19,
+                        ),
                       ),
                     ),
                   ),
@@ -784,30 +793,35 @@ class _DemoToolButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoButton(
-      key: Key('tutorial_tool_$index'),
-      minimumSize: const Size(44, 54),
-      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 7),
-      color: selected
-          ? CupertinoColors.activeBlue.withValues(alpha: .28)
-          : CupertinoColors.white.withValues(alpha: .07),
-      borderRadius: BorderRadius.circular(13),
-      onPressed: onPressed,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            maxLines: 1,
-            style: const TextStyle(
-              color: CupertinoColors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$label editor tool',
+      child: CupertinoButton(
+        key: Key('tutorial_tool_$index'),
+        minimumSize: const Size(44, 54),
+        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 7),
+        color: selected
+            ? CupertinoColors.activeBlue.withValues(alpha: .28)
+            : CupertinoColors.white.withValues(alpha: .07),
+        borderRadius: BorderRadius.circular(13),
+        onPressed: onPressed,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              maxLines: 1,
+              style: const TextStyle(
+                color: CupertinoColors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -834,32 +848,37 @@ class _ExportDemo extends StatelessWidget {
             for (var index = 0; index < _destinations.length; index++) ...[
               if (index > 0) const SizedBox(width: 8),
               Expanded(
-                child: CupertinoButton(
-                  key: Key('tutorial_export_destination_$index'),
-                  minimumSize: const Size(44, 92),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 12,
-                  ),
-                  color: selected.contains(index)
-                      ? CupertinoColors.activeBlue.withValues(alpha: .30)
-                      : CupertinoColors.white.withValues(alpha: .07),
-                  borderRadius: BorderRadius.circular(16),
-                  onPressed: () => onToggle(index),
-                  child: Column(
-                    children: [
-                      Icon(_destinations[index].$1, size: 23),
-                      const SizedBox(height: 8),
-                      Text(
-                        _destinations[index].$2,
-                        maxLines: 1,
-                        style: const TextStyle(
-                          color: CupertinoColors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                child: Semantics(
+                  button: true,
+                  selected: selected.contains(index),
+                  label: '${_destinations[index].$2} export destination',
+                  child: CupertinoButton(
+                    key: Key('tutorial_export_destination_$index'),
+                    minimumSize: const Size(44, 92),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 12,
+                    ),
+                    color: selected.contains(index)
+                        ? CupertinoColors.activeBlue.withValues(alpha: .30)
+                        : CupertinoColors.white.withValues(alpha: .07),
+                    borderRadius: BorderRadius.circular(16),
+                    onPressed: () => onToggle(index),
+                    child: Column(
+                      children: [
+                        Icon(_destinations[index].$1, size: 23),
+                        const SizedBox(height: 8),
+                        Text(
+                          _destinations[index].$2,
+                          maxLines: 1,
+                          style: const TextStyle(
+                            color: CupertinoColors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

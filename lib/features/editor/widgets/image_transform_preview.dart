@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/models/image_transform_settings.dart';
@@ -36,14 +37,19 @@ class _ImageTransformPreviewState extends State<ImageTransformPreview> {
   Rect? _gestureCropRect;
   Size? _gestureSize;
   ImageTransformSettings? _gestureStartSettings;
-  double _gestureStartZoom = 1;
+  Rect? _gestureStartRect;
+  Offset? _gestureStartFocalPoint;
   Offset? _pointerDownPosition;
 
   @override
   Widget build(BuildContext context) {
     final settings = widget.settings;
     final sourceAspectRatio = widget.sourceAspectRatio;
+    final orientedAspect = settings.orientedSourceAspectRatio(
+      sourceAspectRatio,
+    );
     final targetAspect = settings.outputAspectRatio(sourceAspectRatio);
+    final interactive = widget.showGrid && widget.onCropChanged != null;
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth.isFinite
@@ -52,73 +58,33 @@ class _ImageTransformPreviewState extends State<ImageTransformPreview> {
         final maxHeight = constraints.maxHeight.isFinite
             ? constraints.maxHeight
             : 640.0;
+        final frameAspect = interactive ? orientedAspect : targetAspect;
         var width = maxWidth;
         var height = maxHeight;
-        if (widget.previewFit == EditorPreviewFit.fit) {
-          height = width / targetAspect;
+        if (interactive || widget.previewFit == EditorPreviewFit.fit) {
+          height = width / frameAspect;
           if (height > maxHeight) {
             height = maxHeight;
-            width = height * targetAspect;
+            width = height * frameAspect;
           }
         }
-        final sourceAlignment = _sourceAlignment(settings);
-        final requiresCropFill =
-            settings.aspectRatio != CropAspectRatio.original ||
-            settings.zoom > 1.0000001 ||
-            settings.straightenDegrees.abs() > .0000001;
-        var content = widget.builder(
-          widget.previewFit == EditorPreviewFit.fit && !requiresCropFill
-              ? BoxFit.contain
-              : BoxFit.cover,
-          sourceAlignment,
-        );
-        content = RotatedBox(
-          quarterTurns: settings.normalizedQuarterTurns,
-          child: content,
-        );
-        if (settings.flipHorizontal || settings.flipVertical) {
-          content = Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.diagonal3Values(
-              settings.flipHorizontal ? -1 : 1,
-              settings.flipVertical ? -1 : 1,
-              1,
-            ),
-            child: content,
-          );
-        }
-        final zoom = settings.zoom.clamp(1.0, 4.0).toDouble();
-        if (zoom > 1.0000001) {
-          content = Transform.scale(
-            scale: zoom,
-            alignment: Alignment(
-              settings.offsetX.clamp(-1.0, 1.0).toDouble(),
-              settings.offsetY.clamp(-1.0, 1.0).toDouble(),
-            ),
-            child: content,
-          );
-        }
-        if (settings.straightenDegrees.abs() > .0000001) {
-          content = Transform.rotate(
-            angle: settings.straightenDegrees * math.pi / 180,
-            child: content,
-          );
-        }
-        final straightenCoverage = settings.straightenCoverageScale(
-          sourceAspectRatio,
-        );
-        if (straightenCoverage > 1.0000001) {
-          // The safety zoom belongs at the centre. Using the pan alignment
-          // here shifts it away from corners and exposes the backdrop.
-          content = Transform.scale(
-            scale: straightenCoverage,
-            alignment: Alignment.center,
-            child: content,
-          );
-        }
-
-        final interactive = widget.showGrid && widget.onCropChanged != null;
         final size = Size(width, height);
+        final normalizedCrop = settings.normalizedCropRect(sourceAspectRatio);
+        final cropRect =
+            _gestureCropRect ?? _rectFromNormalized(normalizedCrop, size);
+        final content = interactive
+            ? _safeSourceCanvas(size, settings)
+            : _croppedPreview(
+                viewportSize: size,
+                orientedAspect: orientedAspect,
+                crop: normalizedCrop,
+                settings: settings,
+                sourceFit:
+                    widget.previewFit == EditorPreviewFit.fit &&
+                        settings.isIdentity
+                    ? BoxFit.contain
+                    : BoxFit.cover,
+              );
         return Center(
           child: SizedBox(
             key: const Key('transform_preview_frame'),
@@ -127,9 +93,31 @@ class _ImageTransformPreviewState extends State<ImageTransformPreview> {
             child: Semantics(
               label: interactive ? 'Crop area' : null,
               hint: interactive
-                  ? 'Drag an edge or corner to crop. Drag inside to move the image and pinch to zoom.'
+                  ? 'Drag an edge or corner to crop. Drag inside to move the crop and pinch to resize it.'
                   : null,
               image: true,
+              onIncrease: interactive ? () => _adjustCropScale(.9, size) : null,
+              onDecrease: interactive
+                  ? () => _adjustCropScale(1.1, size)
+                  : null,
+              customSemanticsActions: interactive
+                  ? {
+                      const CustomSemanticsAction(
+                        label: 'Move crop left',
+                      ): () =>
+                          _moveCrop(const Offset(-.02, 0), size),
+                      const CustomSemanticsAction(
+                        label: 'Move crop right',
+                      ): () =>
+                          _moveCrop(const Offset(.02, 0), size),
+                      const CustomSemanticsAction(label: 'Move crop up'): () =>
+                          _moveCrop(const Offset(0, -.02), size),
+                      const CustomSemanticsAction(
+                        label: 'Move crop down',
+                      ): () =>
+                          _moveCrop(const Offset(0, .02), size),
+                    }
+                  : null,
               child: Listener(
                 onPointerDown: interactive
                     ? (event) => _pointerDownPosition ??= event.localPosition
@@ -159,8 +147,7 @@ class _ImageTransformPreviewState extends State<ImageTransformPreview> {
                           IgnorePointer(
                             child: CustomPaint(
                               painter: _CropGridPainter(
-                                cropRect:
-                                    _gestureCropRect ?? (Offset.zero & size),
+                                cropRect: cropRect,
                                 showHandles: interactive,
                               ),
                             ),
@@ -177,19 +164,117 @@ class _ImageTransformPreviewState extends State<ImageTransformPreview> {
     );
   }
 
+  Widget _safeSourceCanvas(
+    Size size,
+    ImageTransformSettings settings, {
+    BoxFit sourceFit = BoxFit.cover,
+  }) {
+    var content = widget.builder(sourceFit, Alignment.center);
+    content = RotatedBox(
+      quarterTurns: settings.normalizedQuarterTurns,
+      child: content,
+    );
+    if (settings.flipHorizontal || settings.flipVertical) {
+      content = Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.diagonal3Values(
+          settings.flipHorizontal ? -1 : 1,
+          settings.flipVertical ? -1 : 1,
+          1,
+        ),
+        child: content,
+      );
+    }
+    if (settings.straightenDegrees.abs() > .0000001) {
+      content = Transform.rotate(
+        angle: settings.straightenDegrees * math.pi / 180,
+        child: content,
+      );
+    }
+    final coverage = settings.straightenCoverageScale(widget.sourceAspectRatio);
+    if (coverage > 1.0000001) {
+      content = Transform.scale(
+        scale: coverage,
+        alignment: Alignment.center,
+        child: content,
+      );
+    }
+    return SizedBox.fromSize(
+      key: const Key('transform_safe_canvas'),
+      size: size,
+      child: content,
+    );
+  }
+
+  Widget _croppedPreview({
+    required Size viewportSize,
+    required double orientedAspect,
+    required NormalizedCropRect crop,
+    required ImageTransformSettings settings,
+    required BoxFit sourceFit,
+  }) {
+    // Size and place the complete safe canvas so the selected normalized
+    // rectangle fills the viewport. Unlike BoxFit alignment, this keeps the
+    // pixels outside a previous crop available for later expansion.
+    final baseHeight = math.min(
+      viewportSize.height,
+      viewportSize.width / orientedAspect,
+    );
+    final canvasSize = Size(orientedAspect * baseHeight, baseHeight);
+    final paintScale = math.max(
+      viewportSize.width / (crop.width * canvasSize.width),
+      viewportSize.height / (crop.height * canvasSize.height),
+    );
+    final cropCenter = Offset(
+      (crop.left + crop.width / 2) * canvasSize.width,
+      (crop.top + crop.height / 2) * canvasSize.height,
+    );
+    final canvasOffset =
+        viewportSize.center(Offset.zero) - cropCenter * paintScale;
+    return ClipRect(
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          Positioned(
+            left: 0,
+            top: 0,
+            width: canvasSize.width,
+            height: canvasSize.height,
+            child: Transform(
+              key: const Key('transform_selected_crop_canvas'),
+              alignment: Alignment.topLeft,
+              transform: Matrix4.identity()
+                ..translateByDouble(canvasOffset.dx, canvasOffset.dy, 0, 1)
+                ..scaleByDouble(paintScale, paintScale, 1, 1),
+              child: _safeSourceCanvas(
+                canvasSize,
+                settings,
+                sourceFit: sourceFit,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _startGesture(ScaleStartDetails details, Size size) {
     _gestureStartSettings = widget.settings;
-    _gestureStartZoom = widget.settings.zoom;
     _gestureSize = size;
-    final handle = _CropHandle.hitTest(
-      _pointerDownPosition ?? details.localFocalPoint,
+    final startRect = _rectFromNormalized(
+      widget.settings.normalizedCropRect(widget.sourceAspectRatio),
       size,
     );
-    if (handle == null) return;
-    HapticFeedback.selectionClick();
+    _gestureStartRect = startRect;
+    _gestureStartFocalPoint = details.localFocalPoint;
+    final handle = _CropHandle.hitTest(
+      _pointerDownPosition ?? details.localFocalPoint,
+      startRect,
+    );
+    if (handle != null) HapticFeedback.selectionClick();
     setState(() {
       _activeHandle = handle;
-      _gestureCropRect = Offset.zero & size;
+      _gestureCropRect = startRect;
     });
   }
 
@@ -197,32 +282,35 @@ class _ImageTransformPreviewState extends State<ImageTransformPreview> {
     final startSettings = _gestureStartSettings;
     if (startSettings == null) return;
     final handle = _activeHandle;
+    final startRect = _gestureStartRect;
+    if (startRect == null) return;
     if (handle != null) {
       final gestureSize = _gestureSize ?? size;
       final next = _resizeRect(
         handle: handle,
         focalPoint: details.localFocalPoint,
-        size: gestureSize,
+        bounds: Offset.zero & gestureSize,
+        startRect: startRect,
         freeform: startSettings.aspectRatio == CropAspectRatio.freeform,
-        startingZoom: startSettings.zoom,
       );
       setState(() => _gestureCropRect = next);
       return;
     }
 
-    final zoom = (_gestureStartZoom * details.scale).clamp(1.0, 4.0).toDouble();
-    final movementScale = math.max(120.0, math.min(size.width, size.height));
-    final current = widget.settings;
-    widget.onCropChanged!(
-      current.copyWith(
-        zoom: zoom,
-        offsetX: (current.offsetX - details.focalPointDelta.dx / movementScale)
-            .clamp(-1.0, 1.0)
-            .toDouble(),
-        offsetY: (current.offsetY - details.focalPointDelta.dy / movementScale)
-            .clamp(-1.0, 1.0)
-            .toDouble(),
-      ),
+    final startFocal = _gestureStartFocalPoint ?? details.localFocalPoint;
+    final translation = details.localFocalPoint - startFocal;
+    final desiredScale = details.scale <= 0 ? 1.0 : 1 / details.scale;
+    final minScale = _minimumScaleFor(startRect);
+    final maxScale = _maximumCenteredScale(startRect, Offset.zero & size);
+    final scale = desiredScale.clamp(minScale, maxScale).toDouble();
+    final center = startRect.center + translation;
+    final resized = Rect.fromCenter(
+      center: center,
+      width: startRect.width * scale,
+      height: startRect.height * scale,
+    );
+    setState(
+      () => _gestureCropRect = _constrainRect(resized, Offset.zero & size),
     );
   }
 
@@ -232,17 +320,13 @@ class _ImageTransformPreviewState extends State<ImageTransformPreview> {
     final size = _gestureSize;
     _gestureStartSettings = null;
     _gestureSize = null;
+    _gestureStartRect = null;
+    _gestureStartFocalPoint = null;
     _activeHandle = null;
     _pointerDownPosition = null;
     if (cropRect == null || size == null || startSettings == null) return;
 
-    final current = startSettings.normalizedCropRect(widget.sourceAspectRatio);
-    final nextRect = NormalizedCropRect(
-      left: current.left + current.width * cropRect.left / size.width,
-      top: current.top + current.height * cropRect.top / size.height,
-      width: current.width * cropRect.width / size.width,
-      height: current.height * cropRect.height / size.height,
-    );
+    final nextRect = _normalizedFromRect(cropRect, size);
     setState(() => _gestureCropRect = null);
     HapticFeedback.selectionClick();
     widget.onCropChanged!(
@@ -253,22 +337,21 @@ class _ImageTransformPreviewState extends State<ImageTransformPreview> {
   Rect _resizeRect({
     required _CropHandle handle,
     required Offset focalPoint,
-    required Size size,
+    required Rect bounds,
+    required Rect startRect,
     required bool freeform,
-    required double startingZoom,
   }) {
-    final bounds = Offset.zero & size;
     final point = Offset(
-      focalPoint.dx.clamp(0.0, size.width).toDouble(),
-      focalPoint.dy.clamp(0.0, size.height).toDouble(),
+      focalPoint.dx.clamp(bounds.left, bounds.right).toDouble(),
+      focalPoint.dy.clamp(bounds.top, bounds.bottom).toDouble(),
     );
     if (freeform) {
-      final minWidth = math.min(56.0, size.width);
-      final minHeight = math.min(56.0, size.height);
-      var left = handle.movesLeft ? point.dx : 0.0;
-      var top = handle.movesTop ? point.dy : 0.0;
-      var right = handle.movesRight ? point.dx : size.width;
-      var bottom = handle.movesBottom ? point.dy : size.height;
+      final minWidth = math.min(44.0, bounds.width);
+      final minHeight = math.min(44.0, bounds.height);
+      var left = handle.movesLeft ? point.dx : startRect.left;
+      var top = handle.movesTop ? point.dy : startRect.top;
+      var right = handle.movesRight ? point.dx : startRect.right;
+      var bottom = handle.movesBottom ? point.dy : startRect.bottom;
       if (right - left < minWidth) {
         if (handle.movesLeft) {
           left = right - minWidth;
@@ -286,56 +369,164 @@ class _ImageTransformPreviewState extends State<ImageTransformPreview> {
       return Rect.fromLTRB(left, top, right, bottom).intersect(bounds);
     }
 
-    final minScale = math
-        .max(math.max(56 / size.width, 56 / size.height), startingZoom / 4)
-        .clamp(0.0, 1.0)
-        .toDouble();
+    final minScale = _minimumScaleFor(startRect);
+    final ratio = startRect.width / startRect.height;
     late double scale;
+    late double maxScale;
     if (handle.isCorner) {
-      final horizontal = handle.movesLeft
-          ? (size.width - point.dx) / size.width
-          : point.dx / size.width;
-      final vertical = handle.movesTop
-          ? (size.height - point.dy) / size.height
-          : point.dy / size.height;
+      final anchor = Offset(
+        handle.movesLeft ? startRect.right : startRect.left,
+        handle.movesTop ? startRect.bottom : startRect.top,
+      );
+      final horizontal = (point.dx - anchor.dx).abs() / startRect.width;
+      final vertical = (point.dy - anchor.dy).abs() / startRect.height;
       scale = math.min(horizontal, vertical);
+      final horizontalRoom = handle.movesLeft
+          ? anchor.dx - bounds.left
+          : bounds.right - anchor.dx;
+      final verticalRoom = handle.movesTop
+          ? anchor.dy - bounds.top
+          : bounds.bottom - anchor.dy;
+      maxScale = math.min(
+        horizontalRoom / startRect.width,
+        verticalRoom / startRect.height,
+      );
+      scale = scale.clamp(minScale, maxScale).toDouble();
+      final width = startRect.width * scale;
+      final height = startRect.height * scale;
+      return Rect.fromLTRB(
+        handle.movesLeft ? anchor.dx - width : anchor.dx,
+        handle.movesTop ? anchor.dy - height : anchor.dy,
+        handle.movesRight ? anchor.dx + width : anchor.dx,
+        handle.movesBottom ? anchor.dy + height : anchor.dy,
+      );
     } else if (handle.movesLeft) {
-      scale = (size.width - point.dx) / size.width;
+      scale = (startRect.right - point.dx) / startRect.width;
+      maxScale = math.min(
+        (startRect.right - bounds.left) / startRect.width,
+        _centeredVerticalRoom(startRect, bounds) / startRect.height,
+      );
     } else if (handle.movesRight) {
-      scale = point.dx / size.width;
+      scale = (point.dx - startRect.left) / startRect.width;
+      maxScale = math.min(
+        (bounds.right - startRect.left) / startRect.width,
+        _centeredVerticalRoom(startRect, bounds) / startRect.height,
+      );
     } else if (handle.movesTop) {
-      scale = (size.height - point.dy) / size.height;
+      scale = (startRect.bottom - point.dy) / startRect.height;
+      maxScale = math.min(
+        (startRect.bottom - bounds.top) / startRect.height,
+        _centeredHorizontalRoom(startRect, bounds) / startRect.width,
+      );
     } else {
-      scale = point.dy / size.height;
+      scale = (point.dy - startRect.top) / startRect.height;
+      maxScale = math.min(
+        (bounds.bottom - startRect.top) / startRect.height,
+        _centeredHorizontalRoom(startRect, bounds) / startRect.width,
+      );
     }
-    scale = scale.clamp(minScale, 1.0).toDouble();
-    final cropWidth = size.width * scale;
-    final cropHeight = size.height * scale;
+    scale = scale.clamp(minScale, maxScale).toDouble();
+    final cropWidth = startRect.width * scale;
+    final cropHeight = cropWidth / ratio;
     final left = handle.movesLeft
-        ? size.width - cropWidth
+        ? startRect.right - cropWidth
         : handle.movesRight
-        ? 0.0
-        : (size.width - cropWidth) / 2;
+        ? startRect.left
+        : startRect.center.dx - cropWidth / 2;
     final top = handle.movesTop
-        ? size.height - cropHeight
+        ? startRect.bottom - cropHeight
         : handle.movesBottom
-        ? 0.0
-        : (size.height - cropHeight) / 2;
+        ? startRect.top
+        : startRect.center.dy - cropHeight / 2;
     return Rect.fromLTWH(left, top, cropWidth, cropHeight);
   }
 
-  static Alignment _sourceAlignment(ImageTransformSettings settings) {
-    var x = settings.flipHorizontal ? -settings.offsetX : settings.offsetX;
-    var y = settings.flipVertical ? -settings.offsetY : settings.offsetY;
-    final transformed = switch (settings.normalizedQuarterTurns) {
-      1 => (y, -x),
-      2 => (-x, -y),
-      3 => (-y, x),
-      _ => (x, y),
-    };
-    x = transformed.$1.clamp(-1.0, 1.0).toDouble();
-    y = transformed.$2.clamp(-1.0, 1.0).toDouble();
-    return Alignment(x, y);
+  double _minimumScaleFor(Rect rect) => math
+      .max(math.min(44 / rect.width, 1.0), math.min(44 / rect.height, 1.0))
+      .clamp(0.0, 1.0)
+      .toDouble();
+
+  double _maximumCenteredScale(Rect rect, Rect bounds) => math.min(
+    _centeredHorizontalRoom(rect, bounds) / rect.width,
+    _centeredVerticalRoom(rect, bounds) / rect.height,
+  );
+
+  double _centeredHorizontalRoom(Rect rect, Rect bounds) =>
+      2 * math.min(rect.center.dx - bounds.left, bounds.right - rect.center.dx);
+
+  double _centeredVerticalRoom(Rect rect, Rect bounds) =>
+      2 * math.min(rect.center.dy - bounds.top, bounds.bottom - rect.center.dy);
+
+  Rect _constrainRect(Rect rect, Rect bounds) {
+    var dx = 0.0;
+    var dy = 0.0;
+    if (rect.left < bounds.left) dx = bounds.left - rect.left;
+    if (rect.right > bounds.right) dx = bounds.right - rect.right;
+    if (rect.top < bounds.top) dy = bounds.top - rect.top;
+    if (rect.bottom > bounds.bottom) dy = bounds.bottom - rect.bottom;
+    return rect.shift(Offset(dx, dy));
+  }
+
+  Rect _rectFromNormalized(NormalizedCropRect rect, Size size) => Rect.fromLTWH(
+    rect.left * size.width,
+    rect.top * size.height,
+    rect.width * size.width,
+    rect.height * size.height,
+  );
+
+  NormalizedCropRect _normalizedFromRect(Rect rect, Size size) =>
+      NormalizedCropRect(
+        left: rect.left / size.width,
+        top: rect.top / size.height,
+        width: rect.width / size.width,
+        height: rect.height / size.height,
+      );
+
+  void _adjustCropScale(double scale, Size size) {
+    final current = _rectFromNormalized(
+      widget.settings.normalizedCropRect(widget.sourceAspectRatio),
+      size,
+    );
+    final boundedScale = scale.clamp(
+      _minimumScaleFor(current),
+      _maximumCenteredScale(current, Offset.zero & size),
+    );
+    final next = _constrainRect(
+      Rect.fromCenter(
+        center: current.center,
+        width: current.width * boundedScale,
+        height: current.height * boundedScale,
+      ),
+      Offset.zero & size,
+    );
+    _commitRect(next, size);
+  }
+
+  void _moveCrop(Offset normalizedDelta, Size size) {
+    final current = _rectFromNormalized(
+      widget.settings.normalizedCropRect(widget.sourceAspectRatio),
+      size,
+    );
+    final next = _constrainRect(
+      current.shift(
+        Offset(
+          normalizedDelta.dx * size.width,
+          normalizedDelta.dy * size.height,
+        ),
+      ),
+      Offset.zero & size,
+    );
+    _commitRect(next, size);
+  }
+
+  void _commitRect(Rect rect, Size size) {
+    HapticFeedback.selectionClick();
+    widget.onCropChanged?.call(
+      widget.settings.withNormalizedCropRect(
+        _normalizedFromRect(rect, size),
+        widget.sourceAspectRatio,
+      ),
+    );
   }
 }
 
@@ -365,12 +556,13 @@ enum _CropHandle {
       this == bottomRight ||
       this == bottomLeft;
 
-  static _CropHandle? hitTest(Offset point, Size size) {
-    const hitExtent = 34.0;
-    final nearLeft = point.dx <= hitExtent;
-    final nearRight = point.dx >= size.width - hitExtent;
-    final nearTop = point.dy <= hitExtent;
-    final nearBottom = point.dy >= size.height - hitExtent;
+  static _CropHandle? hitTest(Offset point, Rect cropRect) {
+    const hitExtent = 44.0;
+    if (!cropRect.inflate(hitExtent).contains(point)) return null;
+    final nearLeft = (point.dx - cropRect.left).abs() <= hitExtent;
+    final nearRight = (point.dx - cropRect.right).abs() <= hitExtent;
+    final nearTop = (point.dy - cropRect.top).abs() <= hitExtent;
+    final nearBottom = (point.dy - cropRect.bottom).abs() <= hitExtent;
     if (nearLeft && nearTop) return topLeft;
     if (nearRight && nearTop) return topRight;
     if (nearRight && nearBottom) return bottomRight;

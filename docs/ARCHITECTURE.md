@@ -74,8 +74,8 @@ Other platforms and custom still LUTs use a Dart isolate:
 6. Fuse the global result with a local illumination estimate.
 7. Add export-only clarity/sharpening.
 8. Apply the selected LUT.
-9. Apply crop, quarter-turn rotation, and flip settings, then encode JPEG or
-   PNG.
+9. Apply quarter-turn rotation and flips, straighten into a filled safe canvas,
+   apply the normalized crop, then encode JPEG or PNG.
 
 The limits are 16,384 pixels on either axis and 120 million decoded pixels.
 Encoded still files are limited to 512 MiB before the decode step.

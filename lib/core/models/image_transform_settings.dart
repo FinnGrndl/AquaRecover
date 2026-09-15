@@ -2,6 +2,10 @@ import 'dart:math' as math;
 
 enum CropAspectRatio { original, freeform, square, fourThree, sixteenNine }
 
+const double maxCropZoom = 20;
+const double minFreeformAspectRatio = .05;
+const double maxFreeformAspectRatio = 20;
+
 extension CropAspectRatioX on CropAspectRatio {
   String get label => switch (this) {
     CropAspectRatio.original => 'Original',
@@ -18,7 +22,10 @@ extension CropAspectRatioX on CropAspectRatio {
     final portrait = orientedSourceAspectRatio < 1;
     return switch (this) {
       CropAspectRatio.original => orientedSourceAspectRatio,
-      CropAspectRatio.freeform => customAspectRatio.clamp(.25, 4).toDouble(),
+      CropAspectRatio.freeform =>
+        customAspectRatio
+            .clamp(minFreeformAspectRatio, maxFreeformAspectRatio)
+            .toDouble(),
       CropAspectRatio.square => 1,
       CropAspectRatio.fourThree => portrait ? 3 / 4 : 4 / 3,
       CropAspectRatio.sixteenNine => portrait ? 9 / 16 : 16 / 9,
@@ -95,18 +102,15 @@ class ImageTransformSettings {
     );
   }
 
-  /// Extra preview scale needed to keep a straightened image behind the crop.
+  /// Extra scale needed to keep a straightened image behind its safe canvas.
   ///
-  /// The calculation finds the largest rectangle with the requested output
-  /// ratio that fits inside the rotated source. Scaling that rectangle to the
-  /// crop viewport prevents empty corners while straightening.
+  /// The calculation finds the largest rectangle with the oriented source
+  /// ratio that fits inside the rotated source. Crop gestures and
+  /// full-resolution export both use that rectangle as their canvas.
   double straightenCoverageScale(double sourceAspectRatio) {
     final degrees = straightenDegrees.clamp(-45.0, 45.0).abs();
     if (degrees < .0000001) return 1;
-    final target = outputAspectRatio(sourceAspectRatio);
-    // BoxFit.cover paints the selected crop into the target viewport before
-    // the straighten transform runs. Its painted bounds therefore have the
-    // target ratio, regardless of the uncropped source dimensions.
+    final target = orientedSourceAspectRatio(sourceAspectRatio);
     final sourceWidth = target;
     const sourceHeight = 1.0;
     final radians = degrees * math.pi / 180;
@@ -132,7 +136,7 @@ class ImageTransformSettings {
     } else if (oriented < target) {
       height = oriented / target;
     }
-    final safeZoom = zoom.clamp(1.0, 4.0).toDouble();
+    final safeZoom = zoom.clamp(1.0, maxCropZoom).toDouble();
     width /= safeZoom;
     height /= safeZoom;
     final safeX = offsetX.clamp(-1.0, 1.0).toDouble();
@@ -162,7 +166,7 @@ class ImageTransformSettings {
     final requestedWidth = right - left;
     final requestedHeight = bottom - top;
     final requestedAspect = (requestedWidth * oriented / requestedHeight)
-        .clamp(.25, 4.0)
+        .clamp(minFreeformAspectRatio, maxFreeformAspectRatio)
         .toDouble();
     final nextCustomAspect = aspectRatio == CropAspectRatio.freeform
         ? requestedAspect
@@ -181,7 +185,7 @@ class ImageTransformSettings {
     }
     final zoom = math
         .min(baseWidth / requestedWidth, baseHeight / requestedHeight)
-        .clamp(1.0, 4.0)
+        .clamp(1.0, maxCropZoom)
         .toDouble();
     final width = baseWidth / zoom;
     final height = baseHeight / zoom;

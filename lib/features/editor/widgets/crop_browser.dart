@@ -61,9 +61,9 @@ class CropBrowser extends StatelessWidget {
             key: const Key('crop_freeform_ratio'),
             label: 'Freeform ratio',
             value: settings.customAspectRatio,
-            min: .25,
-            max: 4,
-            divisions: 150,
+            min: minFreeformAspectRatio,
+            max: maxFreeformAspectRatio,
+            divisions: 399,
             format: (value) => '${value.toStringAsFixed(2)}:1',
             onChanged: enabled
                 ? (value) =>
@@ -173,7 +173,7 @@ class _CropIconButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 3),
           child: CupertinoButton(
             padding: EdgeInsets.zero,
-            minimumSize: const Size(42, 42),
+            minimumSize: const Size(44, 44),
             borderRadius: BorderRadius.circular(99),
             color: selected
                 ? primary.withValues(alpha: .24)
