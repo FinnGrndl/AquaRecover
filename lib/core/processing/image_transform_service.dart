@@ -22,63 +22,55 @@ class ImageTransformService {
       output = img.flipVertical(output);
     }
 
-    final targetAspect = settings.outputAspectRatio(sourceAspectRatio);
-    final normalizedCrop = settings.normalizedCropRect(sourceAspectRatio);
-    final cropX = (normalizedCrop.left * output.width)
-        .floor()
-        .clamp(0, output.width - 1)
-        .toInt();
-    final cropY = (normalizedCrop.top * output.height)
-        .floor()
-        .clamp(0, output.height - 1)
-        .toInt();
-    final cropWidth = (normalizedCrop.width * output.width)
-        .round()
-        .clamp(1, output.width - cropX)
-        .toInt();
-    final cropHeight = (normalizedCrop.height * output.height)
-        .round()
-        .clamp(1, output.height - cropY)
-        .toInt();
-    if (cropX != 0 ||
-        cropY != 0 ||
-        cropWidth != output.width ||
-        cropHeight != output.height) {
-      output = img.copyCrop(
-        output,
-        x: cropX,
-        y: cropY,
-        width: cropWidth,
-        height: cropHeight,
-      );
-    }
-
     final straighten = settings.straightenDegrees.clamp(-45.0, 45.0);
-    if (straighten.abs() < .0000001) return output;
-    final widthBeforeStraighten = output.width.toDouble();
-    final heightBeforeStraighten = output.height.toDouble();
-    output = img.copyRotate(
-      output,
-      angle: straighten,
-      interpolation: img.Interpolation.cubic,
-    );
+    if (straighten.abs() >= .0000001) {
+      final widthBeforeStraighten = output.width.toDouble();
+      final heightBeforeStraighten = output.height.toDouble();
+      output = img.copyRotate(
+        output,
+        angle: straighten,
+        interpolation: img.Interpolation.cubic,
+      );
 
-    final baseCrop = _largestSafeCrop(
-      outputWidth: output.width.toDouble(),
-      outputHeight: output.height.toDouble(),
-      sourceWidth: widthBeforeStraighten,
-      sourceHeight: heightBeforeStraighten,
-      targetAspect: targetAspect,
-      angleDegrees: straighten,
-    );
-    final x = baseCrop.left.floor().clamp(0, output.width - 1).toInt();
-    final y = baseCrop.top.floor().clamp(0, output.height - 1).toInt();
-    final width = baseCrop.width.round().clamp(1, output.width - x).toInt();
-    final height = baseCrop.height.round().clamp(1, output.height - y).toInt();
-    if (x == 0 && y == 0 && width == output.width && height == output.height) {
-      return output;
+      final safeCanvas = _largestSafeCrop(
+        outputWidth: output.width.toDouble(),
+        outputHeight: output.height.toDouble(),
+        sourceWidth: widthBeforeStraighten,
+        sourceHeight: heightBeforeStraighten,
+        targetAspect: settings.orientedSourceAspectRatio(sourceAspectRatio),
+        angleDegrees: straighten,
+      );
+      output = _cropPixels(output, safeCanvas);
     }
-    return img.copyCrop(output, x: x, y: y, width: width, height: height);
+
+    // The normalized crop is deliberately applied after straightening. The
+    // editor overlays it on the same safe canvas, so a handle always selects
+    // the pixels that the full-resolution export will produce.
+    final normalizedCrop = settings.normalizedCropRect(sourceAspectRatio);
+    return _cropNormalized(output, normalizedCrop);
+  }
+
+  img.Image _cropNormalized(img.Image source, NormalizedCropRect crop) {
+    return _cropPixels(
+      source,
+      _PixelCropRect(
+        left: crop.left * source.width,
+        top: crop.top * source.height,
+        width: crop.width * source.width,
+        height: crop.height * source.height,
+      ),
+    );
+  }
+
+  img.Image _cropPixels(img.Image source, _PixelCropRect crop) {
+    final x = crop.left.floor().clamp(0, source.width - 1).toInt();
+    final y = crop.top.floor().clamp(0, source.height - 1).toInt();
+    final width = crop.width.round().clamp(1, source.width - x).toInt();
+    final height = crop.height.round().clamp(1, source.height - y).toInt();
+    if (x == 0 && y == 0 && width == source.width && height == source.height) {
+      return source;
+    }
+    return img.copyCrop(source, x: x, y: y, width: width, height: height);
   }
 
   _PixelCropRect _largestSafeCrop({

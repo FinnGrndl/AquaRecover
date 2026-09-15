@@ -131,12 +131,14 @@ preview for detail inspection and a double-tap resets that view. Pressing and
 holding the normal edited preview temporarily shows the original. These compare
 controls remain available during export review. The Crop tab applies a
 nondestructive crop, 90-degree rotation, straightening, horizontal or vertical
-flip, and its own pinch positioning. Every edge and corner of the crop frame can
-be dragged; fixed formats preserve their ratio while **Free** allows independent
-resizing. Original, square, 4:3, 16:9, and freeform aspect ratios are available;
-portrait media keeps the corresponding portrait orientation. A selected aspect
-ratio always fills the crop frame, so the frame cannot extend beyond the source
-image. LUT selection and intensity live in the dedicated **LUT** tab.
+flip, and its own positioning gestures. Drag inside the crop to reposition it,
+pinch to resize it, or drag any edge and corner directly. Fixed formats preserve
+their ratio while **Free** allows independent resizing. Original, square, 4:3,
+16:9, and freeform aspect ratios are available; portrait media keeps the
+corresponding portrait orientation. The editor keeps the full usable image
+visible around the crop, including after straightening, so a previous crop can
+be expanded again. LUT selection and intensity live in the dedicated **LUT**
+tab.
 
 ## Platform support
 
