@@ -1219,7 +1219,7 @@ private struct ImageTransformSettings {
     let targetAspect: CGFloat
     switch aspectRatio {
     case "freeform":
-      targetAspect = CGFloat(clamp(customAspectRatio, 0.25, 4.0))
+      targetAspect = CGFloat(clamp(customAspectRatio, 0.05, 20.0))
     case "square":
       targetAspect = 1.0
     case "fourThree":
@@ -1234,16 +1234,28 @@ private struct ImageTransformSettings {
     let cosine = abs(cos(radians))
     let sine = abs(sin(radians))
     let rotationSafety: CGFloat = abs(straightenDegrees) > 0.0000001 ? 0.98 : 1.0
-    let baseHeight = min(
-      safeSourceWidth / (targetAspect * cosine + sine),
-      safeSourceHeight / (targetAspect * sine + cosine)
+    let safeCanvasHeight = min(
+      safeSourceWidth / (sourceAspect * cosine + sine),
+      safeSourceHeight / (sourceAspect * sine + cosine)
     ) * rotationSafety
-    let baseWidth = baseHeight * targetAspect
-    let safeZoom = CGFloat(clamp(zoom, 1.0, 4.0))
+    let safeCanvasWidth = safeCanvasHeight * sourceAspect
+    let safeCanvasLeft = (safeOutputWidth - safeCanvasWidth) / 2.0
+    let safeCanvasTop = (safeOutputHeight - safeCanvasHeight) / 2.0
+
+    var normalizedWidth: CGFloat = 1.0
+    var normalizedHeight: CGFloat = 1.0
+    if sourceAspect > targetAspect {
+      normalizedWidth = targetAspect / sourceAspect
+    } else if sourceAspect < targetAspect {
+      normalizedHeight = sourceAspect / targetAspect
+    }
+    let baseWidth = safeCanvasWidth * normalizedWidth
+    let baseHeight = safeCanvasHeight * normalizedHeight
+    let safeZoom = CGFloat(clamp(zoom, 1.0, 20.0))
     let cropWidth = max(1.0, min(safeOutputWidth, baseWidth / safeZoom))
     let cropHeight = max(1.0, min(safeOutputHeight, baseHeight / safeZoom))
-    let baseLeft = (safeOutputWidth - baseWidth) / 2.0
-    let baseTop = (safeOutputHeight - baseHeight) / 2.0
+    let baseLeft = safeCanvasLeft + (safeCanvasWidth - baseWidth) / 2.0
+    let baseTop = safeCanvasTop + (safeCanvasHeight - baseHeight) / 2.0
     let safeX = CGFloat(clamp(offsetX, -1.0, 1.0))
     let safeY = CGFloat(clamp(offsetY, -1.0, 1.0))
     let left = baseLeft + (baseWidth - cropWidth) * (safeX + 1.0) / 2.0
