@@ -41,7 +41,7 @@ jobs:
             echo "Release source $source_sha is not the latest main commit $main_sha." >&2
             exit 1
           fi
-          merge_sha="$(scripts/verify_version_source.sh "$source_sha" origin/main)"
+          merge_sha="$(scripts/verify_release_source.sh "$source_sha" origin/main)"
           version_with_build="$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml)"
           version="${version_with_build%%+*}"
           build_number="${version_with_build##*+}"
@@ -66,8 +66,7 @@ jobs:
             gh api \
               -H "Accept: application/vnd.github+json" \
               "repos/$GITHUB_REPOSITORY/commits/$merge_sha/pulls?per_page=100" \
-              --jq ".[] | select(.merged_at != null and .base.ref == \"main\" and .merge_commit_sha == \"$merge_sha\") | [.number, .head.sha] | @tsv" |
-              head -n 1
+              --jq "first(.[] | select(.merged_at != null and .base.ref == \"main\" and .merge_commit_sha == \"$merge_sha\")) | [.number, .head.sha] | @tsv"
           )"
           if [[ -z "$pr_record" ]]; then
             echo "No merged main pull request found for $merge_sha." >&2
@@ -76,13 +75,21 @@ jobs:
           IFS=$'\t' read -r pr_number pr_head_sha <<< "$pr_record"
           ci_run_id="$(
             gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$pr_head_sha&status=success&per_page=100" \
-              --jq '.workflow_runs[] | select(.event == "pull_request") | .id' | head -n 1
+              --jq 'first(.workflow_runs[] | select(.event == "pull_request")) | .id'
           )"
           if [[ -z "$ci_run_id" ]]; then
             echo "No successful pull-request CI run found for PR #$pr_number at $pr_head_sha." >&2
             exit 1
           fi
-          echo "Validated by PR #$pr_number and CI run $ci_run_id."
+          version_run_id="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/version-main.yml/runs?head_sha=$merge_sha&status=success&per_page=100" \
+              --jq 'first(.workflow_runs[] | select(.event == "push")) | .id'
+          )"
+          if [[ -z "$version_run_id" ]]; then
+            echo "No successful main version run found for merge $merge_sha." >&2
+            exit 1
+          fi
+          echo "Validated by PR #$pr_number, CI run $ci_run_id, and version run $version_run_id."
           {
             echo "source_sha=$source_sha"
             echo "version=$version"

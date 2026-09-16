@@ -75,4 +75,39 @@ void main() {
     expect(source, contains('BGContinuedProcessingTaskRequest'));
     expect(source, contains('task.progress.completedUnitCount'));
   });
+
+  test('macOS Photos access has purpose strings and signed capabilities', () {
+    final plist = File('macos/Runner/Info.plist').readAsStringSync();
+    final debugEntitlements = File(
+      'macos/Runner/DebugProfile.entitlements',
+    ).readAsStringSync();
+    final releaseEntitlements = File(
+      'macos/Runner/Release.entitlements',
+    ).readAsStringSync();
+    final project = File(
+      'macos/Runner.xcodeproj/project.pbxproj',
+    ).readAsStringSync();
+
+    for (final key in const <String>[
+      'NSPhotoLibraryUsageDescription',
+      'NSPhotoLibraryAddUsageDescription',
+    ]) {
+      expect(plist, contains('<key>$key</key>'));
+    }
+    for (final entitlements in <String>[
+      debugEntitlements,
+      releaseEntitlements,
+    ]) {
+      expect(
+        entitlements,
+        contains('com.apple.security.personal-information.photos-library'),
+      );
+    }
+    expect(project, contains('com.apple.HardenedRuntime'));
+    expect(
+      RegExp('ENABLE_HARDENED_RUNTIME = YES;').allMatches(project).length,
+      3,
+      reason: 'Debug, profile, and release builds must use Hardened Runtime.',
+    );
+  });
 }

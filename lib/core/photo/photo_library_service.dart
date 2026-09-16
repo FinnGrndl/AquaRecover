@@ -6,6 +6,28 @@ import 'package:photo_manager/photo_manager.dart';
 
 import '../models/media_kind.dart';
 
+class PhotoLibraryPermissionException implements Exception {
+  const PhotoLibraryPermissionException(this.state);
+
+  final PermissionState state;
+
+  bool get canOpenSettings => state == PermissionState.denied;
+
+  String get message => switch (state) {
+    PermissionState.denied =>
+      'Photos access is turned off. Allow AquaRecover to access your photo library in System Settings, then try again.',
+    PermissionState.restricted =>
+      'Photos access is restricted by the system or device settings.',
+    PermissionState.notDetermined =>
+      'Photos access has not been granted yet. Try again to show the system permission request.',
+    PermissionState.authorized ||
+    PermissionState.limited => 'Photos access is available.',
+  };
+
+  @override
+  String toString() => message;
+}
+
 class PhotoLibraryService {
   const PhotoLibraryService({
     MethodChannel deviceChannel = const MethodChannel('aqua_recover/device'),
@@ -14,13 +36,18 @@ class PhotoLibraryService {
   final MethodChannel _deviceChannel;
 
   Future<PermissionState> requestPermission() =>
-      PhotoManager.requestPermissionExtend();
+      PhotoManager.requestPermissionExtend(
+        requestOption: const PermissionRequestOption(
+          iosAccessLevel: IosAccessLevel.readWrite,
+        ),
+      );
   Future<void> openLimitedPicker() => PhotoManager.presentLimited();
+  Future<void> openSettings() => PhotoManager.openSetting();
 
   Future<List<AssetPathEntity>> loadAlbums() async {
     final permission = await requestPermission();
     if (!permission.hasAccess) {
-      throw StateError('Photos permission was not granted.');
+      throw PhotoLibraryPermissionException(permission);
     }
     return PhotoManager.getAssetPathList(type: RequestType.common);
   }

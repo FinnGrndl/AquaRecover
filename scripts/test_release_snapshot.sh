@@ -13,6 +13,7 @@ git config user.email "release-test@example.invalid"
 mkdir scripts
 cp "$script_dir/update_release_line.sh" scripts/
 cp "$script_dir/verify_release_snapshot.sh" scripts/
+cp "$script_dir/verify_release_source.sh" scripts/
 cp "$script_dir/verify_version_source.sh" scripts/
 chmod +x scripts/*.sh
 
@@ -39,9 +40,9 @@ git commit -q -m "fix: test snapshot update"
 printf 'version: 1.1.2+10\n' >pubspec.yaml
 git add pubspec.yaml
 git commit -q -m "chore(release): prepare v1.1.2"
-source_sha="$(git rev-parse HEAD)"
+version_source_sha="$(git rev-parse HEAD)"
 source_parent="$(git rev-parse HEAD^)"
-if [[ "$(scripts/verify_version_source.sh "$source_sha" main)" != "$source_parent" ]]; then
+if [[ "$(scripts/verify_version_source.sh "$version_source_sha" main)" != "$source_parent" ]]; then
   echo "Version verifier did not return the prepared commit parent." >&2
   exit 1
 fi
@@ -55,6 +56,18 @@ if scripts/verify_version_source.sh HEAD invalid-version-source >/dev/null 2>&1;
   exit 1
 fi
 git switch -q main
+
+git switch -q -c ci-only-change
+printf 'pipeline-only change\n' >ci.txt
+git add ci.txt
+git commit -q -m "ci: test release validation"
+git switch -q main
+git merge -q --no-ff ci-only-change -m "Merge pull request #123 from test/ci-only-change"
+source_sha="$(git rev-parse HEAD)"
+if [[ "$(scripts/verify_release_source.sh "$source_sha" main)" != "$source_sha" ]]; then
+  echo "Release source verifier did not accept the tested merge after version preparation." >&2
+  exit 1
+fi
 
 git switch -q release/1
 scripts/update_release_line.sh main >/dev/null
@@ -89,9 +102,13 @@ if [[ "$(git rev-parse HEAD)" != "$snapshot_head" ]]; then
 fi
 
 git switch -q main
-printf 'pipeline-only change\n' >ci.txt
-git add ci.txt
+printf 'direct untested change\n' >direct.txt
+git add direct.txt
 git commit -q -m "ci: test release guard"
+if scripts/verify_release_source.sh HEAD main >/dev/null 2>&1; then
+  echo "Release source verifier accepted a direct one-parent commit." >&2
+  exit 1
+fi
 git switch -q release/1
 if scripts/update_release_line.sh main >/dev/null 2>&1; then
   echo "A changed source with an already released version was accepted." >&2

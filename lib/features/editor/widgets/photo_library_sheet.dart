@@ -16,7 +16,8 @@ class PhotoLibrarySheet extends StatefulWidget {
   State<PhotoLibrarySheet> createState() => _PhotoLibrarySheetState();
 }
 
-class _PhotoLibrarySheetState extends State<PhotoLibrarySheet> {
+class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
+    with WidgetsBindingObserver {
   final Set<String> _selectedIds = <String>{};
   final Map<String, AssetEntity> _selectedAssets = <String, AssetEntity>{};
   List<AssetPathEntity> _albums = const [];
@@ -25,16 +26,35 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet> {
   bool _loading = true;
   bool _importing = false;
   String? _error;
+  PhotoLibraryPermissionException? _permissionError;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadAlbums();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _permissionError != null &&
+        !_loading) {
+      _loadAlbums();
+    }
   }
 
   Future<void> _loadAlbums() async {
     setState(() {
       _loading = true;
       _error = null;
+      _permissionError = null;
     });
     try {
       final albums = await widget.service.loadAlbums();
@@ -52,6 +72,9 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet> {
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
+        _permissionError = error is PhotoLibraryPermissionException
+            ? error
+            : null;
         _error = error.toString();
         _loading = false;
       });
@@ -155,25 +178,38 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet> {
       return const Center(child: CupertinoActivityIndicator(radius: 16));
     }
     if (_error != null) {
+      final permissionError = _permissionError;
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(_friendly(_error!), textAlign: TextAlign.center),
+              Icon(
+                permissionError == null
+                    ? CupertinoIcons.exclamationmark_triangle
+                    : CupertinoIcons.photo_on_rectangle,
+                size: 34,
+                color: CupertinoColors.secondaryLabel.resolveFrom(context),
+              ),
               const SizedBox(height: 12),
-              CupertinoButton.filled(
-                onPressed: _loadAlbums,
-                child: const Text('Try again'),
-              ),
-              CupertinoButton(
-                onPressed: () async {
-                  await widget.service.openLimitedPicker();
-                  if (mounted) await _loadAlbums();
-                },
-                child: const Text('Manage limited access'),
-              ),
+              Text(_friendly(_error!), textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              if (permissionError?.canOpenSettings ?? false)
+                CupertinoButton.filled(
+                  onPressed: widget.service.openSettings,
+                  child: const Text('Open System Settings'),
+                )
+              else
+                CupertinoButton.filled(
+                  onPressed: _loadAlbums,
+                  child: const Text('Try again'),
+                ),
+              if (permissionError?.canOpenSettings ?? false)
+                CupertinoButton(
+                  onPressed: _loadAlbums,
+                  child: const Text('Try again'),
+                ),
             ],
           ),
         ),
