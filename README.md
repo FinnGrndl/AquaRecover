@@ -94,21 +94,134 @@ absolute path.
 The default processor is deterministic and inspectable. It does not use a
 trained model, invent scene content, or send an image elsewhere.
 
-1. **Measure the scene.** Channel means, robust luminance percentiles, red
-   deficit, and the relationship between blue and green describe the cast and
-   usable tonal range.
-2. **Estimate recoverable warmth.** Red recovery is bounded by scene statistics
-   and weighted differently for flat open water and textured subjects. This is
-   what keeps a neutral reef from requiring magenta water.
-3. **Rebuild tone.** Percentile-based contrast stretch ignores isolated clipped
-   pixels. Exposure, gamma, highlights, shadows, and black point then operate on
-   a stable range.
-4. **Fuse local structure.** A low-resolution illumination guide restores local
-   separation without flattening the subject or forcing the background to
-   gray.
-5. **Finish deliberately.** Color, haze, clarity, sharpening, vignette, crop,
-   orientation, and LUT settings are applied from the visible editor state.
-   Full-resolution export reruns the pipeline from the original file.
+### It does not cut the image into objects
+
+AquaRecover never labels a region as *diver*, *reef*, *sand*, or *water*.
+Instead, it calculates several continuous weights between `0` and `1` for every
+pixel. A pixel can look partly like open water and partly like textured
+material, and neighboring pixels can move gradually between those states. This
+avoids the hard halos that a binary mask would leave around fins, bubbles, fish,
+and coral.
+
+### 1. Build one profile for the scene
+
+The portable renderer samples the image on an adaptive grid and builds red,
+green, blue, and luminance histograms. From those samples it keeps:
+
+- the mean of each color channel;
+- the 1st and 99.5th luminance percentiles as robust black and white points;
+- the 10th luminance percentile as an estimate of scene depth and darkness;
+- red-to-green and blue-to-green ratios as indicators of red loss and water
+  color.
+
+The channel means produce bounded gray-world gains. For example, the red gain
+may move only between `0.75` and `2.05`; green is limited to `0.82`–`1.28`, and
+blue receives a separate bound depending on whether the scene is blue- or
+green-dominant. These limits stop a single unusual color from driving the
+entire correction.
+
+### 2. Calculate soft water and material weights
+
+For each source pixel, the processor first measures how far red lies below the
+stronger of green and blue. In simplified form, the open-water weight is:
+
+```text
+red deficit     = clamp((max(G, B) - R) / 165)
+blue dominance  = clamp((B - R) / 180)
+green dominance = clamp((G - R) / 180)
+chroma          = clamp((max(R, G, B) - min(R, G, B)) / 140)
+
+water = clamp(red deficit
+              × (0.58 × blue dominance + 0.42 × green dominance)
+              × chroma)
+```
+
+Here, `clamp` means limiting a value to `0…1`, and `mix(a, b, t)` means linear
+interpolation from `a` to `b` by weight `t`. This is a color likelihood, not
+semantic recognition: a value of `0.7` feeds the later water-protection blends
+at that strength, while each rule still applies its own coefficient and limit.
+
+A second weight looks for recoverable cyan material. It combines the same red
+deficit with brightness and reduces the result as the water weight rises:
+
+```text
+brightness           = clamp((luminance - 42) / 132)
+recoverable material = red deficit × brightness
+                       × clamp(1 - 0.52 × water, 0.18, 1)
+```
+
+That weight lets a lit subject regain neutral color while keeping flat blue or
+green backgrounds from becoming red.
+
+### 3. Measure structure at three scales
+
+After the first color and tone pass, AquaRecover creates a smaller guide image:
+its longest side is at most 420 pixels for export and 180 for a preview. Three
+blur radii, derived from roughly `1/70`, `1/36`, and `1/18` of the short side,
+describe fine, medium, and broad illumination changes.
+
+Subtracting each blurred value from local luminance produces detail residuals.
+Their magnitudes form a **structure weight**; a weighted combination of all
+three forms **local contrast**:
+
+```text
+structure      = clamp(5.5 × |fine detail| + 3.0 × |medium detail|)
+local contrast = clamp(0.12 × fine + 0.32 × medium + 0.56 × broad)
+```
+
+The guide also stores broadly blurred red, green, and blue values. Each
+full-resolution pixel reads the corresponding guide sample, so changes remain
+smooth across an area instead of reacting independently to sensor noise.
+
+### 4. Blend a correction, rather than replacing the pixel
+
+The first red lift is proportional to the missing red, remaining highlight
+headroom, the Water correction and Red recovery controls, and highlight
+protection. Its coefficient moves from `0.42` for likely material toward `0.18`
+for likely water. Open-water weight also reduces excess saturation and imposes
+a soft red ceiling, which is the main defense against magenta water.
+
+```text
+highlight headroom = 1 - highlight protection × (max(R, G, B) / 255)²
+red addition = Water correction × Red recovery
+               × mix(0.42, 0.18, water)
+               × max(0, G - R) × (1 - R / 255)
+               × highlight headroom
+```
+
+For the local pass, red deficit, structure, scene-wide red loss, and water
+suppression become a material confidence:
+
+```text
+water suppression = 1 - water × mix(0.88, 0.28, structure)
+material confidence = clamp(red deficit
+                            × (0.14 + 1.72 × structure)
+                            × water suppression
+                            × scene red-loss factor)
+```
+
+Textured areas therefore receive more local color recovery than equally cyan,
+flat areas. A Retinex-style estimate compares each channel with its broad local
+average, but keeps target red/green and blue/green ratios cool in deep-blue
+scenes. The result is mixed back into the current pixel with bounded weights:
+chroma blending cannot exceed `0.66`, and luminance blending cannot exceed
+`0.32`. It is never an unrestricted replacement.
+
+In practice, a flat saturated cyan patch tends toward high water weight and low
+structure, so it receives less red. A coral edge with the same cast has more
+structure and therefore more material confidence. Bright sand can still gain a
+small luma-preserving warm correction through a separate brightness term, while
+very dark or nearly neutral regions receive little intervention. These are
+overlapping responses, not four segmented regions.
+
+### 5. Rebuild tone and finish the requested edit
+
+The 1st and 99.5th luminance percentiles drive contrast stretch, ignoring most
+isolated black or clipped pixels. Gamma, exposure, highlights, shadows, black
+point, brightness, hue, saturation, haze reduction, and vignette then follow
+the visible editor values. Local fusion restores separation and controlled haze
+lift; export quality adds the final clarity and sharpening pass. Crop,
+orientation, LUT, and encoding are applied by the surrounding image service.
 
 Previews use bounded dimensions and omit the most expensive final detail pass,
 so interaction stays responsive. The exported file is never an enlarged copy
@@ -116,8 +229,10 @@ of the preview.
 
 The portable implementation lives in
 [`underwater_processor.dart`](lib/core/processing/underwater_processor.dart).
-iOS also provides Core Image renderers for stills, previews, and video. Tests
-keep the portable and native paths measurable as the algorithm evolves.
+iOS also provides a Core Image implementation that mirrors the same scene and
+per-pixel weighting strategy with GPU-friendly sampling and Gaussian blurs. It
+is intentionally not bit-identical to the portable renderer. Tests keep both
+paths measurable as the algorithm evolves.
 
 ## Platform scope
 
