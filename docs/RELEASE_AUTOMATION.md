@@ -13,8 +13,11 @@ AquaRecover separates continuous checks from distributable builds.
   the previous release to the versioned `main` tree. The workflow rejects commits
   without a `Release-Source` trailer, stale main sources, release trees that
   differ from the source commit, reused version tags, version commits that touch
-  non-generated files, and source changes without a successful pull-request CI
-  run. Direct pushes to `main` therefore cannot become releases.
+  non-generated files, and source changes without both a successful
+  pull-request CI run and a successful git-cliff run on `main`. When a `ci:`,
+  `docs:`, or other non-versioning merge follows the generated version commit,
+  the latest tested merge remains releasable without manufacturing another
+  version commit. Direct pushes to `main` therefore cannot become releases.
 
 ## Version rules
 
@@ -126,9 +129,9 @@ That push builds four release outputs in parallel:
 
 The workflow can also be retried manually from GitHub Actions. Select the exact
 `release/<major>` branch, such as `release/1`, when dispatching it. The same
-snapshot, version, tag, generated-version, merged-PR, and successful-CI checks
-run before any release build starts, so the manual entry point cannot bypass the
-release gate.
+snapshot, version, tag, generated-version, merged-PR, successful-CI, and
+successful-main-version checks run before any release build starts, so the
+manual entry point cannot bypass the release gate.
 
 All four workflow artifacts are retained for 90 days, the maximum available to
 this public repository. The APK, Windows installer, and DMG are also attached

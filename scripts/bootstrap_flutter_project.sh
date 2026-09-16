@@ -117,6 +117,54 @@ for file in "$MAC_PROJECT" "$MAC_SCHEME"; do
   fi
 done
 
+if [ -f "$MAC_PROJECT" ]; then
+  python3 - "$MAC_PROJECT" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+
+if 'com.apple.HardenedRuntime' not in text:
+    sandbox_capability = (
+        '\t\t\t\t\t\t\tcom.apple.Sandbox = {\n'
+        '\t\t\t\t\t\t\t\tenabled = 1;\n'
+        '\t\t\t\t\t\t\t};'
+    )
+    hardened_runtime = (
+        '\t\t\t\t\t\t\tcom.apple.HardenedRuntime = {\n'
+        '\t\t\t\t\t\t\t\tenabled = 1;\n'
+        '\t\t\t\t\t\t\t};\n'
+    )
+    if sandbox_capability not in text:
+        raise RuntimeError('Could not find the macOS sandbox capability.')
+    text = text.replace(
+        sandbox_capability,
+        hardened_runtime + sandbox_capability,
+        1,
+    )
+
+entitlements = re.compile(
+    r'(?P<indent>^[ \t]*)CODE_SIGN_ENTITLEMENTS = '
+    r'Runner/(?:DebugProfile|Release)\.entitlements;\n'
+    r'(?![ \t]*ENABLE_HARDENED_RUNTIME = YES;)',
+    re.MULTILINE,
+)
+text, count = entitlements.subn(
+    lambda match: match.group(0) +
+    f'{match.group("indent")}ENABLE_HARDENED_RUNTIME = YES;\n',
+    text,
+)
+if text.count('ENABLE_HARDENED_RUNTIME = YES;') != 3:
+    raise RuntimeError(
+        'Expected Hardened Runtime in all three macOS Runner configurations.'
+    )
+
+path.write_text(text)
+PY
+fi
+
 WINDOWS_CMAKE="$ROOT/windows/CMakeLists.txt"
 WINDOWS_MAIN="$ROOT/windows/runner/main.cpp"
 WINDOWS_RESOURCES="$ROOT/windows/runner/Runner.rc"

@@ -191,6 +191,14 @@ flutter run -d <android-device-id>
 flutter run -d windows
 ```
 
+For the first Photos permission test on macOS, run the `Runner` scheme from
+Xcode or open the built app directly from Finder. When a debug app is launched
+through VS Code or a terminal, macOS can attribute the protected-resource
+request to that launcher and return a denial without showing AquaRecover's
+permission dialog. A standalone signed build owns its permission request. If
+access was denied earlier, AquaRecover links directly to **System Settings >
+Privacy & Security > Photos** so it can be enabled there.
+
 The committed platform projects use the application identifier
 `io.github.finngrndl.aquarecover`. Apple device and archive builds require your
 own development team. Android store builds require an upload key kept outside
