@@ -8,6 +8,9 @@ scope can be agreed before implementation.
 
 Use Flutter 3.44.1 or a compatible stable release with Dart 3.12 or newer.
 Apple builds also require Xcode; Android builds require the Android SDK.
+The complete platform setup, simulator-media workflow, Xcode instructions, and
+build output locations are documented in the
+[development guide](docs/DEVELOPMENT.md).
 
 ```bash
 flutter pub get
