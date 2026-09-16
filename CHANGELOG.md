@@ -3,12 +3,14 @@
 Changes are generated from Conventional Commit messages. AquaRecover follows
 semantic versioning; the number after `+` is the platform build number.
 
-## 1.3.1 - 2026-09-15
+## 1.3.1 - 2026-09-16
 
 ### Fixed
 
 - Align interactive preview and exported frame
 - Improve motion and selection accessibility
+- Recover Photos library permission access
+- Validate unchanged release versions
 ## 1.3.0 - 2026-09-06
 
 ### Added
