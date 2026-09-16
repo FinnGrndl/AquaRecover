@@ -8,6 +8,8 @@ semantic versioning; the number after `+` is the platform build number.
 ### Documentation
 
 - Rebuild project and development guides
+- Explain regional restoration weights
+- Merge pull request #26 from FinnGrndl/feat/processing-docs
 ## 1.3.1 - 2026-09-16
 
 ### Fixed
