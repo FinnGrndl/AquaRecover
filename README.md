@@ -1,282 +1,209 @@
 <p align="center">
-  <img src="assets/branding/aquarecover_app_icon.png" width="112" alt="AquaRecover app icon">
+  <img src="assets/branding/aquarecover_app_icon.png" width="124" alt="AquaRecover app icon">
 </p>
 
-# AquaRecover
+<h1 align="center">AquaRecover</h1>
 
-<p>
-  <a href="https://github.com/FinnGrndl/AquaRecover/releases/latest"><img src="https://img.shields.io/github/v/release/FinnGrndl/AquaRecover?display_name=tag&sort=semver&label=latest%20release" alt="Latest AquaRecover release"></a>
-  <a href="https://github.com/FinnGrndl/AquaRecover/releases/latest"><img src="https://img.shields.io/github/downloads/FinnGrndl/AquaRecover/total?label=release%20downloads" alt="AquaRecover release downloads"></a>
+<p align="center">
+  <strong>An open-source, on-device darkroom for underwater images.</strong><br>
+  Recover color, rebuild contrast, inspect every change, and keep the original untouched.
 </p>
 
-AquaRecover corrects the color and contrast of underwater photos on the device.
-It is written in Flutter, uses native Apple media APIs where they are useful,
-and does not require an account or a processing server.
+<p align="center">
+  <a href="https://github.com/FinnGrndl/AquaRecover/actions/workflows/ci.yml"><img src="https://github.com/FinnGrndl/AquaRecover/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/FinnGrndl/AquaRecover/releases/latest"><img src="https://img.shields.io/github/v/release/FinnGrndl/AquaRecover?display_name=tag&sort=semver&label=release" alt="Latest AquaRecover release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/FinnGrndl/AquaRecover" alt="MIT License"></a>
+  <a href="https://github.com/FinnGrndl/AquaRecover/releases/latest"><img src="https://img.shields.io/github/downloads/FinnGrndl/AquaRecover/total?label=downloads" alt="Release downloads"></a>
+</p>
 
-Version 1.0.0 is the first stable open-source release. The photo workflow is
-usable on iOS, macOS, Android, and Windows; video and RAW support vary by
-platform as described below.
+## Underwater light is the problem
 
-Current source version: `1.3.1+13`.
+A camera does not see the same scene below the surface that it would see in
+air. Water absorbs warm wavelengths first. Reds and oranges disappear with
+distance, blue or green begins to dominate, haze lowers local contrast, and
+artificial light can produce a completely different color balance a few
+centimeters away.
 
-## Download the latest release
+A global white-balance correction can move the whole image toward neutral, but
+it cannot describe all of that. Push it too far and open water turns magenta;
+hold it back and the diver, reef, or wreck never regains warmth.
 
-The [latest GitHub release](https://github.com/FinnGrndl/AquaRecover/releases/latest)
-lists the current Android APK, Windows installer, and macOS disk image under
-**Assets**. These public packages remain attached to their versioned release.
-Signed iOS builds are distributed privately through TestFlight.
+AquaRecover treats the photo as an underwater scene rather than a badly chosen
+color temperature. It measures channel loss and luminance, estimates how much
+warm color can safely return, separates open water from textured subjects, and
+rebuilds tone before applying the familiar editing controls. The automatic
+result is a starting point, not a locked decision.
 
-## How the app behaves
+Everything happens locally. There is no account, upload queue, analytics SDK,
+subscription, or remote processing service.
 
-- A short, skippable Quick Tour explains the workflow on first launch. It can
-  be opened again from the app information dialog at any time.
-- Selecting one image opens the editor after the initial preview is ready.
-- Selecting several images creates one batch automatically. No output file is
-  written until an export action is confirmed in the export view.
-- The currently selected batch item can be exported on its own. A later
-  `Export all` processes the remaining ready or failed items. Every successful
-  export is removed from the queue immediately, preventing accidental duplicate
-  exports.
-- The selection overview shows every queued item and lets unprocessed items be
-  opened or removed without deleting the original file. Each row includes its
-  source, status, size, and dimensions when available.
-- Preset, adjustment, crop, and LUT values are kept separately for every queued
-  photo. They can be copied from the current photo to selected batch items or,
-  after confirmation, to every other photo.
-- Local exports can be opened, selected in batches, or deleted all at once.
-  Local video exports include an in-app player. Deleting an export also removes
-  its settings sidecar, but never the imported original or a copy already added
-  to Photos.
-- Every image adjustment remains visible in the editor and can be changed before
-  a single-image export.
-- On iPhone, selection uses the system Photos picker. iPad uses an in-app
-  PhotoKit browser that reports unavailable iCloud items without discarding the
-  complete selection. Saving an export to Photos requests add-only access.
-- Files can be imported directly. When the local destination is selected,
-  exports remain available in the app's Documents directory and receive an
-  `.aquarecover.json` settings sidecar.
-- Export destinations are independent: keep a local AquaRecover copy, add the
-  result to the device Photos library, copy it to a folder selected through the
-  system file picker, or combine those destinations. Photos and Files exports
-  do not remain in the local library unless its destination is also enabled.
+<p align="center">
+  <img src="docs/assets/editor-split.webp" width="31%" alt="AquaRecover editor showing the original and restored underwater image side by side">
+  <img src="docs/assets/editor-crop.webp" width="31%" alt="AquaRecover crop editor with draggable crop frame and rotation controls">
+  <img src="docs/assets/export-review.webp" width="31%" alt="AquaRecover export review with format and destination controls">
+</p>
 
-## How image restoration works
+<p align="center"><sub>Real iOS Simulator captures using the repository's synthetic demo image. No third-party dive photo is redistributed.</sub></p>
 
-The default correction is deterministic. It does not call a remote service and
-does not use a trained model.
+## From dive to export
 
-### 1. Measure the scene
+```text
+Photos or Files
+      ↓
+scene measurement → bounded color recovery → tone and local contrast
+      ↓
+preset baseline → manual adjustments → crop / rotate / LUT
+      ↓
+edited, original, or split comparison
+      ↓
+Photos, Files, or the local AquaRecover library
+```
 
-The processor samples channel means, luminance percentiles, red loss, and the
-relationship between blue and green. These measurements distinguish a dark
-blue scene from shallow cyan or green water and keep the automatic correction
-within fixed bounds.
+Select one photo and AquaRecover opens it in the editor as soon as the initial
+preview is ready. Select several and the same action becomes a batch: every
+item keeps its own edit state, settings can be copied from one frame to selected
+or all others, and completed exports leave the queue so they cannot be exported
+twice by accident.
 
-### 2. Recover attenuated color
+Presets describe a complete starting profile. They have their own strength
+control and remain the baseline for later edits. Tapping an adjustment value
+restores only that control to the value supplied by the preset. The **None**
+preset is deliberately neutral and leaves the image unchanged.
 
-Water removes warm wavelengths first. AquaRecover estimates the red deficit
-from the green and blue channels and restores part of it. Flat open water is
-treated differently from textured subjects, which reduces red or magenta water
-while allowing coral, skin, equipment, and other material to regain warmth.
+The editor keeps comparison close to the image. Switch between edited and
+split views, press and hold to reveal the original, fit the complete frame or
+fill the preview, and pinch to inspect details. Cropping is nondestructive and
+supports fixed or freeform ratios, draggable edges and corners, rotation,
+straightening, and flips. A dedicated LUT tab accepts built-in looks and custom
+`.cube` files for still images.
 
-### 3. Balance tone and color
+Nothing is written when media is imported. Output is created only after export
+is confirmed, and each destination is independent:
 
-A bounded gray-world balance corrects the overall cast. Robust low and high
-luminance percentiles drive the contrast stretch, so a few clipped pixels do
-not set the range for the entire image. Exposure, gamma, highlights, shadows,
-black point, saturation, vibrance, and hue are then applied from the current
-editor values.
+- add the result to the system Photos library;
+- save it to a folder chosen with the system file picker;
+- keep it in AquaRecover's local export library;
+- or combine those destinations.
 
-### 4. Preserve local structure
+Local exports receive a small `.aquarecover.json` sidecar with the edit,
+transform, LUT, and export settings. It records file names, not the original
+absolute path.
 
-A low-resolution local illumination guide is blended with the global result.
-The blend uses texture, color deficit, and open-water estimates to avoid
-flattening subjects or turning the background neutral. Export rendering ends
-with optional clarity and sharpening; previews skip that expensive final pass.
+## What happens to a pixel
 
-### 5. Encode and record the edit
+The default processor is deterministic and inspectable. It does not use a
+trained model, invent scene content, or send an image elsewhere.
 
-The result is written as JPEG or PNG. The sidecar stores the chosen settings,
-crop and orientation, export options, LUT, trim values, and source/output
-names. It does not store the full source path.
+1. **Measure the scene.** Channel means, robust luminance percentiles, red
+   deficit, and the relationship between blue and green describe the cast and
+   usable tonal range.
+2. **Estimate recoverable warmth.** Red recovery is bounded by scene statistics
+   and weighted differently for flat open water and textured subjects. This is
+   what keeps a neutral reef from requiring magenta water.
+3. **Rebuild tone.** Percentile-based contrast stretch ignores isolated clipped
+   pixels. Exposure, gamma, highlights, shadows, and black point then operate on
+   a stable range.
+4. **Fuse local structure.** A low-resolution illumination guide restores local
+   separation without flattening the subject or forcing the background to
+   gray.
+5. **Finish deliberately.** Color, haze, clarity, sharpening, vignette, crop,
+   orientation, and LUT settings are applied from the visible editor state.
+   Full-resolution export reruns the pipeline from the original file.
 
-The portable implementation is in
+Previews use bounded dimensions and omit the most expensive final detail pass,
+so interaction stays responsive. The exported file is never an enlarged copy
+of the preview.
+
+The portable implementation lives in
 [`underwater_processor.dart`](lib/core/processing/underwater_processor.dart).
-iOS also has a Core Image renderer for full-resolution stills and previews.
-Reference-pair tests keep both paths and later tuning measurable.
+iOS also provides Core Image renderers for stills, previews, and video. Tests
+keep the portable and native paths measurable as the algorithm evolves.
 
-## Editing controls
-
-The editor provides presets plus controls for water correction, red recovery,
-white balance, contrast stretch, contrast, gamma, brightness, exposure,
-highlights, shadows, black point, saturation, vibrance, hue, highlight
-protection, haze reduction, clarity, sharpness, vignette, and JPEG quality.
-
-Built-in presets cover natural correction, vivid reefs, deep scenes, shallow
-and green water, macro, red-filter footage, and artificial light. **None** uses
-neutral values and leaves the image unchanged. A `.cube` LUT can also be
-applied to still images.
-
-A preset supplies the starting values for all nineteen adjustments. Its
-strength can be reduced without discarding later manual changes. Individual
-adjustments keep the selected preset as their base; tapping a value bubble
-restores only that value to the preset baseline. **Water correction** controls
-the underwater cast-recovery stage but does not scale exposure, contrast,
-saturation, or sharpening.
-
-The preview button switches between the edited image and a side-by-side split.
-The adjacent view button switches between fitting the complete image and
-filling the preview area. Outside the Crop tab, a two-finger pinch zooms the
-preview for detail inspection and a double-tap resets that view. Pressing and
-holding the normal edited preview temporarily shows the original. These compare
-controls remain available during export review. The Crop tab applies a
-nondestructive crop, 90-degree rotation, straightening, horizontal or vertical
-flip, and its own positioning gestures. Drag inside the crop to reposition it,
-pinch to resize it, or drag any edge and corner directly. Fixed formats preserve
-their ratio while **Free** allows independent resizing. Original, square, 4:3,
-16:9, and freeform aspect ratios are available; portrait media keeps the
-corresponding portrait orientation. The editor keeps the full usable image
-visible around the crop, including after straightening, so a previous crop can
-be expanded again. LUT selection and intensity live in the dedicated **LUT**
-tab.
-
-## Platform support
+## Platform scope
 
 | Capability | iOS | macOS | Android | Windows |
 | --- | --- | --- | --- | --- |
-| JPEG/PNG/WebP photo correction | Yes | Yes | Yes | Yes |
-| Media import | Native Photos APIs and Files | Local photo browser and Files | Local photo browser and Files | Files |
+| JPEG, PNG, and WebP correction | Yes | Yes | Yes | Yes |
+| Photos-library import | Native Photos APIs | Native Photos APIs | System media access | — |
+| File import and folder export | Yes | Yes | Yes | Yes |
 | HEIC/HEIF decode | Native | Native | Platform dependent | Platform dependent |
-| Supported RAW still decode | Core Image | Core Image | ImageDecoder on API 28+ | Not available |
-| Standard video export | MP4/MOV through AVFoundation/Core Image | MP4/MOV; requires local `ffmpeg` | Not available | Not available |
-| Raw frame-stream export | No | Requires local `ffmpeg` | No | No |
+| Supported RAW still decode | Core Image | Core Image | ImageDecoder on API 28+ | — |
+| Standard video export | MP4/MOV via AVFoundation | MP4/MOV with local `ffmpeg` | — | — |
+| Custom `.cube` LUT for stills | Yes | Yes | Yes | Yes |
 
-The first store release should be treated as photo-first. Custom `.cube` LUTs
-are not supported by the native iOS video path. Proprietary formats such as
-Blackmagic RAW, REDCODE RAW, and ProRes RAW are not implemented.
+AquaRecover is photo-first. Video support is currently strongest on Apple
+platforms, custom LUTs are not supported by the native iOS video path, and
+proprietary formats such as Blackmagic RAW, REDCODE RAW, and ProRes RAW are not
+implemented.
 
-## Privacy
+## Privacy is part of the architecture
 
-Processing stays on the device. App code contains no login, analytics client,
-advertising SDK, upload endpoint, or cloud-processing backend. If a selected
-Photos item exists only in iCloud, the operating system may download it before
-handing a local file to AquaRecover.
+The repository contains no login, advertising framework, telemetry client,
+upload endpoint, or cloud backend. Selected media is decoded and rendered on
+the device. If an item exists only in iCloud, the operating system may download
+it before providing AquaRecover with a local file.
 
-Still exports are freshly encoded and video exports strip metadata by default.
-The editor can select the representative frame used in video previews without
-changing the exported timeline. On iOS 26 and later, user-started video exports
-use Continued Processing so they can remain active after switching apps; older
-iOS versions use the finite background time provided by UIKit.
+Still exports are freshly encoded. Video exports remove metadata by default.
 The iOS and macOS privacy manifests declare no tracking and no collected data.
-Read the [privacy policy](PRIVACY.md) and
-[technical privacy model](docs/ON_DEVICE_PRIVACY.md) for the complete data flow.
+The complete data flow is documented in the [privacy policy](PRIVACY.md) and
+[on-device privacy model](docs/ON_DEVICE_PRIVACY.md).
 
-## Build from source
+## Try AquaRecover
 
-The checked release environment uses Flutter 3.44.1 and Dart 3.12.1. Start with
-a current stable Flutter installation:
+The [latest GitHub release](https://github.com/FinnGrndl/AquaRecover/releases/latest)
+contains the Android APK, Windows installer, and signed macOS disk image. iOS
+builds are distributed through TestFlight while store preparation is in
+progress.
+
+Current source version: `1.3.1+13`.
+
+To run from source with the same Flutter toolchain used by CI:
 
 ```bash
-flutter --version
-flutter doctor -v
+git clone https://github.com/FinnGrndl/AquaRecover.git
+cd AquaRecover
 flutter pub get
-```
-
-Run the app on an available target:
-
-```bash
 flutter run -d macos
-flutter run -d <ios-simulator-id>
-flutter run -d <android-device-id>
-flutter run -d windows
 ```
 
-For the first Photos permission test on macOS, run the `Runner` scheme from
-Xcode or open the built app directly from Finder. When a debug app is launched
-through VS Code or a terminal, macOS can attribute the protected-resource
-request to that launcher and return a denial without showing AquaRecover's
-permission dialog. A standalone signed build owns its permission request. If
-access was denied earlier, AquaRecover links directly to **System Settings >
-Privacy & Security > Photos** so it can be enabled there.
+Use `flutter devices` to choose another connected target. The
+[development guide](docs/DEVELOPMENT.md) covers the complete setup for Flutter,
+Xcode, iOS Simulator test media, physical Apple devices, Android, Windows,
+release builds, the simulator harness, tests, and common permission problems.
 
-The committed platform projects use the application identifier
-`io.github.finngrndl.aquarecover`. Apple device and archive builds require your
-own development team. Android store builds require an upload key kept outside
-the repository.
+## Build, study, or improve it
 
-`scripts/bootstrap_flutter_project.sh` is only needed when regenerating the
-platform folders. It preserves the native bridges and accepts an alternate
-identifier:
-
-```bash
-AQUA_ORG=com.yourname AQUA_APP_ID=com.yourname.aquarecover \
-  ./scripts/bootstrap_flutter_project.sh
-```
-
-## Checks
-
-```bash
-dart format --output=none --set-exit-if-changed lib test tool
-flutter analyze
-flutter test
-```
-
-The evaluator and benchmark use optional private media that is not distributed
-with the repository. After restoring `test/img` locally, run:
-
-```bash
-dart run tool/evaluate_samples.dart
-dart run tool/benchmark_processor.dart
-```
-
-For Apple build validation:
-
-```bash
-flutter build ios --simulator --debug --no-pub
-flutter build ios --release --no-codesign --no-pub
-flutter build macos --debug --no-pub
-```
-
-GitHub Actions runs formatting, analysis, tests, and Android, Apple, and Windows
-debug builds for pull requests. After a merge, Git-Cliff synchronizes the version
-without repeating those platform builds. Release packages are restricted to
-verified single-commit snapshots on `release/**` whose source came from a merged,
-successful pull request; successful releases publish the APK, Windows installer,
-and DMG on GitHub and upload the signed iOS build to TestFlight. Read
-[Release automation](docs/RELEASE_AUTOMATION.md) for the branch flow, signing
-secrets, TestFlight upload, and tagging behavior.
-
-## Local reference images
-
-`test/img` is ignored by Git. It can contain numbered `before*.webp` and
-`after*.webp` pairs plus camera files for local evaluation, but none of those
-files belong in commits, CI artifacts, or releases. A fresh checkout works
-without them; private-media tests are skipped while synthetic tests still run.
-
-## Repository layout
+This project is useful at several levels: as an underwater editor, as a readable
+color-restoration pipeline, and as a Flutter application that crosses into
+PhotoKit, Core Image, AVFoundation, platform file pickers, and desktop
+packaging without introducing a backend.
 
 ```text
-lib/core/                    media, models, processing, persistence, platform bridges
-lib/features/editor/         Cupertino editor and import/export workflow
-ios/ macos/ android/ windows/ platform runners
-platform_overrides/          native files restored by the bootstrap script
-assets/branding/             canonical app icon shared by every platform
-test/                        unit, widget, and processor regression tests
-tool/                        optional local evaluator, tuner, benchmark, simulator harness
-docs/                        public architecture, privacy, and release automation
+lib/core/processing/        restoration, transforms, LUTs, image/video services
+lib/core/photo/             photo-library permission and asset access
+lib/core/persistence/       export paths and versioned sidecars
+lib/features/editor/        editor, queue, crop, compare, and export workflow
+ios/ and macos/             native Apple runners and processing bridges
+android/ and windows/       desktop/mobile platform runners
+platform_overrides/         native files retained during project regeneration
+test/                       unit, widget, metadata, and regression tests
+tool/                       evaluator, benchmark, tuner, and simulator harness
 ```
 
-More detail is available in [Architecture](docs/ARCHITECTURE.md), the
-[on-device privacy model](docs/ON_DEVICE_PRIVACY.md), and
-[Release automation](docs/RELEASE_AUTOMATION.md).
+Start with:
 
-## Contributing and support
+- [Building and running AquaRecover](docs/DEVELOPMENT.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Contributing](CONTRIBUTING.md)
+- [Release automation](docs/RELEASE_AUTOMATION.md)
+- [Security policy](SECURITY.md)
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Use the
-issue forms for bugs and focused feature requests. Vulnerabilities should be
-reported privately as described in [SECURITY.md](SECURITY.md).
+Algorithm changes should include a focused test. Private reference images can
+be placed in the ignored `test/img` directory for local evaluation, but must
+never be committed unless you own the necessary redistribution rights.
 
-The source code and documentation are available under the [MIT License](LICENSE).
-Private test image fixtures are not part of the repository. Dependency licenses
-are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and in the app
-under **About > Licenses**.
+## License
+
+AquaRecover is available under the [MIT License](LICENSE). Dependency licenses
+are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and inside the
+app under **About > Licenses**.
