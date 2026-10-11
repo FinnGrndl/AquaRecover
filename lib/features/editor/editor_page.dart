@@ -30,6 +30,7 @@ import '../../core/processing/video_restoration_service.dart';
 import '../../core/workflow/editor_workflow.dart';
 import '../../shared/widgets/glass_panel.dart';
 import '../library/export_library_page.dart';
+import '../../shared/widgets/ocean_backdrop.dart';
 import 'editor_tools.dart';
 import 'widgets/adjustment_browser.dart';
 import 'widgets/app_license_page.dart';
@@ -40,11 +41,14 @@ import 'widgets/editor_glass_surface.dart';
 import 'widgets/editor_preview_stage.dart';
 import 'widgets/editor_tool_rail.dart';
 import 'widgets/preset_browser.dart';
+import 'widgets/glass_navigation_bar.dart';
 import 'widgets/photo_library_sheet.dart';
 import 'widgets/queue_overview_sheet.dart';
 import 'widgets/raw_video_dialog.dart';
 import 'widgets/setting_slider.dart';
 import 'widgets/video_frame_preview_tile.dart';
+import '../timeline/movie_from_queue.dart';
+import '../timeline/timeline_projects_page.dart';
 
 typedef PhotoMediaPicker = Future<List<String>> Function();
 
@@ -254,15 +258,7 @@ class _EditorPageState extends State<EditorPage> {
       backgroundColor: const Color(0xff041923),
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.light,
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xff07384b), Color(0xff07596b), Color(0xff03151e)],
-              stops: [0, .50, 1],
-            ),
-          ),
+        child: OceanBackdrop(
           child: SafeArea(
             child: CupertinoTheme(
               data: CupertinoTheme.of(context).copyWith(
@@ -362,6 +358,23 @@ class _EditorPageState extends State<EditorPage> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Tooltip(
+              message: 'Movies',
+              child: CupertinoButton(
+                key: const Key('start_movies'),
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(42, 42),
+                borderRadius: BorderRadius.circular(99),
+                color: CupertinoColors.white.withValues(alpha: .11),
+                onPressed: _openMovies,
+                child: const Icon(
+                  CupertinoIcons.film,
+                  color: CupertinoColors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             Tooltip(
               message: 'Local exports',
               child: CupertinoButton(
@@ -626,6 +639,32 @@ class _EditorPageState extends State<EditorPage> {
             ],
           ),
         ),
+        if (_jobs.any((job) => job.kind != MediaKind.rawVideo)) ...[
+          const SizedBox(height: 10),
+          CupertinoButton(
+            key: const Key('start_make_movie'),
+            color: CupertinoColors.white.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(16),
+            onPressed: _busy ? null : _makeMovieFromQueue,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  CupertinoIcons.film,
+                  size: 20,
+                  color: CupertinoColors.white,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _jobs.length == 1
+                      ? 'Make a movie'
+                      : 'Make a movie from ${_jobs.length} items',
+                  style: const TextStyle(color: CupertinoColors.white),
+                ),
+              ],
+            ),
+          ),
+        ],
         if (job != null) ...[
           const SizedBox(height: 10),
           CupertinoButton(
@@ -1081,114 +1120,14 @@ class _EditorPageState extends State<EditorPage> {
     required Widget trailing,
     Color? trailingTint,
   }) {
-    const leadingWidth = 108.0;
-    return SizedBox(
-      height: 48,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned(
-            left: leadingWidth + 8,
-            right: trailingWidth + 8,
-            top: 3,
-            bottom: 3,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: CupertinoTheme.of(context).textTheme.textStyle
-                      .copyWith(
-                        color: CupertinoColors.white,
-                        fontWeight: FontWeight.w700,
-                        shadows: const [
-                          Shadow(
-                            color: Color(0x99000000),
-                            blurRadius: 8,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                ),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: CupertinoTheme.of(context).textTheme.textStyle
-                      .copyWith(
-                        color: CupertinoColors.white.withValues(alpha: .72),
-                        fontSize: 11,
-                        shadows: const [
-                          Shadow(color: Color(0xaa000000), blurRadius: 7),
-                        ],
-                      ),
-                ),
-              ],
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: leadingWidth,
-              height: 46,
-              child: EditorGlassSurface(
-                style: EditorGlassStyle.clear,
-                borderRadius: 99,
-                shadow: true,
-                child: CupertinoButton(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  minimumSize: const Size(44, 44),
-                  borderRadius: BorderRadius.circular(99),
-                  onPressed: onLeadingPressed,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        CupertinoIcons.chevron_back,
-                        size: 20,
-                        color: CupertinoColors.white.withValues(
-                          alpha: onLeadingPressed == null ? .38 : 1,
-                        ),
-                      ),
-                      const SizedBox(width: 3),
-                      Flexible(
-                        child: Text(
-                          leadingLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: CupertinoColors.white.withValues(
-                              alpha: onLeadingPressed == null ? .38 : 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: SizedBox(
-              width: trailingWidth,
-              height: 46,
-              child: EditorGlassSurface(
-                style: EditorGlassStyle.clear,
-                borderRadius: 99,
-                tint: trailingTint,
-                shadow: true,
-                child: trailing,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return GlassNavigationBar(
+      leadingLabel: leadingLabel,
+      onLeadingPressed: onLeadingPressed,
+      title: title,
+      subtitle: subtitle,
+      trailingWidth: trailingWidth,
+      trailing: trailing,
+      trailingTint: trailingTint,
     );
   }
 
@@ -3327,6 +3266,26 @@ class _EditorPageState extends State<EditorPage> {
         ],
       ),
     );
+  }
+
+  void _openMovies() {
+    Navigator.of(context).push(
+      CupertinoPageRoute<void>(builder: (_) => const TimelineProjectsPage()),
+    );
+  }
+
+  /// Starts a movie from the queue, keeping each item's grade and look.
+  Future<void> _makeMovieFromQueue() async {
+    final selected = _selectedJob;
+    if (selected != null) _editStates[selected.id] = _currentEditState;
+    final project = movieFromQueue(
+      _jobs,
+      editStates: _editStates,
+      videoDurations: _videoDurations,
+      id: TimelineProjectsPage.newProjectId(),
+      name: TimelineProjectsPage.defaultName(DateTime.now()),
+    );
+    await TimelineProjectsPage.open(context, project);
   }
 
   void _openLocalExports() {
