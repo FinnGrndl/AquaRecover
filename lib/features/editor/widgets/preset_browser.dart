@@ -123,7 +123,7 @@ class PresetBrowser extends StatelessWidget {
 
   bool _isApplied(SceneAnalysis suggestion) =>
       settings.preset == suggestion.suggestedPreset &&
-      (settings.presetStrength - suggestion.suggestedStrength).abs() < .03;
+      (settings.presetStrength - suggestion.suggestedStrength).abs() < .015;
 }
 
 /// Offers the analysed preset for the photo with a one-line reason.
@@ -203,13 +203,22 @@ class SuggestionCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(99),
               color: applied ? null : primary,
               onPressed: applied ? null : onApply,
-              child: Text(
-                applied ? 'Applied' : 'Apply',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: applied ? secondary : CupertinoColors.white,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (applied) ...[
+                    Icon(CupertinoIcons.checkmark, size: 13, color: secondary),
+                    const SizedBox(width: 4),
+                  ],
+                  Text(
+                    applied ? 'Applied' : 'Apply',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: applied ? secondary : CupertinoColors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

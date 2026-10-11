@@ -697,7 +697,7 @@ class _EditorPageState extends State<EditorPage> {
         final preferredPanelHeight = compact
             ? switch (activeGroup) {
                 EditorToolGroup.light => 300.0,
-                EditorToolGroup.presets => 280.0,
+                EditorToolGroup.presets => 340.0,
                 EditorToolGroup.crop => 190.0,
                 EditorToolGroup.effects => 240.0,
                 EditorToolGroup.video => 290.0,
@@ -705,7 +705,7 @@ class _EditorPageState extends State<EditorPage> {
               }
             : switch (activeGroup) {
                 EditorToolGroup.light => 320.0,
-                EditorToolGroup.presets => 300.0,
+                EditorToolGroup.presets => 360.0,
                 EditorToolGroup.crop => 210.0,
                 EditorToolGroup.effects => 260.0,
                 EditorToolGroup.video => 315.0,
