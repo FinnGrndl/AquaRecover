@@ -240,7 +240,7 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
   }
 
   Future<Uint8List> _renderPreview(PreviewRenderRequest request) async {
-    if (Platform.isIOS && !widget.lutProfile.isCustomCube) {
+    if (Platform.isIOS || Platform.isMacOS) {
       final nativeSettings = widget.settings.toJson();
       final nativeLut = widget.lutProfile.toJson();
       try {

@@ -439,34 +439,18 @@ void main() {
   });
 
   test(
-    'video backend is supported on iOS through native AVFoundation export',
+    'video backend is native on iOS and macOS through AVFoundation export',
     () {
-      expect(
-        VideoRestorationService.isBackendSupportedForOperatingSystem('ios'),
-        isTrue,
-      );
-      expect(
-        VideoRestorationService.isBackendSupportedForOperatingSystem('macos'),
-        isTrue,
-      );
-      expect(
-        VideoRestorationService.isBackendAvailableForOperatingSystem('ios'),
-        isTrue,
-      );
-      expect(
-        VideoRestorationService.isBackendAvailableForOperatingSystem(
-          'macos',
-          ffmpegAvailable: false,
-        ),
-        isFalse,
-      );
-      expect(
-        VideoRestorationService.isBackendAvailableForOperatingSystem(
-          'macos',
-          ffmpegAvailable: true,
-        ),
-        isTrue,
-      );
+      for (final os in ['ios', 'macos']) {
+        expect(
+          VideoRestorationService.isBackendSupportedForOperatingSystem(os),
+          isTrue,
+        );
+        expect(
+          VideoRestorationService.isBackendAvailableForOperatingSystem(os),
+          isTrue,
+        );
+      }
       expect(
         VideoRestorationService.isBackendAvailableForOperatingSystem('android'),
         isFalse,
