@@ -15,6 +15,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         VideoExportBridge.register(this, flutterEngine.dartExecutor.binaryMessenger)
+        TimelineExportBridge.register(this, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, RAW_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "decodeRawToPng", "decodeImageToPng" -> {

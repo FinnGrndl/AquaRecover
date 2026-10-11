@@ -67,14 +67,52 @@ class FfmpegVideoBackend {
   }
 
   /// Reads the container duration from ffmpeg's input banner.
-  Future<double?> durationSeconds(String inputPath) async {
+  Future<double?> durationSeconds(String inputPath) async =>
+      (await probe(inputPath)).duration;
+
+  /// Duration and whether the file has an audio stream, from ffmpeg's input
+  /// banner. Works without `ffprobe`, which many Windows installs lack.
+  Future<({double? duration, bool hasAudio})> probe(String inputPath) async {
     final result = await Process.run(
       ffmpeg,
       ['-hide_banner', '-nostdin', '-i', inputPath],
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
     );
-    return parseDuration(result.stderr as String);
+    final banner = result.stderr as String;
+    return (
+      duration: parseDuration(banner),
+      hasAudio: RegExp(r'Stream #\d+:\d+.*: Audio:').hasMatch(banner),
+    );
+  }
+
+  /// One downscaled PNG of a still image (any format ffmpeg decodes).
+  Future<Uint8List> stillFrame(
+    String imagePath, {
+    int maxDimension = VideoLutBaker.sampleMaxDimension,
+  }) async {
+    final result = await Process.run(ffmpeg, [
+      '-hide_banner',
+      '-nostdin',
+      '-loglevel',
+      'error',
+      '-i',
+      imagePath,
+      '-frames:v',
+      '1',
+      '-vf',
+      'scale=$maxDimension:$maxDimension:force_original_aspect_ratio=decrease',
+      '-f',
+      'image2pipe',
+      '-c:v',
+      'png',
+      '-',
+    ], stdoutEncoding: null);
+    final bytes = result.stdout as List<int>;
+    if (result.exitCode != 0 || bytes.isEmpty) {
+      throw StateError('FFmpeg could not decode ${p.basename(imagePath)}.');
+    }
+    return Uint8List.fromList(bytes);
   }
 
   static double? parseDuration(String banner) {

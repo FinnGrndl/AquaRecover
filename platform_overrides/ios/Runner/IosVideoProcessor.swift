@@ -228,6 +228,40 @@ enum IosVideoProcessor {
         }
       }
     }
+
+    let timeline = AquaTimelineRenderer(pipeline: pipeline)
+    let timelineChannel = FlutterMethodChannel(name: "aqua_recover/timeline", binaryMessenger: binaryMessenger)
+    timelineChannel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "cancelTimeline":
+        timeline.cancel()
+        result(nil)
+      case "renderTimeline":
+        guard let args = call.arguments as? [String: Any] else {
+          result(FlutterError(code: "BAD_ARGS", message: "Timeline arguments are required", details: nil))
+          return
+        }
+        let lease = BackgroundTaskLease(name: "AquaRecover timeline export")
+        DispatchQueue.global(qos: .userInitiated).async {
+          do {
+            let path = try timeline.render(args: args) { progress in
+              DispatchQueue.main.async { timelineChannel.invokeMethod("progress", arguments: progress) }
+            }
+            DispatchQueue.main.async {
+              lease.finish(success: true)
+              result(path)
+            }
+          } catch {
+            DispatchQueue.main.async {
+              lease.finish(success: false)
+              result(flutterError(error, code: "TIMELINE_RENDER_FAILED"))
+            }
+          }
+        }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
   }
 
   private static func flutterError(_ error: Error, code: String) -> FlutterError {
