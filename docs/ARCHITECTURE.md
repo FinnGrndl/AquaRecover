@@ -83,10 +83,24 @@ Encoded still files are limited to 512 MiB before the decode step.
 ## Preview and export
 
 Preview work uses bounded dimensions and skips the final high-cost detail pass.
-Changes are scheduled away from the UI thread. Full-resolution export reruns the
-pipeline from the original file; the preview bitmap is not upscaled or reused as
-the final output. Recent preview renders are kept in a small memory cache so
-switching between edited and split views does not start the same render twice.
+Previews render on one long-lived worker isolate (`PreviewRenderWorker`). It
+keeps the last three decoded and downscaled sources, so a slider change only
+re-runs the restoration on the preview bitmap instead of decoding the original
+again. A queued render for a file is replaced when a newer one for the same
+file arrives, so fast slider drags cannot build a backlog. Full-resolution
+export reruns the pipeline from the original file; the preview bitmap is not
+upscaled or reused as the final output. Recent preview renders are kept in a
+small memory cache so switching between edited and split views does not start
+the same render twice.
+
+The portable renderer works directly on a packed 8-bit RGBA buffer. Images in
+other formats (16-bit PNG/TIFF, palette, grayscale) are converted first so the
+algorithm always sees 0–255 values. Per-image constants live in sendable
+correction and fusion plans; exports above about 1.5 MP are split into row
+bands that run on up to eight worker isolates and produce the same pixels as
+the sequential path. `pow` calls with a per-image exponent use interpolated
+lookup tables. Settings, LUT and export options share one JSON format
+(`toJson`/`fromJson` on the models) across isolates, sidecars and tools.
 
 ## Apple native channels
 

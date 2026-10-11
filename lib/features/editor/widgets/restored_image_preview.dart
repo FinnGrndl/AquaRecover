@@ -2,20 +2,16 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart' hide Uint8List;
 import 'package:flutter/services.dart' hide Uint8List;
-import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/models/lut_profile.dart';
 import '../../../core/models/restoration_settings.dart';
-import '../../../core/processing/lut_service.dart';
-import '../../../core/processing/underwater_processor.dart';
+import '../../../core/processing/preview_render_worker.dart';
 
 class RestoredImagePreview extends StatefulWidget {
   const RestoredImagePreview({
@@ -44,11 +40,11 @@ class RestoredImagePreview extends StatefulWidget {
     LutProfile lutProfile = LutProfile.none,
     int maxDimension = 1280,
   }) {
-    return _renderPreviewBytes(
-      _PreviewRequest(
+    return renderPreviewBytes(
+      PreviewRenderRequest(
         path: path,
-        settings: _settingsToMap(settings),
-        lutProfile: _lutToMap(lutProfile),
+        settings: settings.toJson(),
+        lutProfile: lutProfile.toJson(),
         maxDimension: maxDimension,
       ),
     );
@@ -163,10 +159,10 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
       _error = null;
     });
     try {
-      final request = _PreviewRequest(
+      final request = PreviewRenderRequest(
         path: widget.path,
-        settings: _settingsToMap(widget.settings),
-        lutProfile: _lutToMap(widget.lutProfile),
+        settings: widget.settings.toJson(),
+        lutProfile: widget.lutProfile.toJson(),
         maxDimension: widget.maxDimension,
       );
       final cacheKey = _cacheKey;
@@ -243,7 +239,7 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
     );
   }
 
-  Future<Uint8List> _renderPreview(_PreviewRequest request) async {
+  Future<Uint8List> _renderPreview(PreviewRenderRequest request) async {
     if (Platform.isIOS && !widget.lutProfile.isCustomCube) {
       final nativeSettings = widget.settings.toJson();
       final nativeLut = widget.lutProfile.toJson();
@@ -259,11 +255,11 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
         // Keep preview responsive even when a platform decoder rejects a file.
       }
     }
-    return compute(_renderPreviewBytes, request);
+    return PreviewRenderWorker.shared.render(request);
   }
 
   Future<Uint8List> _renderNativePreview(
-    _PreviewRequest request, {
+    PreviewRenderRequest request, {
     required Map<String, Object> settings,
     required Map<String, Object?> lutProfile,
   }) async {
@@ -312,121 +308,4 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
       // Temporary preview files are best-effort cleanup.
     }
   }
-}
-
-class _PreviewRequest {
-  const _PreviewRequest({
-    required this.path,
-    required this.settings,
-    required this.lutProfile,
-    required this.maxDimension,
-  });
-
-  final String path;
-  final Map<String, Object?> settings;
-  final Map<String, Object?> lutProfile;
-  final int maxDimension;
-}
-
-Future<Uint8List> _renderPreviewBytes(_PreviewRequest request) async {
-  final file = File(request.path);
-  if (!await file.exists()) {
-    throw FileSystemException('Image not found.', request.path);
-  }
-  final decoded = img.decodeImage(await file.readAsBytes());
-  if (decoded == null) {
-    throw const FormatException('Could not decode image preview.');
-  }
-  final resized = _resizeForPreview(decoded, request.maxDimension);
-  final restored = const UnderwaterProcessor().restoreImage(
-    resized,
-    _settingsFromMap(request.settings),
-    quality: RestorationRenderQuality.preview,
-  );
-  final withLut = await const LutService().apply(
-    restored,
-    _lutFromMap(request.lutProfile),
-  );
-  return Uint8List.fromList(img.encodeJpg(withLut, quality: 92));
-}
-
-img.Image _resizeForPreview(img.Image source, int maxDimension) {
-  final maxSide = math.max(source.width, source.height);
-  if (maxSide <= maxDimension) return source;
-  final scale = maxDimension / maxSide;
-  return img.copyResize(
-    source,
-    width: math.max(1, (source.width * scale).round()),
-    height: math.max(1, (source.height * scale).round()),
-    interpolation: img.Interpolation.linear,
-  );
-}
-
-Map<String, Object?> _settingsToMap(RestorationSettings s) => {
-  'preset': s.preset.index,
-  'presetStrength': s.presetStrength,
-  'recovery': s.recovery,
-  'redRecovery': s.redRecovery,
-  'autoWhiteBalance': s.autoWhiteBalance,
-  'contrastStretch': s.contrastStretch,
-  'contrast': s.contrast,
-  'gamma': s.gamma,
-  'saturation': s.saturation,
-  'vibrance': s.vibrance,
-  'clarity': s.clarity,
-  'sharpness': s.sharpness,
-  'hazeReduction': s.hazeReduction,
-  'highlightProtection': s.highlightProtection,
-  'hue': s.hue,
-  'brightness': s.brightness,
-  'exposure': s.exposure,
-  'highlights': s.highlights,
-  'shadows': s.shadows,
-  'blackPoint': s.blackPoint,
-  'vignette': s.vignette,
-  'jpegQuality': s.jpegQuality,
-};
-
-RestorationSettings _settingsFromMap(Map<String, Object?> map) {
-  double d(String key) => (map[key] as num).toDouble();
-  return RestorationSettings(
-    preset: RestorationPreset.values[(map['preset'] as num).toInt()],
-    presetStrength: d('presetStrength'),
-    recovery: d('recovery'),
-    redRecovery: d('redRecovery'),
-    autoWhiteBalance: d('autoWhiteBalance'),
-    contrastStretch: d('contrastStretch'),
-    contrast: d('contrast'),
-    gamma: d('gamma'),
-    saturation: d('saturation'),
-    vibrance: d('vibrance'),
-    clarity: d('clarity'),
-    sharpness: d('sharpness'),
-    hazeReduction: d('hazeReduction'),
-    highlightProtection: d('highlightProtection'),
-    hue: d('hue'),
-    brightness: d('brightness'),
-    exposure: d('exposure'),
-    highlights: d('highlights'),
-    shadows: d('shadows'),
-    blackPoint: d('blackPoint'),
-    vignette: d('vignette'),
-    jpegQuality: (map['jpegQuality'] as num).toInt(),
-  );
-}
-
-Map<String, Object?> _lutToMap(LutProfile profile) => {
-  'kind': profile.kind.index,
-  'name': profile.name,
-  'path': profile.path,
-  'intensity': profile.intensity,
-};
-
-LutProfile _lutFromMap(Map<String, Object?> map) {
-  return LutProfile(
-    kind: LutKind.values[(map['kind'] as num).toInt()],
-    name: map['name'] as String,
-    path: map['path'] as String?,
-    intensity: (map['intensity'] as num).toDouble(),
-  );
 }
