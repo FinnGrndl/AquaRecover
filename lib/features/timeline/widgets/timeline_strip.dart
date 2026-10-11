@@ -127,6 +127,16 @@ class _TimelineStripState extends State<TimelineStrip> {
                                   painter: _RulerPainter(
                                     pixelsPerSecond: _pixelsPerSecond,
                                     duration: layout.duration,
+                                    labelStyle: CupertinoTheme.of(context)
+                                        .textTheme
+                                        .textStyle
+                                        .copyWith(
+                                          color: TimelineColors.secondaryText,
+                                          fontSize: 9,
+                                          fontFeatures: const [
+                                            FontFeature.tabularFigures(),
+                                          ],
+                                        ),
                                   ),
                                 ),
                               ),
@@ -153,24 +163,12 @@ class _TimelineStripState extends State<TimelineStrip> {
                         ),
                       ),
                     ),
-                    if (layout.entries.isEmpty)
-                      const Center(
-                        child: Text(
-                          'Add photos or clips to start a movie',
-                          style: TextStyle(
-                            color: TimelineColors.secondaryText,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
                     Positioned(
-                      left: half - 1,
-                      top: 0,
+                      left: half - 6,
+                      top: 16,
                       bottom: 0,
-                      width: 2,
-                      child: const IgnorePointer(
-                        child: ColoredBox(color: TimelineColors.playhead),
-                      ),
+                      width: 12,
+                      child: const IgnorePointer(child: _Playhead()),
                     ),
                   ],
                 ),
@@ -179,6 +177,25 @@ class _TimelineStripState extends State<TimelineStrip> {
           },
         );
       },
+    );
+  }
+}
+
+/// White playhead line, as in Photos and iMovie.
+class _Playhead extends StatelessWidget {
+  const _Playhead();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 2,
+        decoration: BoxDecoration(
+          color: TimelineColors.playhead,
+          borderRadius: BorderRadius.circular(1),
+          boxShadow: const [BoxShadow(color: Color(0x99000000), blurRadius: 4)],
+        ),
+      ),
     );
   }
 }
@@ -212,28 +229,45 @@ class _ClipTile extends StatelessWidget {
         onTap: onTap,
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 1),
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(
+              color: selected
+                  ? CupertinoColors.activeBlue
+                  : TimelineColors.stroke,
+              width: selected ? 2.5 : .7,
+            ),
+          ),
           decoration: BoxDecoration(
             color: base,
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(
-              color: selected ? TimelineColors.accent : TimelineColors.stroke,
-              width: selected ? 2 : 1,
-            ),
+            borderRadius: BorderRadius.circular(9),
           ),
           clipBehavior: Clip.antiAlias,
           child: Stack(
             fit: StackFit.expand,
             children: [
               if (!clip.isVideo)
-                Opacity(
-                  opacity: .55,
-                  child: Image.file(
-                    File(clip.path),
-                    fit: BoxFit.cover,
-                    cacheHeight: 120,
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                Image.file(
+                  File(clip.path),
+                  fit: BoxFit.cover,
+                  cacheHeight: 120,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              // Keeps the labels readable on bright photos.
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x66000000),
+                      Color(0x00000000),
+                      Color(0x99000000),
+                    ],
+                    stops: [0, .4, 1],
                   ),
                 ),
+              ),
               if (overlapWidth > 1)
                 Positioned(
                   left: 0,
@@ -313,10 +347,15 @@ class _ClipTile extends StatelessWidget {
 }
 
 class _RulerPainter extends CustomPainter {
-  const _RulerPainter({required this.pixelsPerSecond, required this.duration});
+  const _RulerPainter({
+    required this.pixelsPerSecond,
+    required this.duration,
+    required this.labelStyle,
+  });
 
   final double pixelsPerSecond;
   final double duration;
+  final TextStyle labelStyle;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -340,10 +379,7 @@ class _RulerPainter extends CustomPainter {
         final text = TextPainter(
           text: TextSpan(
             text: formatTimecode(s.toDouble(), tenths: false),
-            style: const TextStyle(
-              color: TimelineColors.secondaryText,
-              fontSize: 9,
-            ),
+            style: labelStyle,
           ),
           textDirection: TextDirection.ltr,
         )..layout();
@@ -354,5 +390,7 @@ class _RulerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RulerPainter old) =>
-      old.pixelsPerSecond != pixelsPerSecond || old.duration != duration;
+      old.pixelsPerSecond != pixelsPerSecond ||
+      old.duration != duration ||
+      old.labelStyle != labelStyle;
 }

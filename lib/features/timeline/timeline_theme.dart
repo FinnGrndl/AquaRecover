@@ -1,19 +1,32 @@
 import 'package:flutter/cupertino.dart';
 
-/// Colours of the dark, Resolve-inspired timeline workspace.
+/// Colours of the movie editor. They follow the photo editor's dark glass
+/// language: white text, system blue for selection and the primary action,
+/// and translucent white fills for controls.
 abstract final class TimelineColors {
-  static const background = Color(0xff0e1013);
-  static const panel = Color(0xff181b20);
-  static const panelRaised = Color(0xff22262d);
-  static const stroke = Color(0x22ffffff);
-  static const text = Color(0xffeef2f5);
-  static const secondaryText = Color(0x99eef2f5);
-  static const accent = Color(0xff35b6e8);
-  static const playhead = Color(0xffff5a4f);
-  static const photoClip = Color(0xff2b5a73);
-  static const videoClip = Color(0xff31406e);
-  static const danger = Color(0xffff6b61);
+  static const background = CupertinoColors.black;
+  static const fill = Color(0x1affffff);
+  static const stroke = Color(0x29ffffff);
+  static const text = CupertinoColors.white;
+  static const secondaryText = Color(0xb8ffffff);
+
+  /// System blue in dark mode, as the photo editor resolves it.
+  static const accent = Color(0xff0a84ff);
+  static const playhead = CupertinoColors.white;
+  static const photoClip = Color(0xff1f3f50);
+  static const videoClip = Color(0xff2c3350);
+
+  /// System red in dark mode.
+  static const danger = Color(0xffff453a);
 }
+
+/// The dark, system-blue theme the movie screens run in.
+CupertinoThemeData timelineTheme(BuildContext context) =>
+    CupertinoTheme.of(context).copyWith(
+      brightness: Brightness.dark,
+      primaryColor: CupertinoColors.activeBlue,
+      scaffoldBackgroundColor: TimelineColors.background,
+    );
 
 String formatTimecode(double seconds, {bool tenths = true}) {
   final safe = seconds.isFinite && seconds > 0 ? seconds : 0.0;

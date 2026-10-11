@@ -64,7 +64,7 @@ class TimelineToolButton extends StatelessWidget {
   }
 }
 
-/// Cut page: arrange, split, trim, and time clips.
+/// Edit page: arrange, split, trim, and time clips.
 class CutPanel extends StatelessWidget {
   const CutPanel({
     super.key,
@@ -83,8 +83,8 @@ class CutPanel extends StatelessWidget {
     final index = controller.selectedIndex;
     final count = controller.project.clips.length;
     final hasClip = clip != null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return ListView(
+      padding: EdgeInsets.zero,
       children: [
         SizedBox(
           height: 66,
@@ -241,15 +241,15 @@ class _LabeledSegment<T extends Object> extends StatelessWidget {
               label,
               style: const TextStyle(
                 color: TimelineColors.secondaryText,
-                fontSize: 12,
+                fontSize: 13,
               ),
             ),
           ),
           Expanded(
             child: CupertinoSlidingSegmentedControl<T>(
               groupValue: value,
-              backgroundColor: TimelineColors.panelRaised,
-              thumbColor: TimelineColors.accent.withValues(alpha: .85),
+              backgroundColor: TimelineColors.fill,
+              thumbColor: CupertinoColors.activeBlue,
               children: {
                 for (final entry in options.entries)
                   entry.key: Padding(
@@ -258,7 +258,7 @@ class _LabeledSegment<T extends Object> extends StatelessWidget {
                       entry.value,
                       style: const TextStyle(
                         color: TimelineColors.text,
-                        fontSize: 12,
+                        fontSize: 13,
                       ),
                     ),
                   ),
@@ -298,7 +298,7 @@ class _DurationStepper extends StatelessWidget {
           width: 64,
           child: Text(
             'Duration',
-            style: TextStyle(color: TimelineColors.secondaryText, fontSize: 12),
+            style: TextStyle(color: TimelineColors.secondaryText, fontSize: 13),
           ),
         ),
         step(CupertinoIcons.minus_circle, -0.5, 'Shorter'),
@@ -410,7 +410,7 @@ class GradeControl {
       (s) => s.highlights,
       (s, v) => s.copyWith(highlights: v),
     ),
-    GradeControl('Tint', -1, 1, (s) => s.hue, (s, v) => s.copyWith(hue: v)),
+    GradeControl('Hue', -1, 1, (s) => s.hue, (s, v) => s.copyWith(hue: v)),
   ];
 }
 
@@ -499,15 +499,19 @@ class _ColorPanelState extends State<ColorPanel> {
           padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
           child: CupertinoButton(
             key: const Key('timeline_grade_all'),
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            color: TimelineColors.panelRaised,
-            borderRadius: BorderRadius.circular(12),
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            color: TimelineColors.fill,
+            borderRadius: BorderRadius.circular(99),
             onPressed: widget.controller.project.clips.length > 1
                 ? widget.controller.applyGradeToAll
                 : null,
             child: const Text(
               'Match all clips to this grade',
-              style: TextStyle(color: TimelineColors.text, fontSize: 14),
+              style: TextStyle(
+                color: TimelineColors.text,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
@@ -552,35 +556,31 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Looks pick like the Presets chips; parameters select like the
+    // photo editor's choice pills.
     final fill = selected
-        ? (outlined ? TimelineColors.panelRaised : TimelineColors.accent)
-        : TimelineColors.panelRaised.withValues(alpha: .6);
+        ? (outlined
+              ? TimelineColors.accent.withValues(alpha: .18)
+              : CupertinoColors.activeBlue)
+        : TimelineColors.fill;
+    final foreground = selected && outlined
+        ? TimelineColors.accent
+        : TimelineColors.text;
     return Semantics(
       button: true,
       selected: selected,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: fill,
-            borderRadius: BorderRadius.circular(99),
-            border: Border.all(
-              color: selected && outlined
-                  ? TimelineColors.accent
-                  : TimelineColors.stroke,
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected && !outlined
-                  ? const Color(0xff04131a)
-                  : TimelineColors.text,
-              fontSize: 12.5,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            ),
+      child: CupertinoButton(
+        padding: const EdgeInsets.symmetric(horizontal: 13),
+        minimumSize: const Size(0, 34),
+        borderRadius: BorderRadius.circular(99),
+        color: fill,
+        onPressed: onTap,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: foreground,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -588,7 +588,7 @@ class _Chip extends StatelessWidget {
   }
 }
 
-/// Deliver page: output format and the render button.
+/// Export page: output format and the export button.
 class DeliverPanel extends StatelessWidget {
   const DeliverPanel({
     super.key,
@@ -639,8 +639,8 @@ class DeliverPanel extends StatelessWidget {
           const SizedBox(height: 8),
           CupertinoButton(
             key: const Key('timeline_cancel_render'),
-            color: TimelineColors.panelRaised,
-            borderRadius: BorderRadius.circular(14),
+            color: TimelineColors.fill,
+            borderRadius: BorderRadius.circular(99),
             onPressed: onCancel,
             child: Text(
               'Cancel · ${(progress * 100).round()}%',
@@ -650,14 +650,14 @@ class DeliverPanel extends StatelessWidget {
         ] else
           CupertinoButton(
             key: const Key('timeline_render'),
-            color: TimelineColors.accent,
-            borderRadius: BorderRadius.circular(14),
+            color: CupertinoColors.activeBlue,
+            borderRadius: BorderRadius.circular(99),
             onPressed: onRender,
             child: const Text(
-              'Render movie',
+              'Export movie',
               style: TextStyle(
-                color: Color(0xff04131a),
-                fontWeight: FontWeight.w700,
+                color: CupertinoColors.white,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -668,8 +668,8 @@ class DeliverPanel extends StatelessWidget {
               if (onSaveToPhotos != null) ...[
                 Expanded(
                   child: CupertinoButton(
-                    color: TimelineColors.panelRaised,
-                    borderRadius: BorderRadius.circular(14),
+                    color: TimelineColors.fill,
+                    borderRadius: BorderRadius.circular(99),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     onPressed: onSaveToPhotos,
                     child: const Text(
@@ -682,8 +682,8 @@ class DeliverPanel extends StatelessWidget {
               ],
               Expanded(
                 child: CupertinoButton(
-                  color: TimelineColors.panelRaised,
-                  borderRadius: BorderRadius.circular(14),
+                  color: TimelineColors.fill,
+                  borderRadius: BorderRadius.circular(99),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   onPressed: onOpenLibrary,
                   child: const Text(
@@ -700,8 +700,8 @@ class DeliverPanel extends StatelessWidget {
           label: 'Frame',
           child: CupertinoSlidingSegmentedControl<TimelineAspect>(
             groupValue: project.aspect,
-            backgroundColor: TimelineColors.panelRaised,
-            thumbColor: TimelineColors.accent.withValues(alpha: .85),
+            backgroundColor: TimelineColors.fill,
+            thumbColor: CupertinoColors.activeBlue,
             children: {
               for (final aspect in TimelineAspect.values)
                 aspect: _segmentText(
@@ -721,8 +721,8 @@ class DeliverPanel extends StatelessWidget {
           label: 'Quality',
           child: CupertinoSlidingSegmentedControl<TimelineQuality>(
             groupValue: project.quality,
-            backgroundColor: TimelineColors.panelRaised,
-            thumbColor: TimelineColors.accent.withValues(alpha: .85),
+            backgroundColor: TimelineColors.fill,
+            thumbColor: CupertinoColors.activeBlue,
             children: {
               for (final quality in TimelineQuality.values)
                 quality: _segmentText(quality.label),
@@ -740,8 +740,8 @@ class DeliverPanel extends StatelessWidget {
           label: 'Frame rate',
           child: CupertinoSlidingSegmentedControl<int>(
             groupValue: project.frameRate,
-            backgroundColor: TimelineColors.panelRaised,
-            thumbColor: TimelineColors.accent.withValues(alpha: .85),
+            backgroundColor: TimelineColors.fill,
+            thumbColor: CupertinoColors.activeBlue,
             children: {
               for (final fps in const [24, 30, 60]) fps: _segmentText('$fps'),
             },
@@ -758,8 +758,8 @@ class DeliverPanel extends StatelessWidget {
           label: 'Fades',
           child: CupertinoSlidingSegmentedControl<double>(
             groupValue: project.transitionSeconds,
-            backgroundColor: TimelineColors.panelRaised,
-            thumbColor: TimelineColors.accent.withValues(alpha: .85),
+            backgroundColor: TimelineColors.fill,
+            thumbColor: CupertinoColors.activeBlue,
             children: {
               for (final s in const [0.3, 0.6, 1.0, 1.5])
                 s: _segmentText('${s}s'),
@@ -783,7 +783,7 @@ class DeliverPanel extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 4),
     child: Text(
       text,
-      style: const TextStyle(color: TimelineColors.text, fontSize: 12.5),
+      style: const TextStyle(color: TimelineColors.text, fontSize: 13),
     ),
   );
 }
@@ -828,11 +828,11 @@ class LinearProgress extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const ColoredBox(color: TimelineColors.panelRaised),
+        const ColoredBox(color: TimelineColors.stroke),
         FractionallySizedBox(
           alignment: Alignment.centerLeft,
           widthFactor: value.clamp(0.0, 1.0),
-          child: const ColoredBox(color: TimelineColors.accent),
+          child: const ColoredBox(color: CupertinoColors.activeBlue),
         ),
       ],
     );

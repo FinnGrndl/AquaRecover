@@ -6,9 +6,34 @@ import 'package:aqua_recover/core/models/restoration_settings.dart';
 import 'package:aqua_recover/core/timeline/timeline_project.dart';
 import 'package:aqua_recover/features/timeline/movie_from_queue.dart';
 import 'package:aqua_recover/features/timeline/timeline_controller.dart';
+import 'package:aqua_recover/core/timeline/timeline_project_store.dart';
 import 'package:aqua_recover/features/timeline/timeline_editor_page.dart';
+import 'package:aqua_recover/features/timeline/timeline_projects_page.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+/// Keeps projects in memory and answers synchronously, so widget tests do
+/// not wait on file I/O.
+class _MemoryStore extends TimelineProjectStore {
+  final projects = <String, TimelineProject>{};
+
+  @override
+  Future<void> save(TimelineProject project) {
+    projects[project.id] = project;
+    return Future.value();
+  }
+
+  @override
+  Future<List<TimelineProject>> list() =>
+      SynchronousFuture(projects.values.toList());
+
+  @override
+  Future<void> delete(String id) {
+    projects.remove(id);
+    return Future.value();
+  }
+}
 
 TimelineController _controllerWith(List<String> paths) {
   final controller = TimelineController(const TimelineProject(id: 'p'));
@@ -112,7 +137,7 @@ void main() {
     expect(project.clips.last.transition, ClipTransition.crossfade);
   });
 
-  testWidgets('editor switches between Cut, Color, and Deliver', (
+  testWidgets('editor switches between Edit, Color, and Export', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -123,15 +148,87 @@ void main() {
         home: TimelineEditorPage(project: TimelineProject(id: 'w')),
       ),
     );
-    expect(find.text('Add photos or clips to start a movie'), findsOneWidget);
+    expect(find.text('Start with your best shots'), findsOneWidget);
+    // Nothing to edit yet, so only the Add button in the viewer shows.
+    expect(find.byKey(const Key('timeline_add')), findsNothing);
+    expect(find.byKey(const Key('timeline_empty_add')), findsOneWidget);
+  });
+
+  testWidgets('tabs switch panels and the open tab collapses it', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const CupertinoApp(
+        home: TimelineEditorPage(
+          project: TimelineProject(
+            id: 'w',
+            clips: [
+              TimelineClip(
+                id: 'a',
+                path: '/m/a.jpg',
+                kind: TimelineClipKind.image,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
     expect(find.byKey(const Key('timeline_add')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('timeline_page_color')));
-    await tester.pump();
-    expect(find.text('Select a clip to grade it.'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('timeline_page_edit')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const Key('timeline_add')), findsNothing);
 
-    await tester.tap(find.byKey(const Key('timeline_page_deliver')));
+    await tester.tap(find.byKey(const Key('timeline_page_color')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const Key('timeline_grade_all')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('timeline_open_export')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.textContaining('1920 × 1080 · 00:03.0'), findsOneWidget);
+    expect(find.text('Export movie'), findsOneWidget);
+  });
+
+  testWidgets('new movie starts from the picker, like iMovie', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final store = _MemoryStore();
+    var picks = <String>[];
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: TimelineProjectsPage(
+          store: store,
+          mediaPicker: () async => picks,
+        ),
+      ),
+    );
     await tester.pump();
-    expect(find.textContaining('1920 × 1080 · 00:00.0'), findsOneWidget);
+    expect(find.text('Turn a dive into a movie'), findsOneWidget);
+
+    // Cancelling the picker creates nothing.
+    await tester.tap(find.byKey(const Key('timeline_new_movie_empty')));
+    await tester.pumpAndSettle();
+    expect(store.projects, isEmpty);
+    expect(find.byType(TimelineEditorPage), findsNothing);
+
+    picks = ['/m/a.jpg', '/m/b.jpg'];
+    await tester.tap(find.byKey(const Key('timeline_new_movie')));
+    // The photo preview keeps a spinner running, so pump instead of settle.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(TimelineEditorPage), findsOneWidget);
+    expect(find.text('2 items · 00:05 · Landscape 16:9'), findsOneWidget);
+    expect(store.projects.values.single.name, startsWith('Dive, '));
+  });
+
+  test('default movie names read like a date', () {
+    expect(
+      TimelineProjectsPage.defaultName(DateTime(2026, 10, 11)),
+      'Dive, Oct 11',
+    );
   });
 }
