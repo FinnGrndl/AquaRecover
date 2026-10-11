@@ -45,6 +45,8 @@ import 'widgets/queue_overview_sheet.dart';
 import 'widgets/raw_video_dialog.dart';
 import 'widgets/setting_slider.dart';
 import 'widgets/video_frame_preview_tile.dart';
+import '../timeline/movie_from_queue.dart';
+import '../timeline/timeline_projects_page.dart';
 
 typedef PhotoMediaPicker = Future<List<String>> Function();
 
@@ -363,6 +365,23 @@ class _EditorPageState extends State<EditorPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Tooltip(
+              message: 'Movies',
+              child: CupertinoButton(
+                key: const Key('start_movies'),
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(42, 42),
+                borderRadius: BorderRadius.circular(99),
+                color: CupertinoColors.white.withValues(alpha: .11),
+                onPressed: _openMovies,
+                child: const Icon(
+                  CupertinoIcons.film,
+                  color: CupertinoColors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Tooltip(
               message: 'Local exports',
               child: CupertinoButton(
                 key: const Key('start_local_exports'),
@@ -626,6 +645,32 @@ class _EditorPageState extends State<EditorPage> {
             ],
           ),
         ),
+        if (_jobs.any((job) => job.kind != MediaKind.rawVideo)) ...[
+          const SizedBox(height: 10),
+          CupertinoButton(
+            key: const Key('start_make_movie'),
+            color: CupertinoColors.white.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(16),
+            onPressed: _busy ? null : _makeMovieFromQueue,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  CupertinoIcons.film,
+                  size: 20,
+                  color: CupertinoColors.white,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _jobs.length == 1
+                      ? 'Make a movie'
+                      : 'Make a movie from ${_jobs.length} items',
+                  style: const TextStyle(color: CupertinoColors.white),
+                ),
+              ],
+            ),
+          ),
+        ],
         if (job != null) ...[
           const SizedBox(height: 10),
           CupertinoButton(
@@ -3327,6 +3372,25 @@ class _EditorPageState extends State<EditorPage> {
         ],
       ),
     );
+  }
+
+  void _openMovies() {
+    Navigator.of(context).push(
+      CupertinoPageRoute<void>(builder: (_) => const TimelineProjectsPage()),
+    );
+  }
+
+  /// Starts a movie from the queue, keeping each item's grade and look.
+  Future<void> _makeMovieFromQueue() async {
+    final selected = _selectedJob;
+    if (selected != null) _editStates[selected.id] = _currentEditState;
+    final project = movieFromQueue(
+      _jobs,
+      editStates: _editStates,
+      videoDurations: _videoDurations,
+      id: TimelineProjectsPage.newProjectId(),
+    );
+    await TimelineProjectsPage.open(context, project);
   }
 
   void _openLocalExports() {

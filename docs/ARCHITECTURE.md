@@ -174,6 +174,15 @@ reference media by path.
 | Android | `TimelineExportBridge.kt`: one Media3 sequence with `Presentation`, slow-zoom `MatrixTransformation`, and forced audio | Baked `SingleColorLut`; crossfades render as a short dip to black because Media3 sequences cannot overlap items |
 | Windows (and tooling) | `FfmpegTimelineRenderer`: one filter graph with `lut3d`, `zoompan`, `xfade`, and `acrossfade` | Baked `.cube` per clip |
 
+The editor lives in `lib/features/timeline`. `TimelineController` owns the
+immutable project, the selection, the playhead, a bounded undo and redo history,
+and a debounced autosave. `TimelineEditorPage` stacks the viewer, the transport,
+the centred-playhead `TimelineStrip`, and the Cut, Color, and Deliver panels; on
+screens 900 points and wider the panels move into a side column. The viewer uses
+the accurate still renderer for photos and the platform player with a
+colour-matrix approximation for video, so scrubbing stays real time while the
+render applies the full grade.
+
 `TimelineGradeBaker` caches baked tables by source range, grade, and look, so a
 second export after a small edit only re-bakes the clips that changed.
 

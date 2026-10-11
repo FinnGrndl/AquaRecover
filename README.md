@@ -89,6 +89,25 @@ Local exports receive a small `.aquarecover.json` sidecar with the edit,
 transform, LUT, and export settings. It records file names, not the original
 absolute path.
 
+## Make a movie
+
+The film button on the start screen opens **Movies**, a compact editor built
+for a phone held in portrait, laid out like DaVinci Resolve's pages:
+
+- **Cut**: add photos and clips, split at the playhead, set clip start and end,
+  reorder, duplicate, mute, choose cut or fade, and give photos a duration and
+  a slow zoom. The playhead stays centred and the timeline scrolls under it;
+  pinch to zoom the timeline.
+- **Color**: pick a preset per clip, tune one parameter at a time on a precision
+  wheel (recovery, red, balance, exposure, contrast, saturation, haze, shadows,
+  highlights, tint), add a look, and match every clip to the current grade.
+- **Deliver**: choose 16:9, 9:16, or 1:1, 720p to 4K, 24 to 60 fps, and the fade
+  length, then render an H.264 movie on the device and save it to Photos.
+
+**Make a movie from N items** on the start screen turns the current queue into a
+movie and keeps the grade and look each item already has. Projects save
+automatically, support undo and redo, and reference media in place.
+
 ## What happens to a pixel
 
 The default processor is deterministic and inspectable. It does not use a
