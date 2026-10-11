@@ -82,7 +82,7 @@ class GpuPreviewFilter extends StatelessWidget {
       green * contrast * exposure,
       blue * contrast * exposure,
     ];
-    return <double>[
+    final matrix = <double>[
       colorMatrix[0][0] * scales[0],
       colorMatrix[0][1] * scales[0],
       colorMatrix[0][2] * scales[0],
@@ -104,6 +104,16 @@ class GpuPreviewFilter extends StatelessWidget {
       1,
       0,
     ];
+    // White balance is a final per-channel gain, so it scales whole rows.
+    if (s.hasWhiteBalance) {
+      final gains = s.whiteBalanceGains;
+      for (final (row, gain) in [(0, gains.r), (1, gains.g), (2, gains.b)]) {
+        for (var col = 0; col < 5; col++) {
+          matrix[row * 5 + col] *= gain;
+        }
+      }
+    }
+    return matrix;
   }
 
   List<double> _matrix(RestorationSettings s) => matrixFor(s);

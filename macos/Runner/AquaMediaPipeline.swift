@@ -542,6 +542,22 @@ final class AquaMediaPipeline {
       )
     }
 
+    // White balance is the final colour trim, before any look LUT, matching
+    // the Dart renderer.
+    if settings.hasWhiteBalance {
+      let gains = settings.whiteBalanceGains
+      output = colorMatrix(
+        image: output,
+        extent: extent,
+        redGain: gains.r,
+        greenGain: gains.g,
+        blueGain: gains.b,
+        redBias: 0,
+        greenBias: 0,
+        blueBias: 0
+      )
+    }
+
     output = applyBuiltInLut(output, extent: extent, lut: lut)
 
     let sharpness = clamp((settings.sharpness + settings.clarity * 0.65) * 0.70, 0.0, 1.5)
@@ -936,6 +952,8 @@ struct VideoSettings {
     shadows = double(values, key: "shadows", fallback: 0.0)
     blackPoint = double(values, key: "blackPoint", fallback: 0.0)
     vignette = double(values, key: "vignette", fallback: 0.0)
+    temperature = clamp(double(values, key: "temperature", fallback: 0.0), -1.0, 1.0)
+    tint = clamp(double(values, key: "tint", fallback: 0.0), -1.0, 1.0)
     jpegQuality = double(values, key: "jpegQuality", fallback: 94.0)
   }
 
@@ -958,7 +976,22 @@ struct VideoSettings {
   let shadows: Double
   let blackPoint: Double
   let vignette: Double
+  let temperature: Double
+  let tint: Double
   let jpegQuality: Double
+
+  /// Mirrors RestorationSettings.whiteBalanceRange in Dart.
+  static let whiteBalanceRange = 0.35
+
+  var hasWhiteBalance: Bool { abs(temperature) > 0.0001 || abs(tint) > 0.0001 }
+
+  var whiteBalanceGains: (r: Double, g: Double, b: Double) {
+    (
+      r: 1 + Self.whiteBalanceRange * temperature,
+      g: 1 - Self.whiteBalanceRange * tint,
+      b: 1 - Self.whiteBalanceRange * temperature
+    )
+  }
 
   var isIdentity: Bool {
     func same(_ lhs: Double, _ rhs: Double) -> Bool {
@@ -983,6 +1016,7 @@ struct VideoSettings {
       && same(shadows, 0.0)
       && same(blackPoint, 0.0)
       && same(vignette, 0.0)
+      && !hasWhiteBalance
   }
 }
 

@@ -70,6 +70,14 @@ control and remain the baseline for later edits. Tapping an adjustment value
 restores only that control to the value supplied by the preset. The **None**
 preset is deliberately neutral and leaves the image unchanged.
 
+**White balance** trims what the water correction leaves behind. In Adjust,
+tap **White balance** and then tap something in the photo that should be
+white or grey, such as sand, a slate, or a tank. AquaRecover sets
+**Temperature** and **Tint** so that spot comes out neutral, and you can drag
+to try other spots before tapping Done. Both values are also plain sliders,
+apply last (before a look LUT) on every platform, and are part of the grade
+in movies.
+
 The editor keeps comparison close to the image. Switch between edited and
 split views, press and hold to reveal the original, fit the complete frame or
 fill the preview, and pinch to inspect details. Cropping is nondestructive and

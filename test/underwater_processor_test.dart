@@ -780,6 +780,8 @@ void main() {
         'saturation',
         'vibrance',
         'hue',
+        'temperature',
+        'tint',
       ]),
     );
 
@@ -790,10 +792,10 @@ void main() {
     expect(updated.preset, RestorationPreset.auto);
     expect(updated.redRecovery, 1.8);
 
-    expect(allImageAdjustmentControls, hasLength(19));
+    expect(allImageAdjustmentControls, hasLength(21));
     expect(
       allImageAdjustmentControls.map((control) => control.id).toSet(),
-      hasLength(19),
+      hasLength(21),
     );
     final waterCorrection = allImageAdjustmentControls.firstWhere(
       (control) => control.id == 'recovery',

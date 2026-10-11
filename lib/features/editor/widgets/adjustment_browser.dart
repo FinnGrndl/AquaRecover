@@ -16,6 +16,7 @@ class AdjustmentBrowser extends StatelessWidget {
     required this.onSelected,
     required this.onChanged,
     this.enabled = true,
+    this.trailing,
   });
 
   final List<AdjustmentControl> controls;
@@ -26,6 +27,10 @@ class AdjustmentBrowser extends StatelessWidget {
   final ValueChanged<RestorationSettings> onChanged;
   final bool enabled;
 
+  /// Optional action shown next to the hint, such as the white balance
+  /// picker.
+  final Widget? trailing;
+
   @override
   Widget build(BuildContext context) {
     final active = controls.firstWhere(
@@ -35,19 +40,25 @@ class AdjustmentBrowser extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Align(
-          alignment: Alignment.center,
-          child: Text(
-            'Tap a value to restore the preset value',
-            textAlign: TextAlign.center,
-            style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-              color: CupertinoDynamicColor.resolve(
-                CupertinoColors.secondaryLabel,
-                context,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Tap a value to restore the preset value',
+                textAlign: trailing == null
+                    ? TextAlign.center
+                    : TextAlign.start,
+                style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                  color: CupertinoDynamicColor.resolve(
+                    CupertinoColors.secondaryLabel,
+                    context,
+                  ),
+                  fontSize: 11,
+                ),
               ),
-              fontSize: 11,
             ),
-          ),
+            ?trailing,
+          ],
         ),
         const SizedBox(height: 12),
         SizedBox(
