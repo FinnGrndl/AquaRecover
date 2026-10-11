@@ -2613,15 +2613,11 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Future<void> _pickFiles() async {
-    final result = await FilePicker.platform.pickFiles(
+    final files = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: MediaClassifier.allExtensions,
-      allowMultiple: true,
-      withData: false,
     );
-    final paths =
-        result?.files.map((file) => file.path).whereType<String>().toList() ??
-        const <String>[];
+    final paths = files.map((file) => file.path).whereType<String>().toList();
     if (paths.isEmpty) {
       setState(() => _status = 'No file selected.');
       return;
@@ -2701,13 +2697,11 @@ class _EditorPageState extends State<EditorPage> {
       Platform.isIOS || Platform.isMacOS || Platform.isAndroid;
 
   Future<void> _importCubeLut() async {
-    final result = await FilePicker.platform.pickFiles(
+    final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: const ['cube'],
-      allowMultiple: false,
-      withData: false,
     );
-    final path = result?.files.single.path;
+    final path = file?.path;
     if (path == null) return;
     _setLutProfile(LutProfile.customCube(path, name: p.basename(path)));
     if (!mounted) return;
@@ -3278,7 +3272,7 @@ class _EditorPageState extends State<EditorPage> {
 
   Future<bool> _chooseExportDirectory() async {
     try {
-      final path = await FilePicker.platform.getDirectoryPath(
+      final path = await FilePicker.getDirectoryPath(
         dialogTitle: 'Choose export folder',
       );
       if (path == null || !mounted) return false;
