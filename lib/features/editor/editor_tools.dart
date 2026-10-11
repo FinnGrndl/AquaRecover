@@ -143,6 +143,30 @@ extension EditorToolGroupX on EditorToolGroup {
     ],
     EditorToolGroup.color => [
       AdjustmentControl(
+        id: 'temperature',
+        label: 'Temperature',
+        value: (settings) => settings.temperature,
+        apply: (settings, value) => settings.copyWith(temperature: value),
+        min: -1,
+        max: 1,
+        divisions: 40,
+        help:
+            'Final warm-cool trim after the water correction. The white balance picker sets it from a tap.',
+        format: _signedPercent,
+      ),
+      AdjustmentControl(
+        id: 'tint',
+        label: 'Tint',
+        value: (settings) => settings.tint,
+        apply: (settings, value) => settings.copyWith(tint: value),
+        min: -1,
+        max: 1,
+        divisions: 40,
+        help:
+            'Final green-magenta trim. Positive values remove a leftover green cast.',
+        format: _signedPercent,
+      ),
+      AdjustmentControl(
         id: 'red_recovery',
         label: 'Red recovery',
         value: (settings) => settings.redRecovery,
@@ -343,3 +367,8 @@ const editorPresetChoices = [
   RestorationPreset.redFilter,
   RestorationPreset.artificialLight,
 ];
+
+String _signedPercent(double value) {
+  final percent = (value * 100).round();
+  return percent > 0 ? '+$percent' : '$percent';
+}
