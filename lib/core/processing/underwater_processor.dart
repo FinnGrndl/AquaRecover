@@ -154,6 +154,71 @@ class UnderwaterProcessor {
     return _applyDetail(output, settings, quality);
   }
 
+  /// Bakes the per-pixel colour stage of [settings] into a `size`³ lattice.
+  ///
+  /// Scene statistics come from [sceneSample] (for video, a few frames
+  /// stacked into one image), so the baked table matches what [restoreImage]
+  /// does to flat image regions of that scene. Spatial stages — Retinex
+  /// fusion, sharpening, and the vignette — are not representable in a colour
+  /// table and are left out. Returns `size`³ RGB byte triples in `.cube` order
+  /// (red changes fastest).
+  Uint8List bakeColorLattice(
+    img.Image sceneSample,
+    RestorationSettings settings, {
+    int size = 33,
+  }) {
+    if (size < 2 || size > 65) {
+      throw RangeError.range(size, 2, 65, 'size');
+    }
+    final lattice = Uint8List(size * size * size * 3);
+    for (var i = 0, b = 0; b < size; b++) {
+      for (var g = 0; g < size; g++) {
+        for (var r = 0; r < size; r++, i += 3) {
+          lattice[i] = (r * 255 / (size - 1)).round();
+          lattice[i + 1] = (g * 255 / (size - 1)).round();
+          lattice[i + 2] = (b * 255 / (size - 1)).round();
+        }
+      }
+    }
+    final colourSettings = settings.copyWith(vignette: 0);
+    if (colourSettings.isIdentity) return lattice;
+
+    // Each lattice colour fills a 2×2 block and is read back at the block's
+    // bottom-right pixel. Its left and upper neighbours then share its colour,
+    // so the local-structure term sees a flat region, as in smooth water.
+    final stats = _ImageStats.from(_Rgba8.of(sceneSample));
+    final width = size * 2;
+    final height = size * size * 2;
+    final source = Uint8List(width * height * 4);
+    for (var cell = 0; cell < size * size * size; cell++) {
+      final bx = (cell % size) * 2;
+      final by = (cell ~/ size) * 2;
+      for (var dy = 0; dy < 2; dy++) {
+        for (var dx = 0; dx < 2; dx++) {
+          final o = ((by + dy) * width + bx + dx) * 4;
+          source[o] = lattice[cell * 3];
+          source[o + 1] = lattice[cell * 3 + 1];
+          source[o + 2] = lattice[cell * 3 + 2];
+          source[o + 3] = 255;
+        }
+      }
+    }
+    final out = Uint8List(source.length);
+    _CorrectionPlan.from(
+      colourSettings,
+      stats,
+      width,
+      height,
+    ).correctRows(source, 0, out, 0, 0, height);
+    for (var cell = 0; cell < size * size * size; cell++) {
+      final o = (((cell ~/ size) * 2 + 1) * width + (cell % size) * 2 + 1) * 4;
+      lattice[cell * 3] = out[o];
+      lattice[cell * 3 + 1] = out[o + 1];
+      lattice[cell * 3 + 2] = out[o + 2];
+    }
+    return lattice;
+  }
+
   /// How many bands [restoreImageInParallel] uses for [pixels] on a machine
   /// with [processors] cores. Below ~1.5 MP the isolate hand-off costs more
   /// than it saves.

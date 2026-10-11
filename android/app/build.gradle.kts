@@ -60,3 +60,11 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // GPU video export with a baked 3D colour table (see VideoExportBridge.kt).
+    val media3Version = "1.8.0"
+    implementation("androidx.media3:media3-transformer:$media3Version")
+    implementation("androidx.media3:media3-effect:$media3Version")
+    implementation("androidx.media3:media3-common:$media3Version")
+}

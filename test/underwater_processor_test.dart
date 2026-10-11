@@ -438,29 +438,39 @@ void main() {
     );
   });
 
-  test(
-    'video backend is native on iOS and macOS through AVFoundation export',
-    () {
-      for (final os in ['ios', 'macos']) {
-        expect(
-          VideoRestorationService.isBackendSupportedForOperatingSystem(os),
-          isTrue,
-        );
-        expect(
-          VideoRestorationService.isBackendAvailableForOperatingSystem(os),
-          isTrue,
-        );
-      }
+  test('video backends cover iOS, macOS, Android, and Windows with ffmpeg', () {
+    for (final os in ['ios', 'macos']) {
       expect(
-        VideoRestorationService.isBackendAvailableForOperatingSystem('android'),
-        isFalse,
+        VideoRestorationService.isBackendSupportedForOperatingSystem(os),
+        isTrue,
       );
       expect(
-        VideoRestorationService.backendUnavailableReason,
-        isNot(contains('/Users/')),
+        VideoRestorationService.isBackendAvailableForOperatingSystem(os),
+        isTrue,
       );
-    },
-  );
+    }
+    expect(
+      VideoRestorationService.backendFor('android'),
+      VideoBackend.androidMedia3,
+    );
+    expect(VideoRestorationService.backendFor('windows'), VideoBackend.none);
+    expect(
+      VideoRestorationService.backendFor('windows', ffmpegAvailable: true),
+      VideoBackend.ffmpegLut,
+    );
+    expect(VideoRestorationService.backendFor('linux'), VideoBackend.none);
+    expect(
+      VideoRestorationService.outputFormatFor(
+        VideoBackend.androidMedia3,
+        VideoOutputFormat.mov,
+      ),
+      VideoOutputFormat.mp4,
+    );
+    expect(
+      VideoRestorationService.backendUnavailableReason,
+      isNot(contains('/Users/')),
+    );
+  });
 
   test(
     'image restoration service restores bytes on a background path',
