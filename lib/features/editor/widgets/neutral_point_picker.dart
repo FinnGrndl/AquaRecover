@@ -1,14 +1,16 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 
 import '../../../core/media/engine_image_decoder.dart';
 import '../../../core/models/lut_profile.dart';
 import '../../../core/models/restoration_settings.dart';
 import '../../../core/processing/underwater_processor.dart';
+import 'editor_glass_surface.dart';
+import 'glass_navigation_bar.dart';
 import 'restored_image_preview.dart';
 
 typedef RgbaDecoder =
@@ -157,74 +159,111 @@ class _NeutralPointPickerState extends State<NeutralPointPicker> {
 
   @override
   Widget build(BuildContext context) {
-    final secondary = CupertinoDynamicColor.resolve(
-      CupertinoColors.secondaryLabel,
-      context,
-    );
-    return CupertinoPageScaffold(
-      backgroundColor: CupertinoColors.black,
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text('White balance'),
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        trailing: CupertinoButton(
-          key: const Key('neutral_picker_done'),
-          padding: EdgeInsets.zero,
-          onPressed: () => Navigator.of(context).pop(_settings),
-          child: const Text(
-            'Done',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ),
+    final insets = MediaQuery.paddingOf(context);
+    return CupertinoTheme(
+      data: CupertinoTheme.of(context).copyWith(
+        brightness: Brightness.dark,
+        primaryColor: CupertinoColors.activeBlue,
       ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            Expanded(child: _imageArea(context)),
-            Container(
-              color: CupertinoDynamicColor.resolve(
-                CupertinoColors.systemBackground,
-                context,
+      child: CupertinoPageScaffold(
+        backgroundColor: CupertinoColors.black,
+        child: AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  0,
+                  insets.top + 68,
+                  0,
+                  insets.bottom + 124,
+                ),
+                child: _imageArea(context),
               ),
-              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _error ??
-                              'Tap something that should be white or grey, '
-                                  'like sand, a slate, or a tank.',
-                          style: TextStyle(fontSize: 13, color: secondary),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Temperature ${_signed(_settings.temperature)}  ·  '
-                          'Tint ${_signed(_settings.tint)}',
-                          key: const Key('neutral_picker_values'),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            fontFeatures: [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      ],
+              Positioned(
+                top: insets.top + 8,
+                left: 12,
+                right: 12,
+                child: GlassNavigationBar(
+                  leadingKey: const Key('neutral_picker_cancel'),
+                  leadingLabel: 'Cancel',
+                  showBackChevron: false,
+                  leadingWidth: 92,
+                  onLeadingPressed: () => Navigator.of(context).pop(),
+                  title: 'White balance',
+                  subtitle: 'Tap something white or grey',
+                  trailingWidth: 76,
+                  trailingTint: CupertinoColors.activeBlue,
+                  trailing: CupertinoButton(
+                    key: const Key('neutral_picker_done'),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    minimumSize: const Size(44, 44),
+                    borderRadius: BorderRadius.circular(99),
+                    color: CupertinoColors.activeBlue,
+                    onPressed: () => Navigator.of(context).pop(_settings),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        color: CupertinoColors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  CupertinoButton(
-                    key: const Key('neutral_picker_reset'),
-                    onPressed: _settings.hasWhiteBalance ? _reset : null,
-                    child: const Text('Reset'),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: insets.bottom + 12,
+                child: EditorGlassSurface(
+                  borderRadius: 24,
+                  shadow: true,
+                  padding: const EdgeInsets.fromLTRB(18, 14, 8, 14),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Temperature ${_signed(_settings.temperature)}  ·  '
+                              'Tint ${_signed(_settings.tint)}',
+                              key: const Key('neutral_picker_values'),
+                              style: const TextStyle(
+                                color: CupertinoColors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _error ??
+                                  'Sand, a slate, or a tank work well. '
+                                      'Drag to compare spots.',
+                              style: TextStyle(
+                                color: CupertinoColors.white.withValues(
+                                  alpha: .72,
+                                ),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      CupertinoButton(
+                        key: const Key('neutral_picker_reset'),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        onPressed: _settings.hasWhiteBalance ? _reset : null,
+                        child: const Text('Reset'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -290,7 +329,8 @@ class _NeutralPointPickerState extends State<NeutralPointPicker> {
 
   static String _signed(double value) {
     final text = (value * 100).round();
-    return text > 0 ? '+$text' : '$text';
+    // A real minus sign lines up with the plus in tabular figures.
+    return text > 0 ? '+$text' : (text < 0 ? '\u2212${-text}' : '0');
   }
 }
 
@@ -299,11 +339,23 @@ class _Reticle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const shadow = [BoxShadow(color: Color(0x88000000), blurRadius: 4)];
     return DecoratedBox(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: CupertinoColors.white, width: 2),
-        boxShadow: const [BoxShadow(color: Color(0x88000000), blurRadius: 4)],
+        boxShadow: shadow,
+      ),
+      child: Center(
+        child: Container(
+          width: 4,
+          height: 4,
+          decoration: const BoxDecoration(
+            color: CupertinoColors.white,
+            shape: BoxShape.circle,
+            boxShadow: shadow,
+          ),
+        ),
       ),
     );
   }

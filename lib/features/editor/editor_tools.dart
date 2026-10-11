@@ -370,5 +370,5 @@ const editorPresetChoices = [
 
 String _signedPercent(double value) {
   final percent = (value * 100).round();
-  return percent > 0 ? '+$percent' : '$percent';
+  return percent > 0 ? '+$percent' : (percent < 0 ? '\u2212${-percent}' : '0');
 }
