@@ -144,6 +144,17 @@ appears in the local export directory.
 picker and creates a numbered file name instead of overwriting an existing
 file. Batch items reuse the selected folder for the current editor session.
 
+## MCP server
+
+`bin/aquarecover_mcp.dart` serves the Model Context Protocol over stdio. The
+protocol layer (`lib/mcp/mcp_server.dart`) is independent of the tools; the
+tools (`lib/mcp/aquarecover_tools.dart`) use the Flutter-free
+`StillRenderPipeline`, `SceneAnalyzer`, `SidecarService` and model JSON, so
+the server renders exactly like the app's portable path. `PathPolicy` limits
+file access to `--allow` folders. HEIC/RAW decoding uses macOS `sips`, and
+video uses a host `ffmpeg`, because the CLI has no platform channels. See
+[MCP.md](MCP.md).
+
 ## Dependencies
 
 The processing core uses the Dart `image` package and Apple system frameworks.
