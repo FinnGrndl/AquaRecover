@@ -25,6 +25,8 @@ import '../../core/photo/photo_library_service.dart';
 import '../../core/persistence/folder_export_service.dart';
 import '../../core/persistence/sidecar_service.dart';
 import '../../core/platform/raw_processing_service.dart';
+import '../../core/processing/scene_analyzer.dart';
+import '../../core/processing/scene_suggestion_service.dart';
 import '../../core/processing/image_restoration_service.dart';
 import '../../core/processing/video_restoration_service.dart';
 import '../../core/workflow/editor_workflow.dart';
@@ -61,6 +63,7 @@ class EditorPage extends StatefulWidget {
     this.imageService = const ImageRestorationService(),
     this.photoMediaPicker,
     this.onShowTutorial,
+    this.sceneSuggestions,
   });
 
   final List<String> initialPaths;
@@ -74,12 +77,19 @@ class EditorPage extends StatefulWidget {
   final PhotoMediaPicker? photoMediaPicker;
   final VoidCallback? onShowTutorial;
 
+  /// Suggests a preset per photo; defaults to the engine-decoder service.
+  final SceneSuggestionService? sceneSuggestions;
+
   @override
   State<EditorPage> createState() => _EditorPageState();
 }
 
 class _EditorPageState extends State<EditorPage> {
   late final ImageRestorationService _imageService = widget.imageService;
+  late final SceneSuggestionService _sceneSuggestions =
+      widget.sceneSuggestions ?? SceneSuggestionService();
+  String? _suggestionPath;
+  SceneAnalysis? _suggestion;
   final _videoService = const VideoRestorationService();
   final _rawService = RawProcessingService();
   final _photoLibraryService = const PhotoLibraryService();
@@ -1411,6 +1421,7 @@ class _EditorPageState extends State<EditorPage> {
         EditorToolGroup.presets => PresetBrowser(
           settings: _settings,
           enabled: !_busy,
+          suggestion: _suggestionFor(_selectedJob),
           onChanged: _setRestorationSettings,
         ),
         EditorToolGroup.light => AdjustmentBrowser(
@@ -3163,6 +3174,24 @@ class _EditorPageState extends State<EditorPage> {
         onRemove: _removeJob,
       ),
     );
+  }
+
+  /// Returns the cached suggestion for [job] and starts analysing it when the
+  /// selection changed. The panel rebuilds once the analysis arrives.
+  SceneAnalysis? _suggestionFor(MediaJob? job) {
+    if (job == null || !SceneSuggestionService.supports(job.kind)) return null;
+    final path = job.inputPath;
+    if (_suggestionPath != path) {
+      _suggestionPath = path;
+      _suggestion = null;
+      unawaited(
+        _sceneSuggestions.suggest(path, job.kind).then((analysis) {
+          if (!mounted || _suggestionPath != path) return;
+          setState(() => _suggestion = analysis);
+        }),
+      );
+    }
+    return _suggestion;
   }
 
   void _selectJob(String id, {bool openEditor = false}) {
