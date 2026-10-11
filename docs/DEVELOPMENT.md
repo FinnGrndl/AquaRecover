@@ -367,7 +367,7 @@ maintainer release pipeline handles those credentials outside the repository.
 Run the same source checks used by pull-request CI:
 
 ```bash
-dart format --output=none --set-exit-if-changed lib test tool
+dart format --output=none --set-exit-if-changed lib test tool bin
 flutter analyze
 flutter test
 scripts/test_release_snapshot.sh
