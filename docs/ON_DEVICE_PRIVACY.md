@@ -6,7 +6,8 @@
 2. The operating system gives AquaRecover a file or a temporary local asset.
 3. The app inspects and decodes it locally.
 4. Processing runs in Dart, Apple Core Image/AVFoundation, Android
-   ImageDecoder, or an optional local macOS `ffmpeg` process.
+   ImageDecoder, or, for RAW video only, an optional local macOS `ffmpeg`
+   process.
 5. The export is written to the app documents directory.
 6. If requested, the operating system adds that export to Photos.
 
