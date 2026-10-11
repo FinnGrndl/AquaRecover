@@ -114,6 +114,29 @@ class ExportOptions {
         : true,
   );
 
+  factory ExportOptions.fromJson(Map<String, Object?> map) {
+    const defaults = ExportOptions();
+    bool flag(String key, bool fallback) => map[key] as bool? ?? fallback;
+    return ExportOptions(
+      imageFormat: ImageOutputFormat.values.firstWhere(
+        (value) => value.name == map['imageFormat'],
+        orElse: () => defaults.imageFormat,
+      ),
+      videoFormat: VideoOutputFormat.values.firstWhere(
+        (value) => value.name == map['videoFormat'],
+        orElse: () => defaults.videoFormat,
+      ),
+      stripMetadata: flag('stripMetadata', defaults.stripMetadata),
+      keepLocalCopy: flag('keepLocalCopy', defaults.keepLocalCopy),
+      saveToPhotoLibrary: flag(
+        'saveToPhotoLibrary',
+        defaults.saveToPhotoLibrary,
+      ),
+      saveToFiles: flag('saveToFiles', defaults.saveToFiles),
+      keepAudio: flag('keepAudio', defaults.keepAudio),
+    );
+  }
+
   Map<String, Object> toJson() => {
     'imageFormat': imageFormat.name,
     'videoFormat': videoFormat.name,

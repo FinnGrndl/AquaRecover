@@ -439,6 +439,61 @@ class RestorationSettings {
 
   String get ffmpegFilter => ffmpegFilters().join(',');
 
+  /// Reads [toJson] output. Missing or malformed values fall back to the
+  /// defaults, so older sidecars and partial maps (for example from the MCP
+  /// server) stay readable.
+  factory RestorationSettings.fromJson(Map<String, Object?> map) {
+    const defaults = RestorationSettings();
+    double d(String key, double fallback) {
+      final value = map[key];
+      return value is num && value.isFinite ? value.toDouble() : fallback;
+    }
+
+    final presetValue = map['preset'];
+    final preset = presetValue is int
+        ? RestorationPreset.values[presetValue.clamp(
+            0,
+            RestorationPreset.values.length - 1,
+          )]
+        : RestorationPreset.values.firstWhere(
+            (value) => value.name == presetValue,
+            orElse: () => RestorationPreset.auto,
+          );
+    final quality = map['jpegQuality'];
+    return RestorationSettings(
+      preset: preset,
+      presetStrength: d(
+        'presetStrength',
+        preset == RestorationPreset.none ? 0 : 1,
+      ),
+      recovery: d('recovery', defaults.recovery),
+      redRecovery: d('redRecovery', defaults.redRecovery),
+      autoWhiteBalance: d('autoWhiteBalance', defaults.autoWhiteBalance),
+      contrastStretch: d('contrastStretch', defaults.contrastStretch),
+      contrast: d('contrast', defaults.contrast),
+      gamma: d('gamma', defaults.gamma),
+      saturation: d('saturation', defaults.saturation),
+      vibrance: d('vibrance', defaults.vibrance),
+      clarity: d('clarity', defaults.clarity),
+      sharpness: d('sharpness', defaults.sharpness),
+      hazeReduction: d('hazeReduction', defaults.hazeReduction),
+      highlightProtection: d(
+        'highlightProtection',
+        defaults.highlightProtection,
+      ),
+      hue: d('hue', defaults.hue),
+      brightness: d('brightness', defaults.brightness),
+      exposure: d('exposure', defaults.exposure),
+      highlights: d('highlights', defaults.highlights),
+      shadows: d('shadows', defaults.shadows),
+      blackPoint: d('blackPoint', defaults.blackPoint),
+      vignette: d('vignette', defaults.vignette),
+      jpegQuality: quality is num
+          ? quality.toInt().clamp(1, 100)
+          : defaults.jpegQuality,
+    );
+  }
+
   Map<String, Object> toJson() => {
     'preset': preset.name,
     'presetStrength': presetStrength,

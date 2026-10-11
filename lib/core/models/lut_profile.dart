@@ -68,4 +68,21 @@ class LutProfile {
     'path': path,
     'intensity': intensity,
   };
+
+  factory LutProfile.fromJson(Map<String, Object?> map) {
+    final kindValue = map['kind'];
+    final kind = kindValue is int
+        ? LutKind.values[kindValue.clamp(0, LutKind.values.length - 1)]
+        : LutKind.values.firstWhere(
+            (value) => value.name == kindValue,
+            orElse: () => LutKind.none,
+          );
+    final intensity = map['intensity'];
+    return LutProfile(
+      kind: kind,
+      name: map['name'] as String? ?? 'None',
+      path: map['path'] as String?,
+      intensity: intensity is num ? intensity.toDouble() : 0,
+    );
+  }
 }
