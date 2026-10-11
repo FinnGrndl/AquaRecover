@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
@@ -90,41 +91,46 @@ class SceneAnalyzer {
   SceneAnalysis analyze(img.Image image) {
     final pixelCount = image.width * image.height;
     final stride = math.max(1, math.sqrt(pixelCount / 60000.0).floor());
-    final histLuma = List<int>.filled(256, 0);
-    var count = 0;
-    var clipped = 0;
-    var sumR = 0.0, sumG = 0.0, sumB = 0.0;
+    final stats = _SceneStats();
     final maxValue = image.maxChannelValue.toDouble();
     final scale = maxValue <= 0 ? 1.0 : 255.0 / maxValue;
     for (var y = 0; y < image.height; y += stride) {
       for (var x = 0; x < image.width; x += stride) {
         final pixel = image.getPixel(x, y);
-        final r = (pixel.r * scale).clamp(0, 255).toDouble();
-        final g = (pixel.g * scale).clamp(0, 255).toDouble();
-        final b = (pixel.b * scale).clamp(0, 255).toDouble();
-        sumR += r;
-        sumG += g;
-        sumB += b;
-        if (r >= 250 || g >= 250 || b >= 250) clipped++;
-        histLuma[(0.2126 * r + 0.7152 * g + 0.0722 * b).round().clamp(
-          0,
-          255,
-        )]++;
-        count++;
+        stats.add(
+          (pixel.r * scale).clamp(0, 255).toDouble(),
+          (pixel.g * scale).clamp(0, 255).toDouble(),
+          (pixel.b * scale).clamp(0, 255).toDouble(),
+        );
       }
     }
-    final n = math.max(1, count);
-    return classify(
-      width: image.width,
-      height: image.height,
-      meanR: sumR / n,
-      meanG: sumG / n,
-      meanB: sumB / n,
-      medianLuma: _percentile(histLuma, count, .5),
-      lowLuma: _percentile(histLuma, count, .01),
-      highLuma: _percentile(histLuma, count, .995),
-      clippedHighlights: clipped / n,
-    );
+    return stats.classify(this, image.width, image.height);
+  }
+
+  /// Same as [analyze] for 8-bit RGBA bytes, the format the engine's image
+  /// decoder returns. Lets the app analyse HEIC and other formats the
+  /// `image` package cannot read.
+  SceneAnalysis analyzeRgba(Uint8List rgba, int width, int height) {
+    if (rgba.length < width * height * 4) {
+      throw ArgumentError.value(
+        rgba.length,
+        'rgba',
+        'Too short for $width x $height',
+      );
+    }
+    final stride = math.max(1, math.sqrt(width * height / 60000.0).floor());
+    final stats = _SceneStats();
+    for (var y = 0; y < height; y += stride) {
+      var i = y * width * 4;
+      for (var x = 0; x < width; x += stride, i += stride * 4) {
+        stats.add(
+          rgba[i].toDouble(),
+          rgba[i + 1].toDouble(),
+          rgba[i + 2].toDouble(),
+        );
+      }
+    }
+    return stats.classify(this, width, height);
   }
 
   /// Derives the water type and preset from already-measured statistics.
@@ -230,5 +236,38 @@ class SceneAnalyzer {
       if (running >= target) return i;
     }
     return hist.length - 1;
+  }
+}
+
+class _SceneStats {
+  final histLuma = List<int>.filled(256, 0);
+  var count = 0;
+  var clipped = 0;
+  var sumR = 0.0;
+  var sumG = 0.0;
+  var sumB = 0.0;
+
+  void add(double r, double g, double b) {
+    sumR += r;
+    sumG += g;
+    sumB += b;
+    if (r >= 250 || g >= 250 || b >= 250) clipped++;
+    histLuma[(0.2126 * r + 0.7152 * g + 0.0722 * b).round().clamp(0, 255)]++;
+    count++;
+  }
+
+  SceneAnalysis classify(SceneAnalyzer analyzer, int width, int height) {
+    final n = math.max(1, count);
+    return analyzer.classify(
+      width: width,
+      height: height,
+      meanR: sumR / n,
+      meanG: sumG / n,
+      meanB: sumB / n,
+      medianLuma: SceneAnalyzer._percentile(histLuma, count, .5),
+      lowLuma: SceneAnalyzer._percentile(histLuma, count, .01),
+      highLuma: SceneAnalyzer._percentile(histLuma, count, .995),
+      clippedHighlights: clipped / n,
+    );
   }
 }

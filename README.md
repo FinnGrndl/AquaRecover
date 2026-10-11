@@ -70,6 +70,13 @@ control and remain the baseline for later edits. Tapping an adjustment value
 restores only that control to the value supplied by the preset. The **None**
 preset is deliberately neutral and leaves the image unchanged.
 
+For photos the Presets panel also suggests a starting point. It reads a small
+thumbnail, measures how much red is missing and whether the water leans blue
+or green, and offers one preset and strength with the reason, for example
+"Green water: Green water 86%". One tap applies it; nothing changes until you
+do. RAW photos and videos get no suggestion, since their thumbnails do not
+show the developed colours.
+
 The editor keeps comparison close to the image. Switch between edited and
 split views, press and hold to reveal the original, fit the complete frame or
 fill the preview, and pinch to inspect details. Cropping is nondestructive and
