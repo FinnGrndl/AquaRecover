@@ -20,6 +20,7 @@
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		B48C1BE8F03A9A50AF570BF8 /* RawBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95CB7EF67D9212A431396FE /* RawBridge.swift */; };
 		E67441FB420ED4766BA959C9 /* AquaMediaPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F886DCC597B1E4EE1CF3990 /* AquaMediaPipeline.swift */; };
+		597B4989C2ECA2A916EA7DB0 /* AquaTimelineRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8FB40CD74EC506AB968C03E /* AquaTimelineRenderer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,6 +68,7 @@
 		A9C9EAF8A95D4D9F88A00001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		D95CB7EF67D9212A431396FE /* RawBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawBridge.swift; sourceTree = "<group>"; };
 		6F886DCC597B1E4EE1CF3990 /* AquaMediaPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AquaMediaPipeline.swift; sourceTree = "<group>"; };
+		C8FB40CD74EC506AB968C03E /* AquaTimelineRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AquaTimelineRenderer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -141,6 +143,7 @@
 				D95CB7EF67D9212A431396FE /* RawBridge.swift */,
 				8C1B9C702DAB96F600A71001 /* IosVideoProcessor.swift */,
 				6F886DCC597B1E4EE1CF3990 /* AquaMediaPipeline.swift */,
+				C8FB40CD74EC506AB968C03E /* AquaTimelineRenderer.swift */,
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
@@ -306,6 +309,7 @@
 				B48C1BE8F03A9A50AF570BF8 /* RawBridge.swift in Sources */,
 				8C1B9C712DAB96F600A71001 /* IosVideoProcessor.swift in Sources */,
 				E67441FB420ED4766BA959C9 /* AquaMediaPipeline.swift in Sources */,
+				597B4989C2ECA2A916EA7DB0 /* AquaTimelineRenderer.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 			);

@@ -67,16 +67,21 @@ void main() {
     }
   });
 
-  test('shared media pipeline is identical and platform neutral', () {
-    final ios = File(
-      'platform_overrides/ios/Runner/AquaMediaPipeline.swift',
-    ).readAsStringSync();
-    final macos = File(
-      'platform_overrides/macos/Runner/AquaMediaPipeline.swift',
-    ).readAsStringSync();
-    expect(macos, ios);
-    for (final module in ['Flutter', 'FlutterMacOS', 'UIKit', 'AppKit']) {
-      expect(ios, isNot(contains('import $module\n')));
-    }
-  });
+  for (final shared in ['AquaMediaPipeline', 'AquaTimelineRenderer']) {
+    test(
+      '$shared.swift is identical on iOS and macOS and platform neutral',
+      () {
+        final ios = File(
+          'platform_overrides/ios/Runner/$shared.swift',
+        ).readAsStringSync();
+        final macos = File(
+          'platform_overrides/macos/Runner/$shared.swift',
+        ).readAsStringSync();
+        expect(macos, ios);
+        for (final module in ['Flutter', 'FlutterMacOS', 'UIKit', 'AppKit']) {
+          expect(ios, isNot(contains('import $module\n')));
+        }
+      },
+    );
+  }
 }
