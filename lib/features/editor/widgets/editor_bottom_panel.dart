@@ -78,7 +78,6 @@ class EditorBottomPanel extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(6, 0, 6, 7),
       child: EditorGlassSurface(
         borderRadius: 24,
-        shadow: true,
         child: Semantics(
           container: true,
           label: '${group.label} tools',

@@ -442,20 +442,7 @@ class _EditorPageState extends State<EditorPage> {
                       _setVideoDuration(job.id, duration),
                 ),
                 Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          CupertinoColors.black.withValues(alpha: .50),
-                          CupertinoColors.black.withValues(alpha: .06),
-                          CupertinoColors.black.withValues(alpha: .54),
-                        ],
-                        stops: const [0, .42, 1],
-                      ),
-                    ),
-                  ),
+                  child: _PhotoScrim(topInset: safeInsets.top, bottom: .54),
                 ),
                 Positioned(
                   top: safeInsets.top + 8,
@@ -505,15 +492,6 @@ class _EditorPageState extends State<EditorPage> {
             border: Border.all(
               color: CupertinoColors.white.withValues(alpha: .18),
             ),
-            boxShadow: wide
-                ? [
-                    BoxShadow(
-                      color: CupertinoColors.black.withValues(alpha: .24),
-                      blurRadius: 28,
-                      offset: const Offset(0, 16),
-                    ),
-                  ]
-                : null,
           ),
           child: CupertinoTheme(
             data: CupertinoTheme.of(context).copyWith(
@@ -763,22 +741,7 @@ class _EditorPageState extends State<EditorPage> {
               ),
             ),
             Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        CupertinoColors.black.withValues(alpha: .46),
-                        CupertinoColors.black.withValues(alpha: .05),
-                        CupertinoColors.black.withValues(alpha: .42),
-                      ],
-                      stops: const [0, .45, 1],
-                    ),
-                  ),
-                ),
-              ),
+              child: _PhotoScrim(topInset: topInset, bottom: .42),
             ),
             Positioned(
               top: topInset + 8,
@@ -981,7 +944,6 @@ class _EditorPageState extends State<EditorPage> {
       title: title,
       subtitle: '${_settings.preset.label} - ${job.kind.label}',
       trailingWidth: 46,
-      trailingTint: CupertinoColors.activeBlue,
       trailing: Tooltip(
         message: 'Review export',
         child: Semantics(
@@ -1026,7 +988,6 @@ class _EditorPageState extends State<EditorPage> {
       title: 'Export',
       subtitle: _friendlyMediaName(job),
       trailingWidth: _jobs.length > 1 || _exportOperationActive ? 108 : 82,
-      trailingTint: CupertinoColors.activeBlue,
       trailing: Semantics(
         button: true,
         enabled: exportEnabled,
@@ -1089,7 +1050,6 @@ class _EditorPageState extends State<EditorPage> {
     required String subtitle,
     required double trailingWidth,
     required Widget trailing,
-    Color? trailingTint,
   }) {
     const leadingWidth = 108.0;
     return SizedBox(
@@ -1114,13 +1074,6 @@ class _EditorPageState extends State<EditorPage> {
                       .copyWith(
                         color: CupertinoColors.white,
                         fontWeight: FontWeight.w700,
-                        shadows: const [
-                          Shadow(
-                            color: Color(0x99000000),
-                            blurRadius: 8,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
                       ),
                 ),
                 Text(
@@ -1130,11 +1083,8 @@ class _EditorPageState extends State<EditorPage> {
                   textAlign: TextAlign.center,
                   style: CupertinoTheme.of(context).textTheme.textStyle
                       .copyWith(
-                        color: CupertinoColors.white.withValues(alpha: .72),
-                        fontSize: 11,
-                        shadows: const [
-                          Shadow(color: Color(0xaa000000), blurRadius: 7),
-                        ],
+                        color: CupertinoColors.white.withValues(alpha: .86),
+                        fontSize: 12,
                       ),
                 ),
               ],
@@ -1148,7 +1098,6 @@ class _EditorPageState extends State<EditorPage> {
               child: EditorGlassSurface(
                 style: EditorGlassStyle.clear,
                 borderRadius: 99,
-                shadow: true,
                 child: CupertinoButton(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   minimumSize: const Size(44, 44),
@@ -1183,19 +1132,11 @@ class _EditorPageState extends State<EditorPage> {
               ),
             ),
           ),
+          // The trailing action is a filled capsule of its own, so no glass
+          // layers under it.
           Align(
             alignment: Alignment.centerRight,
-            child: SizedBox(
-              width: trailingWidth,
-              height: 46,
-              child: EditorGlassSurface(
-                style: EditorGlassStyle.clear,
-                borderRadius: 99,
-                tint: trailingTint,
-                shadow: true,
-                child: trailing,
-              ),
-            ),
+            child: SizedBox(width: trailingWidth, height: 46, child: trailing),
           ),
         ],
       ),
@@ -3423,7 +3364,6 @@ class _EditorPageState extends State<EditorPage> {
       style: EditorGlassStyle.clear,
       borderRadius: borderRadius,
       padding: padding,
-      shadow: true,
       child: child,
     );
   }
@@ -3586,5 +3526,49 @@ class _EditorPageState extends State<EditorPage> {
         : job.kind.isRaw
         ? CupertinoIcons.doc_richtext
         : CupertinoIcons.photo;
+  }
+}
+
+/// Keeps the floating title and controls legible over bright photos
+/// without text shadows: a solid band behind the top bar that fades out
+/// below it, and a lighter fade behind the bottom tools.
+class _PhotoScrim extends StatelessWidget {
+  const _PhotoScrim({required this.topInset, required this.bottom});
+
+  final double topInset;
+
+  /// Opacity of the fade at the bottom edge.
+  final double bottom;
+
+  static const _band = .58;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final height = constraints.maxHeight;
+          if (!height.isFinite || height <= 0) return const SizedBox.shrink();
+          final bandEnd = ((topInset + 64) / height).clamp(0.0, .4);
+          final fadeEnd = ((topInset + 112) / height).clamp(bandEnd, .5);
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  CupertinoColors.black.withValues(alpha: _band),
+                  CupertinoColors.black.withValues(alpha: _band),
+                  CupertinoColors.black.withValues(alpha: 0),
+                  CupertinoColors.black.withValues(alpha: 0),
+                  CupertinoColors.black.withValues(alpha: bottom),
+                ],
+                stops: [0, bandEnd, fadeEnd, .55, 1],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }

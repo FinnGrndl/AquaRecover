@@ -167,7 +167,7 @@ class SceneAnalyzer {
       if (clippedHighlights > .02 && redGreen > .9) {
         preset = RestorationPreset.artificialLight;
         reasons.add(
-          'Colours are close to neutral and highlights clip, which is typical '
+          'Colors are close to neutral and highlights clip, which is typical '
           'for strobe or video-light shots.',
         );
       } else if (redGreen > .55 && redLoss > .08) {

@@ -48,7 +48,7 @@ class PresetBrowser extends StatelessWidget {
             ),
           ),
         SizedBox(
-          height: 40,
+          height: kMinInteractiveDimensionCupertino,
           child: ListView.separated(
             key: const Key('preset_list'),
             scrollDirection: Axis.horizontal,
@@ -126,7 +126,7 @@ class PresetBrowser extends StatelessWidget {
       (settings.presetStrength - suggestion.suggestedStrength).abs() < .015;
 }
 
-/// Offers the analysed preset for the photo with a one-line reason.
+/// Offers the analyzed preset for the photo with a one-line reason.
 class SuggestionCard extends StatelessWidget {
   const SuggestionCard({
     super.key,
@@ -142,7 +142,7 @@ class SuggestionCard extends StatelessWidget {
   static String waterLabel(WaterType water) => switch (water) {
     WaterType.blue => 'Blue water',
     WaterType.green => 'Green water',
-    WaterType.neutral => 'Little colour cast',
+    WaterType.neutral => 'Little color cast',
   };
 
   @override
@@ -161,17 +161,20 @@ class SuggestionCard extends StatelessWidget {
       label:
           '${waterLabel(suggestion.waterType)}. Suggested ${preset.label} '
           'at $strength percent.',
+      // A neutral card, so the Apply button stays the only tinted control.
       child: Container(
         key: const Key('preset_suggestion'),
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
         decoration: BoxDecoration(
-          color: primary.withValues(alpha: .10),
+          color: CupertinoDynamicColor.resolve(
+            CupertinoColors.tertiarySystemFill,
+            context,
+          ),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: primary.withValues(alpha: .35)),
         ),
         child: Row(
           children: [
-            Icon(CupertinoIcons.wand_stars, size: 20, color: primary),
+            Icon(CupertinoIcons.wand_stars, size: 20, color: secondary),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -181,7 +184,7 @@ class SuggestionCard extends StatelessWidget {
                     '${waterLabel(suggestion.waterType)}: '
                     '${preset.label} $strength%',
                     style: textStyle.copyWith(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -198,8 +201,8 @@ class SuggestionCard extends StatelessWidget {
             const SizedBox(width: 6),
             CupertinoButton(
               key: const Key('apply_preset_suggestion'),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              minimumSize: const Size.square(kMinInteractiveDimensionCupertino),
               borderRadius: BorderRadius.circular(99),
               color: applied ? null : primary,
               onPressed: applied ? null : onApply,
@@ -207,13 +210,13 @@ class SuggestionCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (applied) ...[
-                    Icon(CupertinoIcons.checkmark, size: 13, color: secondary),
+                    Icon(CupertinoIcons.checkmark, size: 15, color: secondary),
                     const SizedBox(width: 4),
                   ],
                   Text(
                     applied ? 'Applied' : 'Apply',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: applied ? secondary : CupertinoColors.white,
                     ),
@@ -251,43 +254,60 @@ class _PresetButton extends StatelessWidget {
       selected: selected,
       label: '${preset.label} preset${suggested ? ', suggested' : ''}',
       hint: preset.help,
+      // The chip keeps its compact capsule; the button around it keeps the
+      // 44 pt hit region.
       child: CupertinoButton(
         key: Key('preset_${preset.name}'),
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-        minimumSize: Size.zero,
-        borderRadius: BorderRadius.circular(99),
-        color: selected
-            ? primary
-            : CupertinoDynamicColor.resolve(
-                CupertinoColors.secondarySystemFill,
-                context,
-              ),
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(
+          kMinInteractiveDimensionCupertino,
+          kMinInteractiveDimensionCupertino,
+        ),
         onPressed: enabled ? onPressed : null,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (suggested) ...[
-              Icon(
-                CupertinoIcons.wand_stars,
-                size: 13,
-                color: selected ? CupertinoColors.white : primary,
-              ),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              preset.label,
-              style: TextStyle(
-                color: selected
-                    ? CupertinoColors.white
-                    : CupertinoDynamicColor.resolve(
-                        CupertinoColors.label,
-                        context,
-                      ),
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
+        // Dimmed, not recolored, so the selected preset still shows while
+        // the chips are disabled.
+        child: Opacity(
+          opacity: enabled ? 1 : .5,
+          child: DecoratedBox(
+            decoration: ShapeDecoration(
+              shape: const StadiumBorder(),
+              color: selected
+                  ? primary
+                  : CupertinoDynamicColor.resolve(
+                      CupertinoColors.secondarySystemFill,
+                      context,
+                    ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (suggested) ...[
+                    Icon(
+                      CupertinoIcons.wand_stars,
+                      size: 13,
+                      color: selected ? CupertinoColors.white : primary,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  Text(
+                    preset.label,
+                    style: TextStyle(
+                      color: selected
+                          ? CupertinoColors.white
+                          : CupertinoDynamicColor.resolve(
+                              CupertinoColors.label,
+                              context,
+                            ),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

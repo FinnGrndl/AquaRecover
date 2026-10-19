@@ -65,45 +65,33 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
           key: const Key('first_run_tutorial'),
           width: math.min(560, media.size.width - horizontalMargin * 2),
           height: sheetHeight,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: radius,
-              boxShadow: [
-                BoxShadow(
-                  color: CupertinoColors.black.withValues(alpha: .32),
-                  blurRadius: 36,
-                  offset: const Offset(0, 18),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: radius,
-              child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(
-                      0xff171a1f,
-                    ).withValues(alpha: highContrast ? .99 : .94),
-                    borderRadius: radius,
-                    border: Border.all(
-                      color: CupertinoColors.white.withValues(
-                        alpha: highContrast ? .32 : .18,
-                      ),
+          child: ClipRRect(
+            borderRadius: radius,
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color(
+                    0xff171a1f,
+                  ).withValues(alpha: highContrast ? .99 : .94),
+                  borderRadius: radius,
+                  border: Border.all(
+                    color: CupertinoColors.white.withValues(
+                      alpha: highContrast ? .32 : .18,
                     ),
                   ),
-                  child: CupertinoTheme(
-                    data: CupertinoTheme.of(context).copyWith(
-                      brightness: Brightness.dark,
-                      primaryColor: CupertinoColors.activeBlue,
-                    ),
-                    child: Column(
-                      children: [
-                        _header(context),
-                        Expanded(child: _pages()),
-                        _footer(context),
-                      ],
-                    ),
+                ),
+                child: CupertinoTheme(
+                  data: CupertinoTheme.of(context).copyWith(
+                    brightness: Brightness.dark,
+                    primaryColor: CupertinoColors.activeBlue,
+                  ),
+                  child: Column(
+                    children: [
+                      _header(context),
+                      Expanded(child: _pages()),
+                      _footer(context),
+                    ],
                   ),
                 ),
               ),

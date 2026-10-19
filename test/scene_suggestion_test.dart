@@ -147,6 +147,17 @@ void main() {
     expect(find.byKey(const Key('preset_suggestion')), findsOneWidget);
     expect(find.textContaining('Blue water: Deep dive'), findsOneWidget);
     expect(find.text('Apply'), findsOneWidget);
+    // HIG hit regions: the Apply button and every preset chip are 44 pt.
+    final applySize = tester.getSize(
+      find.byKey(const Key('apply_preset_suggestion')),
+    );
+    expect(applySize.height, greaterThanOrEqualTo(44));
+    expect(applySize.width, greaterThanOrEqualTo(44));
+    for (final preset in [RestorationPreset.none, RestorationPreset.deep]) {
+      final chipSize = tester.getSize(find.byKey(Key('preset_${preset.name}')));
+      expect(chipSize.height, greaterThanOrEqualTo(44));
+      expect(chipSize.width, greaterThanOrEqualTo(44));
+    }
 
     await tester.tap(find.byKey(const Key('apply_preset_suggestion')));
     await tester.pump();
