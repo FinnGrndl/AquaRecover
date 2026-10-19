@@ -43,9 +43,11 @@ jobs:
             git status --short -- android/app/src/main/res ios/Runner/Assets.xcassets/AppIcon.appiconset macos/Runner/Assets.xcassets/AppIcon.appiconset windows/runner/resources/app_icon.ico
             exit 1
           fi
-      - run: dart format --output=none --set-exit-if-changed lib test tool
+      - run: dart format --output=none --set-exit-if-changed lib test tool bin
       - run: flutter analyze
       - run: flutter test
+      - name: Build the MCP server
+        run: dart build cli -t bin/aquarecover_mcp.dart -o build/mcp
       - run: flutter build apk --debug --no-pub
 
   apple-builds:

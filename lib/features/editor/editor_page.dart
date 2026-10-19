@@ -7,6 +7,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Tooltip;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_picker_android/image_picker_android.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/app_version.dart';
@@ -2552,15 +2554,11 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Future<void> _pickFiles() async {
-    final result = await FilePicker.platform.pickFiles(
+    final files = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: MediaClassifier.allExtensions,
-      allowMultiple: true,
-      withData: false,
     );
-    final paths =
-        result?.files.map((file) => file.path).whereType<String>().toList() ??
-        const <String>[];
+    final paths = files.map((file) => file.path).whereType<String>().toList();
     if (paths.isEmpty) {
       setState(() => _status = 'No file selected.');
       return;
@@ -2582,25 +2580,19 @@ class _EditorPageState extends State<EditorPage> {
       if (widget.photoMediaPicker != null) {
         paths = await _runPhotoPicker(widget.photoMediaPicker!);
       } else {
-        final useSystemPicker = await _photoLibraryService
-            .shouldUseSystemPicker(
-              isIOS: Platform.isIOS,
-              fallbackShortestSide: MediaQuery.sizeOf(context).shortestSide,
-            );
+        final route = await _photoLibraryService.resolveImportRoute(
+          fallbackShortestSide: MediaQuery.sizeOf(context).shortestSide,
+        );
         if (!mounted) return;
-        if (useSystemPicker) {
-          paths = await _runPhotoPicker(() async {
-            final picked = await _imagePicker.pickMultipleMedia(
-              requestFullMetadata: false,
-            );
-            return picked.map((file) => file.path).toList(growable: false);
-          });
-        } else {
-          paths = await showCupertinoModalPopup<List<String>>(
-            context: context,
-            builder: (_) => PhotoLibrarySheet(service: _photoLibraryService),
-          );
-        }
+        paths = switch (route) {
+          PhotoImportRoute.systemPicker => await _runPhotoPicker(
+            _pickWithSystemPicker,
+          ),
+          PhotoImportRoute.macSystemPicker => await _runPhotoPicker(
+            _pickWithMacSystemPicker,
+          ),
+          PhotoImportRoute.librarySheet => await _showPhotoLibrarySheet(),
+        };
       }
     } on Object catch (error) {
       if (!mounted) return;
@@ -2624,6 +2616,45 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  Future<List<String>> _pickWithSystemPicker() async {
+    _preferAndroidPhotoPicker();
+    final picked = await _imagePicker.pickMultipleMedia(
+      requestFullMetadata: false,
+    );
+    return picked.map((file) => file.path).toList(growable: false);
+  }
+
+  Future<List<String>> _pickWithMacSystemPicker() async {
+    final picked = await _photoLibraryService.pickWithMacSystemPicker();
+    if (picked == null) {
+      // PHPicker is unavailable (macOS 12 or older): use the in-app browser.
+      return await _showPhotoLibrarySheet() ?? const [];
+    }
+    if (picked.failures > 0 && mounted) {
+      await _showAlert(
+        'Some items were skipped',
+        '${picked.failures} selected item${picked.failures == 1 ? '' : 's'} could not be copied from Photos. Items stored only in iCloud must be downloaded in Photos first.',
+      );
+    }
+    return picked.paths;
+  }
+
+  Future<List<String>?> _showPhotoLibrarySheet() {
+    return showCupertinoModalPopup<List<String>>(
+      context: context,
+      builder: (_) => PhotoLibrarySheet(service: _photoLibraryService),
+    );
+  }
+
+  /// The Android Photo Picker needs no media permission and shows only the
+  /// items the user selects, unlike the legacy document picker.
+  static void _preferAndroidPhotoPicker() {
+    final implementation = ImagePickerPlatform.instance;
+    if (implementation is ImagePickerAndroid) {
+      implementation.useAndroidPhotoPicker = true;
+    }
+  }
+
   Future<List<String>> _runPhotoPicker(PhotoMediaPicker picker) async {
     setState(() {
       _busy = true;
@@ -2640,13 +2671,11 @@ class _EditorPageState extends State<EditorPage> {
       Platform.isIOS || Platform.isMacOS || Platform.isAndroid;
 
   Future<void> _importCubeLut() async {
-    final result = await FilePicker.platform.pickFiles(
+    final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: const ['cube'],
-      allowMultiple: false,
-      withData: false,
     );
-    final path = result?.files.single.path;
+    final path = file?.path;
     if (path == null) return;
     _setLutProfile(LutProfile.customCube(path, name: p.basename(path)));
     if (!mounted) return;
@@ -3217,7 +3246,7 @@ class _EditorPageState extends State<EditorPage> {
 
   Future<bool> _chooseExportDirectory() async {
     try {
-      final path = await FilePicker.platform.getDirectoryPath(
+      final path = await FilePicker.getDirectoryPath(
         dialogTitle: 'Choose export folder',
       );
       if (path == null || !mounted) return false;
