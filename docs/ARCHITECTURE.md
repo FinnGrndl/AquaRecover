@@ -60,6 +60,22 @@ Deletion is restricted to that directory and also removes the adjacent
 `.aquarecover.json` sidecar. The UI supports individual and confirmed batch
 deletion. The imported source and copies in Photos are never touched.
 
+## Photos import
+
+`PhotoLibraryService.resolveImportRoute` chooses the import surface. iPhone
+uses the PHPicker-based system picker, Android uses the Android Photo Picker,
+and macOS 13 or later presents `PHPickerViewController` through the native
+`aqua_recover/photo_picker` channel (`MacPhotoPicker.swift`). These pickers run
+out of process and only return what the user selects, so they need no library
+permission and are not affected by Terminal or VS Code being blamed for a
+privacy request during development. The macOS picker copies each original
+into a per-import folder in the app's temporary directory before the call
+returns.
+
+iPad and macOS 12 or older use `PhotoLibrarySheet`, the in-app PhotoKit
+browser. It pages albums in groups of 120 assets, caches thumbnail requests per
+asset, and downloads iCloud originals with progress feedback.
+
 ## Still-image pipeline
 
 `ImageRestorationService` validates the encoded file before decoding. On iOS,
@@ -164,6 +180,17 @@ appears in the local export directory.
 `FolderExportService` copies output to a directory selected by the system file
 picker and creates a numbered file name instead of overwriting an existing
 file. Batch items reuse the selected folder for the current editor session.
+
+## MCP server
+
+`bin/aquarecover_mcp.dart` serves the Model Context Protocol over stdio. The
+protocol layer (`lib/mcp/mcp_server.dart`) is independent of the tools; the
+tools (`lib/mcp/aquarecover_tools.dart`) use the Flutter-free
+`StillRenderPipeline`, `SceneAnalyzer`, `SidecarService` and model JSON, so
+the server renders exactly like the app's portable path. `PathPolicy` limits
+file access to `--allow` folders. HEIC/RAW decoding uses macOS `sips`, and
+video uses a host `ffmpeg`, because the CLI has no platform channels. See
+[MCP.md](MCP.md).
 
 ## Dependencies
 
