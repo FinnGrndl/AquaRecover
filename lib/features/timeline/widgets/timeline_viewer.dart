@@ -126,7 +126,7 @@ class _VideoFrameState extends State<_VideoFrame> {
   Duration? _pendingSeek;
 
   Duration get _target => Duration(
-    microseconds: ((widget.clip.sourceStart + widget.localTime) * 1e6).round(),
+    microseconds: (widget.clip.sourceTimeAt(widget.localTime) * 1e6).round(),
   );
 
   @override
