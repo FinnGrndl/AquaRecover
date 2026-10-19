@@ -19,6 +19,7 @@ semantic versioning; the number after `+` is the platform build number.
 - Render the v2 movie plan with Media3
 - Render the v2 movie plan with ffmpeg on Windows and Linux
 - Suggest a preset for each photo
+- Live preview of the layered movie
 
 ### Fixed
 
