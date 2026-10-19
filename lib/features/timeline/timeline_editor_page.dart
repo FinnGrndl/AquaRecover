@@ -8,6 +8,7 @@ import 'package:flutter/material.dart' show Tooltip;
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/media/media_classifier.dart';
 import '../../core/models/media_kind.dart';
 import '../../core/models/restoration_settings.dart';
 import '../../core/photo/photo_library_service.dart';
@@ -19,7 +20,6 @@ import '../../core/utils/output_paths.dart';
 import '../../shared/widgets/ocean_backdrop.dart';
 import '../editor/widgets/editor_bottom_panel.dart';
 import '../editor/widgets/editor_glass_surface.dart';
-import '../editor/widgets/editor_tool_rail.dart';
 import '../editor/widgets/glass_navigation_bar.dart';
 import '../library/export_library_page.dart';
 import 'timeline_controller.dart';
@@ -27,22 +27,26 @@ import 'timeline_media_picker.dart';
 import 'timeline_theme.dart';
 import 'widgets/timeline_panels.dart';
 import 'widgets/timeline_strip.dart';
+import 'widgets/timeline_toolbar.dart';
 import 'widgets/timeline_viewer.dart';
+import 'widgets/tools/audio_panel.dart';
+import 'widgets/tools/effects_panel.dart';
+import 'widgets/tools/fade_panel.dart';
+import 'widgets/tools/format_panel.dart';
+import 'widgets/tools/more_panel.dart';
+import 'widgets/tools/motion_panel.dart';
+import 'widgets/tools/overlay_panels.dart';
+import 'widgets/tools/speed_panel.dart';
+import 'widgets/tools/text_panel.dart';
+import 'widgets/tools/tool_controls.dart';
+import 'widgets/tools/transition_panel.dart';
+import 'widgets/tools/volume_panel.dart';
+import 'widgets/viewer_selection_overlay.dart';
 
-enum TimelinePage {
-  edit('Edit', CupertinoIcons.scissors),
-  color('Color', CupertinoIcons.color_filter),
-  export('Export', CupertinoIcons.share_up);
-
-  const TimelinePage(this.label, this.icon);
-
-  final String label;
-  final IconData icon;
-}
-
-/// The movie editor: viewer on top, a centred-playhead timeline, and Edit,
-/// Color, and Export tools in the same floating glass panel and tab bar as
-/// the photo editor, so it fits a phone in portrait.
+/// The movie editor, laid out like CapCut and dressed like iOS: the viewer
+/// on top, transport, a multi-lane timeline with a centred playhead, one
+/// floating tool panel at a time, and a toolbar that follows the selection.
+/// On wide screens the panel becomes an inspector column beside the viewer.
 class TimelineEditorPage extends StatefulWidget {
   const TimelineEditorPage({
     super.key,
@@ -50,8 +54,13 @@ class TimelineEditorPage extends StatefulWidget {
     this.store,
     this.renderService,
     this.mediaPicker,
+    this.overlayPicker,
+    this.audioPicker,
+    this.overlayProbe,
+    this.audioProbe,
     this.exportDirectory,
     this.initialMedia = const [],
+    this.today,
   });
 
   final TimelineProject project;
@@ -61,6 +70,19 @@ class TimelineEditorPage extends StatefulWidget {
   /// Overrides the system file picker in widget tests.
   final Future<List<String>> Function()? mediaPicker;
 
+  /// Overrides the picker for picture-in-picture media; defaults to
+  /// [mediaPicker], then the system picker.
+  final Future<List<String>> Function()? overlayPicker;
+
+  /// Overrides the music picker in widget tests.
+  final Future<List<String>> Function()? audioPicker;
+
+  /// Overrides how an overlay's shape and length are read.
+  final Future<OverlayMediaInfo> Function(String path)? overlayProbe;
+
+  /// Overrides how a sound's length is read.
+  final Future<double?> Function(String path)? audioProbe;
+
   /// Overrides where rendered movies go, so widget tests need no real
   /// file system.
   final Future<Directory> Function()? exportDirectory;
@@ -68,17 +90,35 @@ class TimelineEditorPage extends StatefulWidget {
   /// Media picked before the editor opened, added on start.
   final List<String> initialMedia;
 
+  /// The date a Dive stamp title shows; today unless a test fixes it.
+  final DateTime? today;
+
+  /// Width from which the tool panel becomes an inspector column.
+  static const wideLayoutWidth = 760.0;
+
   @override
   State<TimelineEditorPage> createState() => _TimelineEditorPageState();
 }
+
+/// Tools that open a panel and stay valid without a selection.
+const _rootPanels = {'audio', 'effects', 'format'};
 
 class _TimelineEditorPageState extends State<TimelineEditorPage>
     with SingleTickerProviderStateMixin {
   late final TimelineController _controller;
   late final TimelineRenderService _renderer;
   late final Ticker _ticker;
-  TimelinePage _page = TimelinePage.edit;
-  bool _panelOpen = true;
+  final _zoom = TimelineZoom();
+
+  /// The open panel's tool id, or null when the panel is closed.
+  String? _tool;
+
+  /// The junction the Transition panel edits.
+  int? _junction;
+
+  /// Focuses the title text field when the Text panel opens.
+  bool _textAutofocus = false;
+
   bool _playing = false;
   Duration _lastTick = Duration.zero;
   bool _rendering = false;
@@ -102,10 +142,13 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
   void dispose() {
     _ticker.dispose();
     _messageTimer?.cancel();
+    _zoom.dispose();
     unawaited(_controller.flush().catchError((Object _) {}));
     _controller.dispose();
     super.dispose();
   }
+
+  // Playback ---------------------------------------------------------------
 
   void _onTick(Duration elapsed) {
     final delta = (elapsed - _lastTick).inMicroseconds / 1e6;
@@ -135,8 +178,10 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
 
   void _stop() {
     _ticker.stop();
-    if (mounted) setState(() => _playing = false);
+    if (mounted && _playing) setState(() => _playing = false);
   }
+
+  // Messages ---------------------------------------------------------------
 
   /// Shows a short confirmation in the toast. Errors go to [_showError], so
   /// they never vanish on a timer.
@@ -170,6 +215,13 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     );
   }
 
+  static String _friendly(Object error) {
+    final text = error.toString().replaceAll(RegExp(r'[\r\n]+'), ' ').trim();
+    return text.length <= 220 ? text : '${text.substring(0, 220)}…';
+  }
+
+  // Adding media -----------------------------------------------------------
+
   Future<void> _addMedia() async {
     _stop();
     final paths = await (widget.mediaPicker ?? pickTimelineMedia)();
@@ -198,6 +250,86 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       );
     }
   }
+
+  Future<void> _addOverlay() async {
+    _stop();
+    final picker =
+        widget.overlayPicker ?? widget.mediaPicker ?? pickTimelineMedia;
+    final paths = await picker();
+    if (paths.isEmpty || !mounted) return;
+    final path = paths.first;
+    MediaKind? kind;
+    try {
+      kind = MediaClassifier.classify(path);
+    } on UnsupportedError {
+      kind = null;
+    }
+    if (kind == null || kind == MediaKind.rawVideo) {
+      await _showError(
+        'Can’t add this overlay',
+        'Pick a photo or clip in a format AquaRecover can read. RAW video '
+            'cannot go on a timeline.',
+      );
+      return;
+    }
+    final info = await (widget.overlayProbe ?? probeOverlayMedia)(path);
+    if (!mounted) return;
+    _controller.addOverlay(
+      path: path,
+      kind: kind == MediaKind.video ? OverlayKind.video : OverlayKind.image,
+      mediaAspect: info.aspect,
+      sourceDuration: info.duration,
+    );
+    setState(() => _tool = null);
+  }
+
+  Future<void> _addMusic() async {
+    _stop();
+    final paths = await (widget.audioPicker ?? pickTimelineAudio)();
+    if (paths.isEmpty || !mounted) return;
+    final path = paths.first;
+    final seconds = await (widget.audioProbe ?? probeAudioDuration)(path);
+    if (!mounted) return;
+    _controller.addAudio(
+      path: path,
+      name: p.basenameWithoutExtension(path),
+      sourceDuration: seconds,
+    );
+    setState(() => _tool = null);
+  }
+
+  Future<void> _replaceClip() async {
+    _stop();
+    final paths = await (widget.mediaPicker ?? pickTimelineMedia)();
+    if (paths.isEmpty || !mounted) return;
+    final seconds = await probeVideoDuration(paths.first);
+    if (!mounted) return;
+    if (!_controller.replaceSelectedClip(paths.first, videoDuration: seconds)) {
+      await _showError(
+        'Can’t replace this clip',
+        'Pick a photo or clip in a format AquaRecover can read.',
+      );
+    }
+  }
+
+  void _addTitle() {
+    _stop();
+    _controller.addTitle();
+    setState(() {
+      _tool = 'text';
+      _textAutofocus = true;
+    });
+  }
+
+  void _editTitle(String id) {
+    _controller.select(id);
+    setState(() {
+      _tool = 'text';
+      _textAutofocus = true;
+    });
+  }
+
+  // Export -----------------------------------------------------------------
 
   Future<String> _outputPathFor(TimelineProject project) async {
     final dir = await (widget.exportDirectory ?? OutputPaths.outputDirectory)();
@@ -248,7 +380,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       _say('Render cancelled.');
     } on Object catch (error) {
       if (!mounted) return;
-      // The Deliver panel behind the alert drops the failed render's
+      // The Export panel behind the alert drops the failed render's
       // progress right away, not only after OK.
       setState(() => _rendering = false);
       await _showError('Export failed', _friendly(error));
@@ -268,10 +400,14 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     }
   }
 
-  static String _friendly(Object error) {
-    final text = error.toString().replaceAll(RegExp(r'[\r\n]+'), ' ').trim();
-    return text.length <= 220 ? text : '${text.substring(0, 220)}…';
-  }
+  bool get _canSaveToPhotos =>
+      Platform.isIOS || Platform.isMacOS || Platform.isAndroid;
+
+  String? get _backendNote => switch (_renderer.backend) {
+    TimelineRenderBackend.android => 'fades render as dips to black',
+    TimelineRenderBackend.none => 'needs ffmpeg on this computer',
+    _ => null,
+  };
 
   Future<void> _rename() async {
     final field = TextEditingController(text: _controller.project.name);
@@ -302,14 +438,325 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     }
   }
 
-  bool get _canSaveToPhotos =>
-      Platform.isIOS || Platform.isMacOS || Platform.isAndroid;
+  // Tools ------------------------------------------------------------------
 
-  String? get _backendNote => switch (_renderer.backend) {
-    TimelineRenderBackend.android => 'fades render as dips to black',
-    TimelineRenderBackend.none => 'needs ffmpeg on this computer',
-    _ => null,
+  /// Opens [tool]'s panel, or closes it when it is already open.
+  void _toggle(String tool) {
+    _stop();
+    setState(() {
+      if (_tool == tool) {
+        _tool = null;
+      } else {
+        _tool = tool;
+        _textAutofocus = false;
+      }
+    });
+  }
+
+  void _split() {
+    _stop();
+    if (!_controller.splitSelected()) {
+      unawaited(
+        _showError(
+          'Can’t split here',
+          'Move the playhead inside the item, away from its first and last '
+              'frames, then split.',
+        ),
+      );
+    }
+  }
+
+  void _delete() {
+    _controller.deleteSelected();
+    setState(() => _tool = null);
+  }
+
+  void _back() {
+    _controller.deselect();
+    setState(() => _tool = null);
+  }
+
+  TimelineToolItem _item(
+    String id,
+    IconData icon,
+    String label, {
+    VoidCallback? onPressed,
+    bool panel = true,
+    bool destructive = false,
+    Key? key,
+  }) => TimelineToolItem(
+    id: id,
+    key: key,
+    icon: icon,
+    label: label,
+    active: panel && _tool == id,
+    destructive: destructive,
+    onPressed: onPressed ?? (panel ? () => _toggle(id) : null),
+  );
+
+  List<TimelineToolItem> _toolbarItems() {
+    final selection = _controller.selection;
+    final empty = _controller.project.clips.isEmpty;
+    final split = _item(
+      'split',
+      CupertinoIcons.scissors,
+      'Split',
+      panel: false,
+      key: const Key('timeline_split'),
+      onPressed: _split,
+    );
+    final duplicate = _item(
+      'duplicate',
+      CupertinoIcons.plus_square_on_square,
+      'Duplicate',
+      panel: false,
+      onPressed: _controller.duplicateSelected,
+    );
+    final delete = _item(
+      'delete',
+      CupertinoIcons.trash,
+      'Delete',
+      panel: false,
+      destructive: true,
+      key: const Key('timeline_delete'),
+      onPressed: _delete,
+    );
+    final effects = _item('effects', CupertinoIcons.sparkles, 'Effects');
+    final color = _item('color', CupertinoIcons.color_filter, 'Color');
+    final fade = _item('fade', CupertinoIcons.circle_lefthalf_fill, 'Fade');
+    final speed = _item('speed', CupertinoIcons.speedometer, 'Speed');
+    final volume = _item('volume', CupertinoIcons.speaker_2_fill, 'Volume');
+    final duration = _item('duration', CupertinoIcons.timer, 'Duration');
+    final opacity = _item(
+      'opacity',
+      CupertinoIcons.circle_righthalf_fill,
+      'Opacity',
+    );
+    final animation = _item('animation', CupertinoIcons.wand_stars, 'Animate');
+    final layer = _item('layer', CupertinoIcons.square_stack_3d_up, 'Layer');
+    switch (selection) {
+      case NoSelection():
+        return [
+          _item(
+            'edit',
+            CupertinoIcons.scissors,
+            'Edit',
+            panel: false,
+            onPressed: empty
+                ? null
+                : () {
+                    _stop();
+                    _controller.selectClipAtPlayhead();
+                  },
+          ),
+          _item(
+            'audio',
+            CupertinoIcons.music_note_2,
+            'Audio',
+            onPressed: empty ? null : () => _toggle('audio'),
+          ),
+          _item(
+            'text',
+            CupertinoIcons.textformat,
+            'Text',
+            panel: false,
+            onPressed: empty ? null : _addTitle,
+          ),
+          _item(
+            'overlay',
+            CupertinoIcons.rectangle_on_rectangle,
+            'Overlay',
+            panel: false,
+            onPressed: empty ? null : _addOverlay,
+          ),
+          _item(
+            'effects',
+            CupertinoIcons.sparkles,
+            'Effects',
+            onPressed: empty ? null : () => _toggle('effects'),
+          ),
+          _item('format', CupertinoIcons.crop, 'Format'),
+        ];
+      case ClipSelection():
+        final video = _controller.selectedClip?.isVideo ?? false;
+        return [
+          split,
+          if (video) ...[
+            speed,
+            volume,
+          ] else ...[
+            duration,
+            _item('motion', CupertinoIcons.move, 'Motion'),
+          ],
+          effects,
+          color,
+          fade,
+          duplicate,
+          delete,
+          _item('more', CupertinoIcons.ellipsis, 'More'),
+        ];
+      case OverlaySelection():
+        final overlay = _controller.selectedOverlay;
+        if (overlay?.title != null) {
+          return [
+            _item(
+              'text',
+              CupertinoIcons.textformat,
+              'Edit',
+              onPressed: () => setState(() {
+                _tool = _tool == 'text' ? null : 'text';
+                _textAutofocus = _tool == 'text';
+              }),
+            ),
+            opacity,
+            animation,
+            layer,
+            split,
+            duplicate,
+            delete,
+          ];
+        }
+        final video = overlay?.isVideo ?? false;
+        return [
+          split,
+          if (video) ...[speed, volume] else duration,
+          effects,
+          color,
+          opacity,
+          animation,
+          layer,
+          duplicate,
+          delete,
+        ];
+      case AudioSelection():
+        return [volume, fade, split, duplicate, delete];
+    }
+  }
+
+  /// The open panel's tool, or null when it does not fit the selection.
+  String? _openTool(List<TimelineToolItem> items) {
+    final tool = _tool;
+    if (tool == null) return null;
+    if (_controller.project.clips.isEmpty && tool != 'format') return null;
+    if (tool == 'text') {
+      return _controller.selectedOverlay?.title != null ? tool : null;
+    }
+    if (tool == 'transition') {
+      final index = _junction;
+      final clips = _controller.project.clips.length;
+      return index != null && index > 0 && index < clips ? tool : null;
+    }
+    if (tool == 'export') return tool;
+    if (items.any((i) => i.id == tool)) return tool;
+    // Effects and Audio work from the root toolbar too.
+    if (_controller.selection.isNone && _rootPanels.contains(tool)) {
+      return tool;
+    }
+    return null;
+  }
+
+  Widget _panelBody(String tool) {
+    final c = _controller;
+    return switch (tool) {
+      'speed' => SpeedPanel(controller: c),
+      'duration' => DurationPanel(controller: c),
+      'motion' => MotionPanel(controller: c),
+      'volume' => VolumePanel(controller: c),
+      'fade' => FadePanel(controller: c),
+      'effects' => EffectsPanel(controller: c),
+      'color' => ColorPanel(controller: c),
+      'opacity' => OpacityPanel(controller: c),
+      'animation' => AnimationPanel(controller: c),
+      'layer' => LayerPanel(controller: c),
+      'format' => FormatPanel(controller: c),
+      'audio' => AudioAddPanel(controller: c, onPickMusic: _addMusic),
+      'more' => MorePanel(
+        controller: c,
+        onReplace: _replaceClip,
+        onError: _showError,
+      ),
+      'transition' => TransitionPanel(controller: c, clipIndex: _junction!),
+      'text' => TextPanel(
+        key: ValueKey('text-${c.selection.id}'),
+        controller: c,
+        overlayId: c.selection.id!,
+        autofocus: _textAutofocus,
+        today: widget.today,
+        onDone: () => setState(() => _tool = null),
+      ),
+      'export' => Column(
+        children: [
+          const ToolHeader(title: 'Export'),
+          Expanded(
+            child: DeliverPanel(
+              controller: c,
+              rendering: _rendering,
+              progress: _progress,
+              outputPath: _outputPath,
+              backendNote: _backendNote,
+              onRender: _renderer.backend == TimelineRenderBackend.none
+                  ? null
+                  : _render,
+              onCancel: _renderer.cancel,
+              onSaveToPhotos: _canSaveToPhotos ? _saveToPhotos : null,
+              onOpenLibrary: () => Navigator.of(context).push(
+                CupertinoPageRoute<void>(
+                  builder: (_) => const ExportLibraryPage(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      _ => const SizedBox.shrink(),
+    };
+  }
+
+  static double _preferredHeight(String tool) => switch (tool) {
+    'speed' => 200,
+    'duration' => 176,
+    'motion' => 150,
+    'volume' => 196,
+    'fade' => 250,
+    'effects' => 264,
+    'color' => 316,
+    'opacity' => 150,
+    'animation' => 196,
+    'layer' => 160,
+    'format' => 150,
+    'audio' => 214,
+    'more' => 300,
+    'transition' => 256,
+    'text' => 318,
+    'export' => 360,
+    _ => 220,
   };
+
+  String _toolLabel(String tool, List<TimelineToolItem> items) {
+    for (final item in items) {
+      if (item.id == tool) return item.label;
+    }
+    return switch (tool) {
+      'export' => 'Export',
+      'transition' => 'Transition',
+      'text' => 'Text',
+      _ => tool,
+    };
+  }
+
+  void _openJunction(int index) {
+    _stop();
+    setState(() {
+      if (_tool == 'transition' && _junction == index) {
+        _tool = null;
+      } else {
+        _junction = index;
+        _tool = 'transition';
+      }
+    });
+  }
+
+  // Layout -----------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -320,100 +767,166 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
         child: AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle.light,
           child: OceanBackdrop(
-            child: ListenableBuilder(
-              listenable: _controller,
-              builder: (context, _) => LayoutBuilder(
-                builder: (context, constraints) {
-                  final insets = MediaQuery.paddingOf(context);
-                  final wide = constraints.maxWidth >= 900;
-                  final gutter = wide ? 24.0 : 12.0;
-                  final topBar = Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      gutter,
-                      insets.top + 8,
-                      gutter,
-                      8,
-                    ),
-                    child: _topBar(),
-                  );
-                  final editingArea = Column(
-                    children: [
-                      Expanded(child: _viewerArea()),
-                      _transport(gutter),
-                      TimelineStrip(
-                        controller: _controller,
-                        onScrubStart: _stop,
-                      ),
-                    ],
-                  );
-                  if (wide) {
-                    return Column(
-                      children: [
-                        topBar,
-                        Expanded(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: EdgeInsets.only(
-                                    bottom: insets.bottom + 12,
-                                  ),
-                                  child: editingArea,
-                                ),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.fromLTRB(
-                                  0,
-                                  0,
-                                  gutter,
-                                  insets.bottom + 18,
-                                ),
-                                child: SizedBox(
-                                  width: 380,
-                                  child: _panelArea(
-                                    panelHeight: double.infinity,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  // Each tool gets the height its content needs, like the
-                  // photo editor's panels, so the viewer keeps the rest.
-                  final preferred = switch (_page) {
-                    TimelinePage.edit => 236.0,
-                    TimelinePage.color => 300.0,
-                    TimelinePage.export => 340.0,
-                  };
-                  final panelHeight = math.min(
-                    preferred,
-                    math.max(180.0, constraints.maxHeight * .36),
-                  );
-                  return Column(
-                    children: [
-                      topBar,
-                      Expanded(child: editingArea),
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          gutter,
-                          8,
-                          gutter,
-                          insets.bottom + 10,
-                        ),
-                        child: _panelArea(panelHeight: panelHeight),
-                      ),
-                    ],
-                  );
-                },
+            child: MediaQuery.withClampedTextScaling(
+              maxScaleFactor: 1.3,
+              child: ListenableBuilder(
+                listenable: _controller,
+                builder: (context, _) => LayoutBuilder(builder: _layout),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _layout(BuildContext context, BoxConstraints constraints) {
+    final insets = MediaQuery.paddingOf(context);
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final wide = constraints.maxWidth >= TimelineEditorPage.wideLayoutWidth;
+    final gutter = wide ? 20.0 : 12.0;
+    final items = _toolbarItems();
+    final tool = _openTool(items);
+    final project = _controller.project;
+    final empty = project.clips.isEmpty;
+    final topBar = Padding(
+      padding: EdgeInsets.fromLTRB(gutter, insets.top + 8, gutter, 6),
+      child: _topBar(),
+    );
+    // Keys keep each part's state (toolbar scroll, timeline scroll) when a
+    // panel appears above it.
+    final toolbar = Padding(
+      key: const ValueKey('toolbar'),
+      padding: EdgeInsets.fromLTRB(
+        gutter - 6,
+        0,
+        gutter - 6,
+        insets.bottom + (wide ? 12 : 6),
+      ),
+      child: TimelineToolbar(
+        items: items,
+        semanticLabel: _controller.selection.isNone
+            ? 'Movie tools'
+            : '${selectionName(_controller)} tools',
+        onBack: _controller.selection.isNone ? null : _back,
+        backLabel: 'Done',
+      ),
+    );
+    Widget panel(double height) => GlassBottomPanel(
+      label: '${_toolLabel(tool!, items)} tools',
+      open: true,
+      height: height,
+      scrollable: false,
+      contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      onClose: () => setState(() => _tool = null),
+      child: KeyedSubtree(key: ValueKey(tool), child: _panelBody(tool)),
+    );
+    TimelineStrip strip({bool compact = false}) => TimelineStrip(
+      key: const ValueKey('strip'),
+      controller: _controller,
+      zoom: _zoom,
+      compact: compact,
+      onScrubStart: _stop,
+      onAdd: empty ? null : _addMedia,
+      onJunction: _openJunction,
+      activeJunction: tool == 'transition' ? _junction : null,
+    );
+
+    if (wide) {
+      return Column(
+        children: [
+          topBar,
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      Expanded(child: _viewerArea()),
+                      _transport(gutter, showZoom: true),
+                      strip(),
+                      const SizedBox(height: 8),
+                      if (empty)
+                        SizedBox(height: insets.bottom + 12)
+                      else
+                        toolbar,
+                    ],
+                  ),
+                ),
+                if (tool != null)
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      0,
+                      0,
+                      gutter - 6,
+                      insets.bottom + 12,
+                    ),
+                    child: SizedBox(
+                      width: math.min(400, constraints.maxWidth * .36),
+                      child: panel(double.infinity),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (keyboard && tool == 'text') {
+      // Typing: only the viewer and the text panel, above the keyboard.
+      return Column(
+        children: [
+          topBar,
+          Expanded(child: _viewerArea()),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: gutter - 6),
+            child: panel(math.min(260, constraints.maxHeight * .5)),
+          ),
+        ],
+      );
+    }
+
+    // Phone: the panel takes what its tool needs, the viewer keeps the
+    // rest, and the timeline shrinks to a thin overview when room runs out.
+    final available = constraints.maxHeight;
+    final panelHeight = tool == null
+        ? 0.0
+        : math.min(_preferredHeight(tool), math.max(150.0, available * .34));
+    final fixed =
+        insets.top +
+        60 + // top bar
+        52 + // transport
+        6 +
+        (empty ? 0 : TimelineToolbar.height) +
+        insets.bottom +
+        6 +
+        (tool == null ? 0 : panelHeight + 7);
+    const minViewer = 150.0;
+    final compact =
+        available - fixed - TimelineStrip.heightOf(project) < minViewer;
+    final hideStrip =
+        compact &&
+        tool != null &&
+        available - fixed - TimelineStrip.heightOf(project, compact: true) <
+            110;
+
+    return Column(
+      children: [
+        topBar,
+        Expanded(child: _viewerArea()),
+        _transport(gutter, showZoom: constraints.maxWidth >= 370),
+        if (!hideStrip) strip(compact: compact),
+        const SizedBox(height: 6),
+        if (tool != null)
+          Padding(
+            key: const ValueKey('panel'),
+            padding: EdgeInsets.symmetric(horizontal: gutter - 6),
+            child: panel(panelHeight),
+          ),
+        if (empty) SizedBox(height: insets.bottom + 6) else toolbar,
+      ],
     );
   }
 
@@ -446,9 +959,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
             borderRadius: BorderRadius.circular(99),
             color: CupertinoColors.activeBlue,
             disabledColor: CupertinoColors.activeBlue.withValues(alpha: .38),
-            onPressed: project.clips.isEmpty
-                ? null
-                : () => _showPage(TimelinePage.export),
+            onPressed: project.clips.isEmpty ? null : () => _toggle('export'),
             child: Icon(
               CupertinoIcons.share_up,
               color: CupertinoColors.white.withValues(
@@ -471,9 +982,15 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: TimelineViewer(
               project: _controller.project,
+              plan: _controller.plan,
               playhead: _controller.playhead,
               playing: _playing,
               onVideoDuration: _controller.setSourceDuration,
+              canvasOverlay: (context, canvas) => ViewerSelectionOverlay(
+                controller: _controller,
+                canvasSize: canvas.size,
+                onEditTitle: _editTitle,
+              ),
             ),
           ),
         ),
@@ -567,11 +1084,11 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     );
   }
 
-  Widget _transport(double gutter) {
+  Widget _transport(double gutter, {required bool showZoom}) {
     const tabular = [FontFeature.tabularFigures()];
     final empty = _controller.project.clips.isEmpty;
     return Padding(
-      padding: EdgeInsets.fromLTRB(gutter + 4, 10, gutter, 8),
+      padding: EdgeInsets.fromLTRB(gutter + 4, 2, gutter, 2),
       child: SizedBox(
         height: 48,
         child: Stack(
@@ -579,25 +1096,63 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
           children: [
             Align(
               alignment: Alignment.centerLeft,
-              child: Text.rich(
-                TextSpan(
-                  text: formatTimecode(_controller.playhead),
-                  style: const TextStyle(color: TimelineColors.text),
-                  children: [
-                    TextSpan(
-                      text:
-                          ' / ${formatTimecode(_controller.project.duration)}',
-                      style: const TextStyle(
-                        color: TimelineColors.secondaryText,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Semantics(
+                    label:
+                        'Playhead ${formatTimecode(_controller.playhead)} of '
+                        '${formatTimecode(_controller.project.duration)}',
+                    excludeSemantics: true,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          formatTimecode(_controller.playhead),
+                          style: const TextStyle(
+                            color: TimelineColors.text,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            fontFeatures: tabular,
+                          ),
+                        ),
+                        Text(
+                          formatTimecode(_controller.project.duration),
+                          style: const TextStyle(
+                            color: TimelineColors.secondaryText,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            fontFeatures: tabular,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (showZoom && !empty) ...[
+                    const SizedBox(width: 4),
+                    ListenableBuilder(
+                      listenable: _zoom,
+                      builder: (context, _) => Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _ZoomButton(
+                            key: const Key('timeline_zoom_out'),
+                            icon: CupertinoIcons.zoom_out,
+                            label: 'Zoom out timeline',
+                            onPressed: _zoom.canZoomOut ? _zoom.zoomOut : null,
+                          ),
+                          _ZoomButton(
+                            key: const Key('timeline_zoom_in'),
+                            icon: CupertinoIcons.zoom_in,
+                            label: 'Zoom in timeline',
+                            onPressed: _zoom.canZoomIn ? _zoom.zoomIn : null,
+                          ),
+                        ],
                       ),
                     ),
                   ],
-                ),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  fontFeatures: tabular,
-                ),
+                ],
               ),
             ),
             GlassIconButton(
@@ -642,71 +1197,38 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       ),
     );
   }
+}
 
-  void _showPage(TimelinePage page) => setState(() {
-    if (_page == page) {
-      _panelOpen = !_panelOpen;
-    } else {
-      _page = page;
-      _panelOpen = true;
-    }
+/// A plain 44 pt zoom button beside the timecode.
+class _ZoomButton extends StatelessWidget {
+  const _ZoomButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
   });
 
-  Widget _panelArea({required double panelHeight}) {
-    final body = switch (_page) {
-      TimelinePage.edit => CutPanel(
-        controller: _controller,
-        onAdd: _addMedia,
-        onError: _showError,
-      ),
-      TimelinePage.color => ColorPanel(controller: _controller),
-      TimelinePage.export => DeliverPanel(
-        controller: _controller,
-        rendering: _rendering,
-        progress: _progress,
-        outputPath: _outputPath,
-        backendNote: _backendNote,
-        onRender: _renderer.backend == TimelineRenderBackend.none
-            ? null
-            : _render,
-        onCancel: _renderer.cancel,
-        onSaveToPhotos: _canSaveToPhotos ? _saveToPhotos : null,
-        onOpenLibrary: () => Navigator.of(context).push(
-          CupertinoPageRoute<void>(builder: (_) => const ExportLibraryPage()),
-        ),
-      ),
-    };
-    // An empty movie has nothing to edit yet; the viewer's Add button is
-    // the only next step, so the panel stays out of the way.
-    final panel = GlassBottomPanel(
-      label: '${_page.label} tools',
-      open: _panelOpen && _controller.project.clips.isNotEmpty,
-      height: panelHeight,
-      scrollable: false,
-      contentPadding: const EdgeInsets.only(top: 44, bottom: 6),
-      onClose: () => setState(() => _panelOpen = false),
-      child: body,
-    );
-    return BackdropGroup(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (panelHeight.isInfinite) Expanded(child: panel) else panel,
-          GlassToolRail(
-            semanticLabel: 'Movie tools',
-            items: [
-              for (final page in TimelinePage.values)
-                GlassToolRailItem(
-                  key: Key('timeline_page_${page.name}'),
-                  icon: page.icon,
-                  label: page.label,
-                ),
-            ],
-            selectedIndex: _page.index,
-            panelOpen: _panelOpen,
-            onSelected: (index) => _showPage(TimelinePage.values[index]),
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(44, 44),
+        onPressed: onPressed,
+        child: Icon(
+          icon,
+          size: 20,
+          color: TimelineColors.text.withValues(
+            alpha: onPressed == null ? .3 : .85,
           ),
-        ],
+        ),
       ),
     );
   }

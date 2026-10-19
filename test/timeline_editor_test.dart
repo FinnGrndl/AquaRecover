@@ -154,43 +154,62 @@ void main() {
     expect(find.byKey(const Key('timeline_empty_add')), findsOneWidget);
   });
 
-  testWidgets('tabs switch panels and the open tab collapses it', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(
-      const CupertinoApp(
-        home: TimelineEditorPage(
-          project: TimelineProject(
-            id: 'w',
-            clips: [
-              TimelineClip(
-                id: 'a',
-                path: '/m/a.jpg',
-                kind: TimelineClipKind.image,
-              ),
-            ],
+  testWidgets(
+    'toolbar opens one panel at a time and the open tool collapses it',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        const CupertinoApp(
+          home: TimelineEditorPage(
+            project: TimelineProject(
+              id: 'w',
+              clips: [
+                TimelineClip(
+                  id: 'a',
+                  path: '/m/a.jpg',
+                  kind: TimelineClipKind.image,
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-    expect(find.byKey(const Key('timeline_add')), findsOneWidget);
+      );
+      // The "+" at the end of the main track adds media.
+      expect(find.byKey(const Key('timeline_add')), findsOneWidget);
+      // Nothing is selected yet, so the root toolbar shows.
+      expect(find.byKey(const Key('timeline_tool_format')), findsOneWidget);
+      expect(find.byKey(const Key('timeline_split')), findsNothing);
 
-    await tester.tap(find.byKey(const Key('timeline_page_edit')));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byKey(const Key('timeline_add')), findsNothing);
+      // Edit selects the clip under the playhead and swaps in its tools.
+      await tester.tap(find.byKey(const Key('timeline_tool_edit')));
+      await tester.pump();
+      expect(find.byKey(const Key('timeline_split')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('timeline_page_color')));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byKey(const Key('timeline_grade_all')), findsOneWidget);
+      // The clip toolbar scrolls sideways on a phone.
+      await tester.ensureVisible(find.byKey(const Key('timeline_tool_color')));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.byKey(const Key('timeline_tool_color')));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const Key('timeline_grade_all')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('timeline_open_export')));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.textContaining('1920 × 1080 · 00:03.0'), findsOneWidget);
-    expect(find.text('Export movie'), findsOneWidget);
-  });
+      // Tapping the open tool again collapses its panel.
+      await tester.tap(find.byKey(const Key('timeline_tool_color')));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const Key('timeline_grade_all')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('timeline_open_export')));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.textContaining('1920 × 1080 · 00:03.0'), findsOneWidget);
+      expect(find.text('Export movie'), findsOneWidget);
+
+      // Done returns to the root toolbar.
+      await tester.tap(find.byKey(const Key('timeline_tool_back')));
+      await tester.pump();
+      expect(find.byKey(const Key('timeline_split')), findsNothing);
+    },
+  );
 
   testWidgets('new movie starts from the picker, like iMovie', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
