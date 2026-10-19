@@ -14,6 +14,8 @@ semantic versioning; the number after `+` is the platform build number.
 - Match the movie editor to the app's design
 - Add an MCP server so Claude can restore dive media
 - Suggest a preset for each photo
+- Tap-to-set white balance with temperature and tint
+- Give the white balance picker the editor's glass chrome
 
 ### Fixed
 
