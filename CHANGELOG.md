@@ -12,18 +12,20 @@ semantic versioning; the number after `+` is the platform build number.
 - Add a timeline engine that renders photos and clips into one movie
 - Add a Resolve-style mobile movie editor
 - Match the movie editor to the app's design
-- Add an MCP server so Claude can restore dive media
-- Suggest a preset for each photo
 - Tap-to-set white balance with temperature and tint
 - Give the white balance picker the editor's glass chrome
+- Add an MCP server so Claude can restore dive media
+- Suggest a preset for each photo
 
 ### Fixed
 
+- Follow Apple's HIG across the editor, library and movies
 - Import through permission-free system pickers
 - Read .cube samples red-fastest and apply LUTs on packed buffers
 - Pick movie media with the file_picker 13 API
 - Give the preset suggestion room and a clear applied state
 - Follow Apple's HIG for the preset suggestion and glass chrome
+- Enable Export from the renderer's own backend
 
 ### Performance
 
