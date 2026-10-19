@@ -307,23 +307,12 @@ void main() {
       tester,
     ) async {
       _phoneViewport(tester);
-      final directory = Directory.systemTemp.createTempSync('aquarecover_hig_');
-      addTearDown(() => directory.delete(recursive: true));
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'),
-        (call) async => directory.path,
-      );
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          null,
-        ),
-      );
       await tester.pumpWidget(
         CupertinoApp(
           home: TimelineEditorPage(
             store: _MemoryStore(),
             renderService: _FailingRenderService(),
+            exportDirectory: () async => Directory('/exports'),
             project: const TimelineProject(
               id: 'w',
               clips: [
@@ -340,19 +329,7 @@ void main() {
       await tester.tap(find.byKey(const Key('timeline_page_export')));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.byKey(const Key('timeline_render')));
-      // Finding the export folder touches the real file system, which can
-      // take a while on a busy machine, so wait for the alert instead of a
-      // fixed number of turns.
-      for (
-        var i = 0;
-        i < 250 && find.text('Export failed').evaluate().isEmpty;
-        i++
-      ) {
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
-        );
-        await tester.pump();
-      }
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Export failed'), findsOneWidget);

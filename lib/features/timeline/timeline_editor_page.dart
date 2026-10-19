@@ -50,6 +50,7 @@ class TimelineEditorPage extends StatefulWidget {
     this.store,
     this.renderService,
     this.mediaPicker,
+    this.exportDirectory,
     this.initialMedia = const [],
   });
 
@@ -59,6 +60,10 @@ class TimelineEditorPage extends StatefulWidget {
 
   /// Overrides the system file picker in widget tests.
   final Future<List<String>> Function()? mediaPicker;
+
+  /// Overrides where rendered movies go, so widget tests need no real
+  /// file system.
+  final Future<Directory> Function()? exportDirectory;
 
   /// Media picked before the editor opened, added on start.
   final List<String> initialMedia;
@@ -195,7 +200,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
   }
 
   Future<String> _outputPathFor(TimelineProject project) async {
-    final dir = await OutputPaths.outputDirectory();
+    final dir = await (widget.exportDirectory ?? OutputPaths.outputDirectory)();
     final stem = project.name
         .replaceAll(RegExp(r'[^A-Za-z0-9 _-]+'), '')
         .trim()
