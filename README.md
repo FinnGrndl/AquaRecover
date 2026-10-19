@@ -251,6 +251,16 @@ platforms, custom LUTs are not supported by the native iOS video path, and
 proprietary formats such as Blackmagic RAW, REDCODE RAW, and ProRes RAW are not
 implemented.
 
+## Edit with Claude
+
+AquaRecover includes an MCP server, so Claude can analyse, preview, and
+restore dive photos and videos on your computer in conversation: "fix the
+colours in this folder, keep it natural, and export the results". The server
+uses the same restoration code as the app, compares before and after previews,
+writes `.aquarecover.json` sidecars, and only touches folders you allow. See
+[Using AquaRecover with Claude](docs/MCP.md) for setup in Claude Desktop and
+Claude Code.
+
 ## Privacy is part of the architecture
 
 The repository contains no login, advertising framework, telemetry client,

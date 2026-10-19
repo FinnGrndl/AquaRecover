@@ -4,7 +4,7 @@ Describe the problem and the change.
 
 ## Verification
 
-- [ ] `dart format --output=none --set-exit-if-changed lib test tool`
+- [ ] `dart format --output=none --set-exit-if-changed lib test tool bin`
 - [ ] `flutter analyze`
 - [ ] `flutter test`
 - [ ] Relevant platform build or simulator/device flow tested
