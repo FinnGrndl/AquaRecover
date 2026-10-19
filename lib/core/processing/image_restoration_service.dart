@@ -207,11 +207,14 @@ Future<Uint8List> _restoreBytesInBackground(
     throw const FormatException('Could not decode image bytes.');
   }
   ImageRestorationService._validateDecodedImage(decoded);
-  final settings = _settingsFromJson(request.settings);
-  final exportOptions = _exportOptionsFromJson(request.exportOptions);
-  final lutProfile = _lutProfileFromJson(request.lutProfile);
+  final settings = RestorationSettings.fromJson(request.settings);
+  final exportOptions = ExportOptions.fromJson(request.exportOptions);
+  final lutProfile = LutProfile.fromJson(request.lutProfile);
   final transform = ImageTransformSettings.fromJson(request.transform);
-  final restored = const UnderwaterProcessor().restoreImage(decoded, settings);
+  final restored = await const UnderwaterProcessor().restoreImageInParallel(
+    decoded,
+    settings,
+  );
   final withLut = await const LutService().apply(restored, lutProfile);
   final transformed = const ImageTransformService().apply(withLut, transform);
   if (exportOptions.outputPng) {
@@ -222,73 +225,5 @@ Future<Uint8List> _restoreBytesInBackground(
       transformed,
       quality: settings.jpegQuality.clamp(1, 100).toInt(),
     ),
-  );
-}
-
-RestorationSettings _settingsFromJson(Map<String, Object?> map) {
-  double d(String key, double fallback) =>
-      (map[key] as num?)?.toDouble() ?? fallback;
-  int i(String key, int fallback) => (map[key] as num?)?.toInt() ?? fallback;
-  final presetName = map['preset'] as String?;
-  final preset = RestorationPreset.values.firstWhere(
-    (value) => value.name == presetName,
-    orElse: () => RestorationPreset.auto,
-  );
-  return RestorationSettings(
-    preset: preset,
-    presetStrength: d(
-      'presetStrength',
-      preset == RestorationPreset.none ? 0 : 1,
-    ),
-    recovery: d('recovery', 1.18),
-    redRecovery: d('redRecovery', 1.24),
-    autoWhiteBalance: d('autoWhiteBalance', 0.76),
-    contrastStretch: d('contrastStretch', 0.52),
-    contrast: d('contrast', 1.04),
-    gamma: d('gamma', 0.98),
-    saturation: d('saturation', 0.88),
-    vibrance: d('vibrance', 0.06),
-    clarity: d('clarity', 0.18),
-    sharpness: d('sharpness', 0.18),
-    hazeReduction: d('hazeReduction', 0.14),
-    highlightProtection: d('highlightProtection', 0.55),
-    hue: d('hue', 0),
-    brightness: d('brightness', 0),
-    exposure: d('exposure', -0.04),
-    highlights: d('highlights', 0),
-    shadows: d('shadows', 0),
-    blackPoint: d('blackPoint', 0),
-    vignette: d('vignette', 0),
-    jpegQuality: i('jpegQuality', 94),
-  );
-}
-
-ExportOptions _exportOptionsFromJson(Map<String, Object?> map) {
-  final formatName = map['imageFormat'] as String?;
-  final format = ImageOutputFormat.values.firstWhere(
-    (value) => value.name == formatName,
-    orElse: () => ImageOutputFormat.jpeg,
-  );
-  return ExportOptions(
-    imageFormat: format,
-    stripMetadata: map['stripMetadata'] as bool? ?? true,
-    keepLocalCopy: map['keepLocalCopy'] as bool? ?? true,
-    saveToPhotoLibrary: map['saveToPhotoLibrary'] as bool? ?? false,
-    saveToFiles: map['saveToFiles'] as bool? ?? false,
-    keepAudio: map['keepAudio'] as bool? ?? true,
-  );
-}
-
-LutProfile _lutProfileFromJson(Map<String, Object?> map) {
-  final kindName = map['kind'] as String?;
-  final kind = LutKind.values.firstWhere(
-    (value) => value.name == kindName,
-    orElse: () => LutKind.none,
-  );
-  return LutProfile(
-    kind: kind,
-    name: map['name'] as String? ?? 'None',
-    path: map['path'] as String?,
-    intensity: (map['intensity'] as num?)?.toDouble() ?? 0,
   );
 }
