@@ -272,7 +272,7 @@ class TimelineController extends ChangeNotifier {
         clips: [
           for (final c in _project.clips)
             c.id == clip.id
-                ? c.copyWith(sourceStart: c.sourceStart + local)
+                ? c.copyWith(sourceStart: c.sourceTimeAt(local))
                 : c,
         ],
       ),
@@ -292,7 +292,7 @@ class TimelineController extends ChangeNotifier {
     final local = entry.localTime(_playhead);
     if (local < TimelineClip.minSeconds) return false;
     if (clip.isVideo) {
-      _updateSelected((c) => c.copyWith(sourceEnd: c.sourceStart + local));
+      _updateSelected((c) => c.copyWith(sourceEnd: c.sourceTimeAt(local)));
     } else {
       setStillSeconds(local);
     }

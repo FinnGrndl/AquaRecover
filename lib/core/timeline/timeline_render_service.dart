@@ -7,6 +7,8 @@ import '../processing/video_lut_baker.dart';
 import 'ffmpeg_timeline_renderer.dart';
 import 'timeline_grade_baker.dart';
 import 'timeline_project.dart';
+import 'timeline_render_plan.dart';
+import 'timeline_textures.dart';
 
 enum TimelineRenderBackend {
   /// AVAssetWriter + Core Image with the full AquaRecover grade per frame.
@@ -24,10 +26,17 @@ enum TimelineRenderBackend {
 /// Renders a [TimelineProject] to a movie with the best backend the platform
 /// has, reporting progress from 0 to 1.
 class TimelineRenderService {
-  TimelineRenderService({MethodChannel? channel})
-    : _channel = channel ?? const MethodChannel('aqua_recover/timeline');
+  TimelineRenderService({
+    MethodChannel? channel,
+    GeneratedTextureCache? textures,
+  }) : _channel = channel ?? const MethodChannel('aqua_recover/timeline'),
+       _textures = textures ?? GeneratedTextureCache();
+
+  /// Version of the `renderTimeline` arguments.
+  static const contractVersion = 2;
 
   final MethodChannel _channel;
+  final GeneratedTextureCache _textures;
   FfmpegTimelineRenderer? _ffmpeg;
   TimelineGradeBaker? _androidBaker;
   void Function(double progress)? _onProgress;
@@ -56,39 +65,99 @@ class TimelineRenderService {
         FfmpegVideoBackend.locate() != null,
   );
 
-  /// Arguments for the native renderers: each clip with its place on the
-  /// timeline from [TimelineLayout], so native code never re-derives overlaps.
+  /// Arguments for the native renderers (contract v2): [project] compiled by
+  /// [TimelineCompiler] into absolute times, rectangles, keys, filters, and
+  /// audio segments, so native code never re-derives layout or animation.
+  /// See [planArguments].
   static Map<String, Object?> nativeArguments(
     TimelineProject project, {
     required String outputPath,
     Map<String, ColorCube> cubes = const {},
+    Map<String, String> generatedPaths = const {},
+  }) => planArguments(
+    TimelineCompiler.compile(project),
+    outputPath: outputPath,
+    cubes: cubes,
+    generatedPaths: generatedPaths,
+  );
+
+  /// The `renderTimeline` arguments of [plan]. [cubes] are Android colour
+  /// tables (grade, look, and colour matrix baked) keyed by clip or layer id;
+  /// [generatedPaths] are the PNGs of generated layers keyed by layer id (see
+  /// [writeGeneratedSources]), which are then sent as `image` layers.
+  static Map<String, Object?> planArguments(
+    TimelineRenderPlan plan, {
+    required String outputPath,
+    Map<String, ColorCube> cubes = const {},
+    Map<String, String> generatedPaths = const {},
   }) {
-    final (:width, :height) = project.outputSize;
-    return {
-      'outputPath': outputPath,
-      'width': width,
-      'height': height,
-      'frameRate': project.frameRate,
-      'clips': [
-        for (final entry in project.layout.entries)
-          {
-            'path': entry.clip.path,
-            'kind': entry.clip.kind.name,
-            'start': entry.start,
-            'duration': entry.clip.duration,
-            'overlapIn': entry.overlapIn,
-            'sourceStart': entry.clip.sourceStart,
-            'motion': entry.clip.motion.name,
-            'muted': entry.clip.muted,
-            'grade': entry.clip.grade.toJson(),
-            'look': entry.clip.look.toJson(),
-            if (cubes[entry.clip.id] case final cube?) ...{
-              'lutSize': cube.size,
-              'lut': cube.toArgb(),
-            },
-          },
-      ],
+    Map<String, Object?> lut(String id) => switch (cubes[id]) {
+      final cube? => {'lutSize': cube.size, 'lut': cube.toArgb()},
+      null => const {},
     };
+    return {
+      'version': contractVersion,
+      'outputPath': outputPath,
+      'width': plan.width,
+      'height': plan.height,
+      'frameRate': plan.frameRate,
+      'duration': plan.duration,
+      'clips': [
+        for (final clip in plan.clips) {...clip.toJson(), ...lut(clip.id)},
+      ],
+      'layers': [
+        for (final layer in plan.layers)
+          {...layer.toJson(path: generatedPaths[layer.id]), ...lut(layer.id)},
+      ],
+      'audio': [for (final segment in plan.audio) segment.toJson()],
+    };
+  }
+
+  /// Rasterises every generated title and texture of [plan] through [cache]
+  /// and returns each generated layer's PNG path by layer id.
+  static Future<Map<String, String>> writeGeneratedSources(
+    TimelineRenderPlan plan,
+    GeneratedTextureCache cache,
+  ) async {
+    final paths = <String, String>{};
+    for (final layer in plan.layers) {
+      if (layer.source case GeneratedSource(:final spec)) {
+        paths[layer.id] = await cache.pathFor(spec);
+      }
+    }
+    return paths;
+  }
+
+  /// Android colour tables: one per main clip, plus one per video or image
+  /// layer that has a grade, look, or colour matrix.
+  static Future<Map<String, ColorCube>> bakeCubes(
+    TimelineProject project,
+    TimelineRenderPlan plan,
+    TimelineGradeBaker baker, {
+    void Function(double progress)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
+    final cubes = <String, ColorCube>{};
+    final clips = {for (final clip in project.clips) clip.id: clip};
+    final steps = plan.clips.length + plan.layers.length;
+    var done = 0;
+    void step() => onProgress?.call(++done / (steps == 0 ? 1 : steps));
+    for (final planClip in plan.clips) {
+      if (isCancelled?.call() ?? false) throw const TimelineRenderCancelled();
+      cubes[planClip.id] = await baker.cubeFor(
+        clips[planClip.id]!,
+        colorMatrix: planClip.filters.colorMatrix,
+      );
+      step();
+    }
+    for (final layer in plan.layers) {
+      if (isCancelled?.call() ?? false) throw const TimelineRenderCancelled();
+      if (await baker.cubeForLayer(layer) case final cube?) {
+        cubes[layer.id] = cube;
+      }
+      step();
+    }
+    return cubes;
   }
 
   Future<String> render(
@@ -107,27 +176,39 @@ class TimelineRenderService {
           'Timeline export needs iOS, macOS, Android, or ffmpeg on this computer.',
         );
       case TimelineRenderBackend.ffmpeg:
+        final plan = TimelineCompiler.compile(
+          project,
+          titleAspect: titleAspectRatio,
+        );
+        final generated = await writeGeneratedSources(plan, _textures);
+        if (_cancelled) throw const TimelineRenderCancelled();
         final renderer = _ffmpeg ??= FfmpegTimelineRenderer(
           FfmpegVideoBackend(FfmpegVideoBackend.locate()!),
         );
         return renderer.render(
           project,
+          plan: plan,
+          generatedPaths: generated,
           outputPath: outputPath,
           onProgress: onProgress,
         );
       case TimelineRenderBackend.apple:
       case TimelineRenderBackend.android:
-        final cubes = <String, ColorCube>{};
+        final plan = TimelineCompiler.compile(
+          project,
+          titleAspect: titleAspectRatio,
+        );
+        final generated = await writeGeneratedSources(plan, _textures);
+        if (_cancelled) throw const TimelineRenderCancelled();
+        var cubes = const <String, ColorCube>{};
         if (backend == TimelineRenderBackend.android) {
-          final baker = _androidBaker ??= TimelineGradeBaker(
-            _AndroidSampler(_channel),
+          cubes = await bakeCubes(
+            project,
+            plan,
+            _androidBaker ??= TimelineGradeBaker(_AndroidSampler(_channel)),
+            onProgress: (value) => onProgress?.call(0.1 * value),
+            isCancelled: () => _cancelled,
           );
-          for (var i = 0; i < project.clips.length; i++) {
-            if (_cancelled) throw const TimelineRenderCancelled();
-            final clip = project.clips[i];
-            cubes[clip.id] = await baker.cubeFor(clip);
-            onProgress?.call(0.1 * (i + 1) / project.clips.length);
-          }
           if (_cancelled) throw const TimelineRenderCancelled();
         }
         _onProgress = onProgress;
@@ -135,7 +216,12 @@ class TimelineRenderService {
         try {
           final path = await _channel.invokeMethod<String>(
             'renderTimeline',
-            nativeArguments(project, outputPath: outputPath, cubes: cubes),
+            planArguments(
+              plan,
+              outputPath: outputPath,
+              cubes: cubes,
+              generatedPaths: generated,
+            ),
           );
           if (path == null || path.isEmpty) {
             throw StateError('The timeline render returned no file.');
@@ -194,7 +280,7 @@ class _AndroidSampler implements ClipFrameSampler {
       'count': 4,
       'maxDimension': VideoLutBaker.sampleMaxDimension,
       'startSeconds': clip.sourceStart,
-      'endSeconds': clip.sourceStart + clip.duration,
+      'endSeconds': clip.sourceStart + clip.sourceSpan,
     });
     return frames ?? const [];
   }
