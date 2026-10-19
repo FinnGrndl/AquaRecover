@@ -218,7 +218,6 @@ class _NeutralPointPickerState extends State<NeutralPointPicker> {
                 bottom: insets.bottom + 12,
                 child: EditorGlassSurface(
                   borderRadius: 24,
-                  shadow: true,
                   padding: const EdgeInsets.fromLTRB(18, 14, 8, 14),
                   child: Row(
                     children: [

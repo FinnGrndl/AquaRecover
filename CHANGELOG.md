@@ -7,12 +7,18 @@ semantic versioning; the number after `+` is the platform build number.
 
 ### Added
 
+- Export video natively with a shared AVFoundation pipeline
 - Add an MCP server so Claude can restore dive media
+- Suggest a preset for each photo
+- Export video on Android and Windows with a baked 3D LUT
+- Add a timeline engine that renders photos and clips into one movie
 
 ### Fixed
 
 - Import through permission-free system pickers
 - Read .cube samples red-fastest and apply LUTs on packed buffers
+- Give the preset suggestion room and a clear applied state
+- Follow Apple's HIG for the preset suggestion and glass chrome
 
 ### Performance
 

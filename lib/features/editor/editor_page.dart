@@ -27,6 +27,8 @@ import '../../core/photo/photo_library_service.dart';
 import '../../core/persistence/folder_export_service.dart';
 import '../../core/persistence/sidecar_service.dart';
 import '../../core/platform/raw_processing_service.dart';
+import '../../core/processing/scene_analyzer.dart';
+import '../../core/processing/scene_suggestion_service.dart';
 import '../../core/processing/image_restoration_service.dart';
 import '../../core/processing/video_restoration_service.dart';
 import '../../core/workflow/editor_workflow.dart';
@@ -68,6 +70,7 @@ class EditorPage extends StatefulWidget {
     this.imageService = const ImageRestorationService(),
     this.photoMediaPicker,
     this.onShowTutorial,
+    this.sceneSuggestions,
   });
 
   final List<String> initialPaths;
@@ -81,12 +84,19 @@ class EditorPage extends StatefulWidget {
   final PhotoMediaPicker? photoMediaPicker;
   final VoidCallback? onShowTutorial;
 
+  /// Suggests a preset per photo; defaults to the engine-decoder service.
+  final SceneSuggestionService? sceneSuggestions;
+
   @override
   State<EditorPage> createState() => _EditorPageState();
 }
 
 class _EditorPageState extends State<EditorPage> {
   late final ImageRestorationService _imageService = widget.imageService;
+  late final SceneSuggestionService _sceneSuggestions =
+      widget.sceneSuggestions ?? SceneSuggestionService();
+  String? _suggestionPath;
+  SceneAnalysis? _suggestion;
   final _videoService = const VideoRestorationService();
   final _rawService = RawProcessingService();
   final _photoLibraryService = const PhotoLibraryService();
@@ -448,20 +458,7 @@ class _EditorPageState extends State<EditorPage> {
                       _setVideoDuration(job.id, duration),
                 ),
                 Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          CupertinoColors.black.withValues(alpha: .50),
-                          CupertinoColors.black.withValues(alpha: .06),
-                          CupertinoColors.black.withValues(alpha: .54),
-                        ],
-                        stops: const [0, .42, 1],
-                      ),
-                    ),
-                  ),
+                  child: _PhotoScrim(topInset: safeInsets.top, bottom: .54),
                 ),
                 Positioned(
                   top: safeInsets.top + 8,
@@ -511,15 +508,6 @@ class _EditorPageState extends State<EditorPage> {
             border: Border.all(
               color: CupertinoColors.white.withValues(alpha: .18),
             ),
-            boxShadow: wide
-                ? [
-                    BoxShadow(
-                      color: CupertinoColors.black.withValues(alpha: .24),
-                      blurRadius: 28,
-                      offset: const Offset(0, 16),
-                    ),
-                  ]
-                : null,
           ),
           child: CupertinoTheme(
             data: CupertinoTheme.of(context).copyWith(
@@ -729,7 +717,7 @@ class _EditorPageState extends State<EditorPage> {
         final preferredPanelHeight = compact
             ? switch (activeGroup) {
                 EditorToolGroup.light => 300.0,
-                EditorToolGroup.presets => 280.0,
+                EditorToolGroup.presets => 340.0,
                 EditorToolGroup.crop => 190.0,
                 EditorToolGroup.effects => 240.0,
                 EditorToolGroup.video => 290.0,
@@ -737,7 +725,7 @@ class _EditorPageState extends State<EditorPage> {
               }
             : switch (activeGroup) {
                 EditorToolGroup.light => 320.0,
-                EditorToolGroup.presets => 300.0,
+                EditorToolGroup.presets => 360.0,
                 EditorToolGroup.crop => 210.0,
                 EditorToolGroup.effects => 260.0,
                 EditorToolGroup.video => 315.0,
@@ -795,22 +783,7 @@ class _EditorPageState extends State<EditorPage> {
               ),
             ),
             Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        CupertinoColors.black.withValues(alpha: .46),
-                        CupertinoColors.black.withValues(alpha: .05),
-                        CupertinoColors.black.withValues(alpha: .42),
-                      ],
-                      stops: const [0, .45, 1],
-                    ),
-                  ),
-                ),
-              ),
+              child: _PhotoScrim(topInset: topInset, bottom: .42),
             ),
             Positioned(
               top: topInset + 8,
@@ -1013,7 +986,6 @@ class _EditorPageState extends State<EditorPage> {
       title: title,
       subtitle: '${_settings.preset.label} - ${job.kind.label}',
       trailingWidth: 46,
-      trailingTint: CupertinoColors.activeBlue,
       trailing: Tooltip(
         message: 'Review export',
         child: Semantics(
@@ -1058,7 +1030,6 @@ class _EditorPageState extends State<EditorPage> {
       title: 'Export',
       subtitle: _friendlyMediaName(job),
       trailingWidth: _jobs.length > 1 || _exportOperationActive ? 108 : 82,
-      trailingTint: CupertinoColors.activeBlue,
       trailing: Semantics(
         button: true,
         enabled: exportEnabled,
@@ -1121,7 +1092,6 @@ class _EditorPageState extends State<EditorPage> {
     required String subtitle,
     required double trailingWidth,
     required Widget trailing,
-    Color? trailingTint,
   }) {
     return GlassNavigationBar(
       leadingLabel: leadingLabel,
@@ -1130,7 +1100,6 @@ class _EditorPageState extends State<EditorPage> {
       subtitle: subtitle,
       trailingWidth: trailingWidth,
       trailing: trailing,
-      trailingTint: trailingTint,
     );
   }
 
@@ -1353,6 +1322,7 @@ class _EditorPageState extends State<EditorPage> {
         EditorToolGroup.presets => PresetBrowser(
           settings: _settings,
           enabled: !_busy,
+          suggestion: _suggestionFor(_selectedJob),
           onChanged: _setRestorationSettings,
         ),
         EditorToolGroup.light => AdjustmentBrowser(
@@ -3167,6 +3137,24 @@ class _EditorPageState extends State<EditorPage> {
     setState(() => _selectedAdjustmentId = 'temperature');
   }
 
+  /// Returns the cached suggestion for [job] and starts analysing it when the
+  /// selection changed. The panel rebuilds once the analysis arrives.
+  SceneAnalysis? _suggestionFor(MediaJob? job) {
+    if (job == null || !SceneSuggestionService.supports(job.kind)) return null;
+    final path = job.inputPath;
+    if (_suggestionPath != path) {
+      _suggestionPath = path;
+      _suggestion = null;
+      unawaited(
+        _sceneSuggestions.suggest(path, job.kind).then((analysis) {
+          if (!mounted || _suggestionPath != path) return;
+          setState(() => _suggestion = analysis);
+        }),
+      );
+    }
+    return _suggestion;
+  }
+
   void _selectJob(String id, {bool openEditor = false}) {
     final index = _jobs.indexWhere((job) => job.id == id);
     if (index < 0 || _exportOperationActive) return;
@@ -3416,7 +3404,6 @@ class _EditorPageState extends State<EditorPage> {
       style: EditorGlassStyle.clear,
       borderRadius: borderRadius,
       padding: padding,
-      shadow: true,
       child: child,
     );
   }
@@ -3579,5 +3566,49 @@ class _EditorPageState extends State<EditorPage> {
         : job.kind.isRaw
         ? CupertinoIcons.doc_richtext
         : CupertinoIcons.photo;
+  }
+}
+
+/// Keeps the floating title and controls legible over bright photos
+/// without text shadows: a solid band behind the top bar that fades out
+/// below it, and a lighter fade behind the bottom tools.
+class _PhotoScrim extends StatelessWidget {
+  const _PhotoScrim({required this.topInset, required this.bottom});
+
+  final double topInset;
+
+  /// Opacity of the fade at the bottom edge.
+  final double bottom;
+
+  static const _band = .58;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final height = constraints.maxHeight;
+          if (!height.isFinite || height <= 0) return const SizedBox.shrink();
+          final bandEnd = ((topInset + 64) / height).clamp(0.0, .4);
+          final fadeEnd = ((topInset + 112) / height).clamp(bandEnd, .5);
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  CupertinoColors.black.withValues(alpha: _band),
+                  CupertinoColors.black.withValues(alpha: _band),
+                  CupertinoColors.black.withValues(alpha: 0),
+                  CupertinoColors.black.withValues(alpha: 0),
+                  CupertinoColors.black.withValues(alpha: bottom),
+                ],
+                stops: [0, bandEnd, fadeEnd, .55, 1],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }

@@ -104,7 +104,6 @@ class GlassNavigationBar extends StatelessWidget {
               child: EditorGlassSurface(
                 style: EditorGlassStyle.clear,
                 borderRadius: 99,
-                shadow: true,
                 child: CupertinoButton(
                   key: leadingKey,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -151,7 +150,6 @@ class GlassNavigationBar extends StatelessWidget {
                 style: EditorGlassStyle.clear,
                 borderRadius: 99,
                 tint: trailingTint,
-                shadow: true,
                 child: trailing,
               ),
             ),
@@ -193,7 +191,6 @@ class GlassIconButton extends StatelessWidget {
           style: EditorGlassStyle.clear,
           borderRadius: 99,
           tint: tint,
-          shadow: true,
           child: CupertinoButton(
             padding: EdgeInsets.zero,
             minimumSize: Size.square(size),
