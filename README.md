@@ -250,14 +250,16 @@ paths measurable as the algorithm evolves.
 | File import and folder export | Yes | Yes | Yes | Yes |
 | HEIC/HEIF decode | Native | Native | Platform dependent | Platform dependent |
 | Supported RAW still decode | Core Image | Core Image | ImageDecoder on API 28+ | — |
-| Standard video export | MP4/MOV via AVFoundation | MP4/MOV via AVFoundation | — | — |
-| Custom `.cube` LUT for video | Yes | Yes | — | — |
+| Standard video export | MP4/MOV via AVFoundation | MP4/MOV via AVFoundation | MP4 via Media3 Transformer | MP4/MOV with local `ffmpeg` |
+| Custom `.cube` LUT for video | Yes | Yes | Yes | Yes |
 | Custom `.cube` LUT for stills | Yes | Yes | Yes | Yes |
 
 AquaRecover is photo-first. Video support is currently strongest on Apple
 platforms, where iOS and macOS share one AVFoundation and Core Image renderer.
-RAW video on macOS still needs a locally installed `ffmpeg` outside the App
-Sandbox, and proprietary formats such as Blackmagic RAW, REDCODE RAW, and ProRes RAW are not
+Android and Windows apply the same restoration as a baked 3D colour table, which
+matches the still renderer on smooth areas but skips the local detail fusion and
+sharpening. RAW video on macOS still needs a locally installed `ffmpeg` outside
+the App Sandbox, and proprietary formats such as Blackmagic RAW, REDCODE RAW, and ProRes RAW are not
 implemented.
 
 ## Edit with Claude

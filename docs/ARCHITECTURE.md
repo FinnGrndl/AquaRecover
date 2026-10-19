@@ -21,8 +21,8 @@ Files / platform photo library
 ImageRestorationService   VideoRestorationService
        |                         |
        +--> Dart isolate         +--> iOS/macOS AVFoundation/Core Image
-       +--> iOS/macOS Core Image +--> macOS ffmpeg (RAW video only)
-       +--> platform RAW decode
+       +--> iOS/macOS Core Image +--> Android Media3 + baked 3D LUT
+       +--> platform RAW decode  +--> Windows ffmpeg lut3d + baked 3D LUT
              |
              v
      export + JSON sidecar + optional Photos save
@@ -155,7 +155,19 @@ only for RAW video descriptors in unsandboxed development builds. Arguments are
 passed as an array rather than a shell command. No FFmpeg binary is bundled.
 Stills and previews on macOS also use Core Image, which adds HEIC and RAW
 decoding without a Dart fallback.
-Android reports video export as unavailable and keeps the photo workflow active.
+
+Android and Windows have no AquaRecover shaders, so `VideoLutBaker` turns the
+restoration into a 33³ colour table first. It samples five frames from the
+trimmed range, stacks them into one scene sample for the statistics, and runs
+`UnderwaterProcessor.bakeColorLattice`, the same per-pixel correction the still
+renderer uses, over every lattice colour. Each colour fills a 2×2 block so the
+local-structure term sees a flat region. A creative LUT is composed on top.
+Android hands the table to Media3 Transformer as a `SingleColorLut`, tone-mapping
+HDR clips to SDR first; Windows writes a `.cube` file next to an `ffmpeg`
+`lut3d` filter. The table cannot hold Retinex fusion, sharpening, or the
+vignette, so those stay Apple and stills only. Cancelling bumps a generation
+counter that stops jobs still sampling or baking, then cancels the running
+Transformer or kills the `ffmpeg` process.
 
 ## Persistence
 

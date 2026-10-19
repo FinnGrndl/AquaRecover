@@ -29,7 +29,9 @@ Android command-line tools alone. Xcode is required for iOS and macOS builds.
 
 macOS video export uses AVFoundation and needs no extra tools. Only RAW video
 descriptors still look for an `ffmpeg` executable installed on the machine,
-which works in unsandboxed development builds only.
+which works in unsandboxed development builds only. Windows video export needs
+`ffmpeg` with `libx264` on the machine (for example `winget install ffmpeg`).
+Android video export uses Media3 and needs nothing extra.
 
 Native Swift files live in `platform_overrides/` and are committed in the
 runners too. `test/platform_overrides_sync_test.dart` fails when the copies

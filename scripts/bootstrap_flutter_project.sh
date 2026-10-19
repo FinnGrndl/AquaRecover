@@ -55,16 +55,20 @@ ANDROID_PACKAGE="$APP_ID"
 ANDROID_PACKAGE_PATH="${ANDROID_PACKAGE//./\/}"
 ANDROID_DEST="$ROOT/android/app/src/main/kotlin/$ANDROID_PACKAGE_PATH"
 mkdir -p "$ANDROID_DEST"
-sed "s/^package .*/package $ANDROID_PACKAGE/" "$ROOT/platform_overrides/android/app/src/main/kotlin/io/github/finngrndl/aquarecover/MainActivity.kt" > "$ANDROID_DEST/MainActivity.kt"
+ANDROID_OVERRIDES="$ROOT/platform_overrides/android/app/src/main/kotlin/io/github/finngrndl/aquarecover"
 GENERATED_ANDROID_PACKAGE_PATH="${ORG//./\/}/$PROJECT_NAME"
-GENERATED_ANDROID_MAIN="$ROOT/android/app/src/main/kotlin/$GENERATED_ANDROID_PACKAGE_PATH/MainActivity.kt"
-if [ "$GENERATED_ANDROID_MAIN" != "$ANDROID_DEST/MainActivity.kt" ]; then
-  rm -f "$GENERATED_ANDROID_MAIN"
-fi
-DEFAULT_ANDROID_MAIN="$ROOT/android/app/src/main/kotlin/io/github/finngrndl/aquarecover/MainActivity.kt"
-if [ "$DEFAULT_ANDROID_MAIN" != "$ANDROID_DEST/MainActivity.kt" ]; then
-  rm -f "$DEFAULT_ANDROID_MAIN"
-fi
+for KOTLIN_SOURCE in "$ANDROID_OVERRIDES"/*.kt; do
+  KOTLIN_NAME="$(basename "$KOTLIN_SOURCE")"
+  sed "s/^package .*/package $ANDROID_PACKAGE/" "$KOTLIN_SOURCE" > "$ANDROID_DEST/$KOTLIN_NAME"
+  GENERATED_ANDROID_FILE="$ROOT/android/app/src/main/kotlin/$GENERATED_ANDROID_PACKAGE_PATH/$KOTLIN_NAME"
+  if [ "$GENERATED_ANDROID_FILE" != "$ANDROID_DEST/$KOTLIN_NAME" ]; then
+    rm -f "$GENERATED_ANDROID_FILE"
+  fi
+  DEFAULT_ANDROID_FILE="$ROOT/android/app/src/main/kotlin/io/github/finngrndl/aquarecover/$KOTLIN_NAME"
+  if [ "$DEFAULT_ANDROID_FILE" != "$ANDROID_DEST/$KOTLIN_NAME" ]; then
+    rm -f "$DEFAULT_ANDROID_FILE"
+  fi
+done
 
 ANDROID_MANIFEST="$ROOT/android/app/src/main/AndroidManifest.xml"
 if [ -f "$ANDROID_MANIFEST" ]; then

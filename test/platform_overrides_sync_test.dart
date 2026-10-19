@@ -50,6 +50,23 @@ void main() {
     });
   }
 
+  test('android runner matches platform_overrides', () {
+    const package = 'app/src/main/kotlin/io/github/finngrndl/aquarecover';
+    final overrides = Directory('platform_overrides/android/$package');
+    final files = overrides.listSync().whereType<File>().toList();
+    expect(files, isNotEmpty);
+    for (final file in files) {
+      final runnerCopy = File(
+        p.join('android', package, p.basename(file.path)),
+      );
+      expect(
+        runnerCopy.readAsStringSync(),
+        file.readAsStringSync(),
+        reason: '${runnerCopy.path} differs from ${file.path}.',
+      );
+    }
+  });
+
   test('shared media pipeline is identical and platform neutral', () {
     final ios = File(
       'platform_overrides/ios/Runner/AquaMediaPipeline.swift',
