@@ -35,6 +35,9 @@ class EditorGlassSurface extends StatelessWidget {
     final baseOpacity = highContrast
         ? (clear ? .90 : .96)
         : (clear ? .48 : .70);
+    // A hairline keeps the edge readable over bright footage. Depth comes
+    // from the blur and fill alone, so there is no drop shadow or sheen.
+    final hairlineOpacity = highContrast ? .30 : .10;
     final radius = BorderRadius.circular(borderRadius);
 
     return ClipRRect(
@@ -49,9 +52,7 @@ class EditorGlassSurface extends StatelessWidget {
             color: baseTint.withValues(alpha: baseOpacity),
             borderRadius: radius,
             border: Border.all(
-              color: CupertinoColors.white.withValues(
-                alpha: highContrast ? .30 : .10,
-              ),
+              color: CupertinoColors.white.withValues(alpha: hairlineOpacity),
               width: .5,
             ),
           ),

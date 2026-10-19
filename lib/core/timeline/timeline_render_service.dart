@@ -52,6 +52,10 @@ class TimelineRenderService {
     _ => TimelineRenderBackend.none,
   };
 
+  /// The backend this service renders with. Tests override it so the
+  /// export flow does not depend on ffmpeg being installed.
+  TimelineRenderBackend get backend => currentBackend;
+
   static TimelineRenderBackend get currentBackend => backendFor(
     Platform.operatingSystem,
     ffmpegAvailable:
@@ -165,7 +169,7 @@ class TimelineRenderService {
       throw StateError('Add at least one photo or clip to the timeline.');
     }
     _cancelled = false;
-    final backend = currentBackend;
+    final backend = this.backend;
     switch (backend) {
       case TimelineRenderBackend.none:
         throw UnsupportedError(

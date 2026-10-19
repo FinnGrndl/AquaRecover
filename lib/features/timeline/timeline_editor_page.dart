@@ -50,6 +50,7 @@ class TimelineEditorPage extends StatefulWidget {
     this.store,
     this.renderService,
     this.mediaPicker,
+    this.exportDirectory,
     this.initialMedia = const [],
   });
 
@@ -59,6 +60,10 @@ class TimelineEditorPage extends StatefulWidget {
 
   /// Overrides the system file picker in widget tests.
   final Future<List<String>> Function()? mediaPicker;
+
+  /// Overrides where rendered movies go, so widget tests need no real
+  /// file system.
+  final Future<Directory> Function()? exportDirectory;
 
   /// Media picked before the editor opened, added on start.
   final List<String> initialMedia;
@@ -195,7 +200,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
   }
 
   Future<String> _outputPathFor(TimelineProject project) async {
-    final dir = await OutputPaths.outputDirectory();
+    final dir = await (widget.exportDirectory ?? OutputPaths.outputDirectory)();
     final stem = project.name
         .replaceAll(RegExp(r'[^A-Za-z0-9 _-]+'), '')
         .trim()
@@ -300,7 +305,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
   bool get _canSaveToPhotos =>
       Platform.isIOS || Platform.isMacOS || Platform.isAndroid;
 
-  String? get _backendNote => switch (TimelineRenderService.currentBackend) {
+  String? get _backendNote => switch (_renderer.backend) {
     TimelineRenderBackend.android => 'fades render as dips to black',
     TimelineRenderBackend.none => 'needs ffmpeg on this computer',
     _ => null,
@@ -661,8 +666,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
         progress: _progress,
         outputPath: _outputPath,
         backendNote: _backendNote,
-        onRender:
-            TimelineRenderService.currentBackend == TimelineRenderBackend.none
+        onRender: _renderer.backend == TimelineRenderBackend.none
             ? null
             : _render,
         onCancel: _renderer.cancel,
