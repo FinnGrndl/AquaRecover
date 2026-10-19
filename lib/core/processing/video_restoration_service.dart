@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
@@ -19,41 +20,44 @@ class VideoRestorationService {
       'Video export is not available in this build. Photo recovery remains available.';
   static const iosMissingBackendMessage =
       'Native iOS video export is missing from this build. Rebuild the iOS runner or run the bootstrap script, then try again.';
-  static const MethodChannel _iosChannel = MethodChannel('aqua_recover/video');
+  static const macosMissingBackendMessage =
+      'Native macOS video export is missing from this build. Rebuild the macOS runner or run the bootstrap script, then try again.';
+  static const rawVideoNeedsFfmpegMessage =
+      'RAW video export needs an ffmpeg command-line binary, which a sandboxed macOS app cannot launch. Standard MP4 and MOV clips export natively.';
+  static const MethodChannel _nativeChannel = MethodChannel(
+    'aqua_recover/video',
+  );
   static final Set<Process> _runningProcesses = <Process>{};
 
+  /// iOS and macOS share one AVFoundation + Core Image renderer
+  /// (`AquaMediaPipeline.swift`), so both export natively.
+  static bool usesNativeBackendForOperatingSystem(String operatingSystem) =>
+      operatingSystem == 'ios' || operatingSystem == 'macos';
+
   static bool isBackendSupportedForOperatingSystem(String operatingSystem) {
-    return operatingSystem == 'ios' || operatingSystem == 'macos';
+    return usesNativeBackendForOperatingSystem(operatingSystem);
   }
 
   static bool get isBackendSupportedOnCurrentPlatform {
     return isBackendSupportedForOperatingSystem(Platform.operatingSystem);
   }
 
-  static bool isBackendAvailableForOperatingSystem(
-    String operatingSystem, {
-    bool ffmpegAvailable = false,
-  }) {
-    if (operatingSystem == 'ios') return true;
-    if (operatingSystem == 'macos') return ffmpegAvailable;
-    return false;
+  static bool isBackendAvailableForOperatingSystem(String operatingSystem) {
+    return usesNativeBackendForOperatingSystem(operatingSystem);
   }
 
   static bool get isBackendAvailableOnCurrentPlatform {
-    return isBackendAvailableForOperatingSystem(
-      Platform.operatingSystem,
-      ffmpegAvailable: _findFfmpegExecutable() != null,
-    );
+    return isBackendAvailableForOperatingSystem(Platform.operatingSystem);
   }
 
   static bool get canCancelRunningJobsOnCurrentPlatform {
-    return Platform.isMacOS && _findFfmpegExecutable() != null;
+    return usesNativeBackendForOperatingSystem(Platform.operatingSystem);
   }
 
   static String get backendUnavailableReason {
     if (!isBackendSupportedOnCurrentPlatform) return unavailableMessage;
     if (Platform.isIOS) return iosMissingBackendMessage;
-    return 'Video export requires an ffmpeg command-line binary on macOS. Photo recovery remains available.';
+    return macosMissingBackendMessage;
   }
 
   Future<String> restoreVideo(
@@ -67,24 +71,28 @@ class VideoRestorationService {
     if (!isBackendSupportedOnCurrentPlatform) {
       throw UnsupportedError(unavailableMessage);
     }
-    if (Platform.isIOS) {
-      return _restoreVideoOnIos(
+    if (rawDescriptor == null) {
+      return _restoreVideoNatively(
         inputPath,
         settings,
-        rawDescriptor: rawDescriptor,
         trim: trim,
         exportOptions: exportOptions,
         lutProfile: lutProfile,
       );
     }
+    if (!Platform.isMacOS) {
+      throw UnsupportedError(
+        'RAW video export requires the macOS FFmpeg backend. Standard iPhone videos can be exported on iOS.',
+      );
+    }
     final ffmpeg = _findFfmpegExecutable();
-    if (ffmpeg == null) throw StateError(backendUnavailableReason);
+    if (ffmpeg == null) throw StateError(rawVideoNeedsFfmpegMessage);
 
     final inputFile = File(inputPath);
     if (!await inputFile.exists()) {
       throw FileSystemException('Input video not found.', inputPath);
     }
-    rawDescriptor?.validateForProcessing();
+    rawDescriptor.validateForProcessing();
     trim.validate();
 
     final outputPath = await OutputPaths.forVideo(
@@ -97,12 +105,9 @@ class VideoRestorationService {
         .ffmpegFilters(extraFilters: LutService.videoFiltersFor(lutProfile))
         .join(',');
     final args = <String>['-hide_banner', '-nostdin', '-y'];
-    if (rawDescriptor != null) args.addAll(rawDescriptor.toFfmpegInputArgs());
+    args.addAll(rawDescriptor.toFfmpegInputArgs());
     args.addAll(trim.toFfmpegInputPrefixArgs());
     args.addAll(['-i', inputPath, '-map', '0:v:0']);
-    if (exportOptions.keepAudio && rawDescriptor == null) {
-      args.addAll(['-map', '0:a?']);
-    }
     if (exportOptions.stripMetadata) args.addAll(['-map_metadata', '-1']);
     args.addAll([
       '-vf',
@@ -115,12 +120,8 @@ class VideoRestorationService {
       '18',
       '-pix_fmt',
       'yuv420p',
+      '-an',
     ]);
-    if (exportOptions.keepAudio && rawDescriptor == null) {
-      args.addAll(['-c:a', 'aac', '-b:a', '192k']);
-    } else {
-      args.add('-an');
-    }
     args.addAll(trim.toFfmpegOutputArgs());
     args.addAll(['-movflags', '+faststart', outputPath]);
 
@@ -142,24 +143,13 @@ class VideoRestorationService {
     return outputPath;
   }
 
-  Future<String> _restoreVideoOnIos(
+  Future<String> _restoreVideoNatively(
     String inputPath,
     RestorationSettings settings, {
-    RawVideoDescriptor? rawDescriptor,
     required VideoEditSettings trim,
     required ExportOptions exportOptions,
     required LutProfile lutProfile,
   }) async {
-    if (rawDescriptor != null) {
-      throw UnsupportedError(
-        'RAW video export requires the macOS FFmpeg backend. Standard iPhone videos can be exported on iOS.',
-      );
-    }
-    if (lutProfile.isCustomCube) {
-      throw UnsupportedError(
-        'Custom .cube LUT video export is not supported by the native iOS backend yet. Built-in presets and photo exports remain available.',
-      );
-    }
     final inputFile = File(inputPath);
     if (!await inputFile.exists()) {
       throw FileSystemException('Input video not found.', inputPath);
@@ -173,34 +163,64 @@ class VideoRestorationService {
     );
     await File(outputPath).parent.create(recursive: true);
     try {
-      final exported = await _iosChannel.invokeMethod<String>('restoreVideo', {
-        'inputPath': inputPath,
-        'outputPath': outputPath,
-        'settings': settings.toJson(),
-        'trim': trim.toJson(),
-        'exportOptions': exportOptions.toJson(),
-        'lutProfile': lutProfile.toJson(),
-      });
+      final exported = await _nativeChannel.invokeMethod<String>(
+        'restoreVideo',
+        nativeArguments(
+          inputPath: inputPath,
+          outputPath: outputPath,
+          settings: settings,
+          trim: trim,
+          exportOptions: exportOptions,
+          lutProfile: lutProfile,
+        ),
+      );
       if (exported == null || exported.isEmpty) {
-        throw StateError(
-          'Native iOS video export did not return an output path.',
-        );
+        throw StateError('Native video export did not return an output path.');
       }
       return exported;
     } on MissingPluginException {
-      throw StateError(iosMissingBackendMessage);
+      throw StateError(backendUnavailableReason);
     } on PlatformException catch (error) {
+      if (error.code == 'CANCELLED') {
+        throw const VideoExportCancelled();
+      }
       throw StateError(
-        'Native iOS video restoration failed. ${error.message ?? error.code}',
+        'Native video restoration failed. ${error.message ?? error.code}',
       );
     }
   }
+
+  /// Arguments for the `aqua_recover/video` `restoreVideo` call. Custom
+  /// `.cube` LUTs travel as a path; the native side parses and caches them.
+  @visibleForTesting
+  static Map<String, Object?> nativeArguments({
+    required String inputPath,
+    required String outputPath,
+    required RestorationSettings settings,
+    required VideoEditSettings trim,
+    required ExportOptions exportOptions,
+    required LutProfile lutProfile,
+  }) => {
+    'inputPath': inputPath,
+    'outputPath': outputPath,
+    'settings': settings.toJson(),
+    'trim': trim.toJson(),
+    'exportOptions': exportOptions.toJson(),
+    'lutProfile': lutProfile.toJson(),
+  };
 
   void cancelAll() {
     for (final process in _runningProcesses.toList()) {
       process.kill();
     }
     _runningProcesses.clear();
+    if (usesNativeBackendForOperatingSystem(Platform.operatingSystem)) {
+      _nativeChannel.invokeMethod<void>('cancelRestoreVideo').catchError((
+        Object _,
+      ) {
+        // Older runners without cancel support finish the export instead.
+      });
+    }
   }
 
   static String? _findFfmpegExecutable() {
@@ -235,4 +255,12 @@ class VideoRestorationService {
         ? '${redacted.substring(0, 2000)}...'
         : redacted;
   }
+}
+
+/// Thrown when the user cancelled a native video export.
+class VideoExportCancelled implements Exception {
+  const VideoExportCancelled();
+
+  @override
+  String toString() => 'Video export was cancelled.';
 }

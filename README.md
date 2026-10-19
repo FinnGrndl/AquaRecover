@@ -243,12 +243,14 @@ paths measurable as the algorithm evolves.
 | File import and folder export | Yes | Yes | Yes | Yes |
 | HEIC/HEIF decode | Native | Native | Platform dependent | Platform dependent |
 | Supported RAW still decode | Core Image | Core Image | ImageDecoder on API 28+ | — |
-| Standard video export | MP4/MOV via AVFoundation | MP4/MOV with local `ffmpeg` | — | — |
+| Standard video export | MP4/MOV via AVFoundation | MP4/MOV via AVFoundation | — | — |
+| Custom `.cube` LUT for video | Yes | Yes | — | — |
 | Custom `.cube` LUT for stills | Yes | Yes | Yes | Yes |
 
 AquaRecover is photo-first. Video support is currently strongest on Apple
-platforms, custom LUTs are not supported by the native iOS video path, and
-proprietary formats such as Blackmagic RAW, REDCODE RAW, and ProRes RAW are not
+platforms, where iOS and macOS share one AVFoundation and Core Image renderer.
+RAW video on macOS still needs a locally installed `ffmpeg` outside the App
+Sandbox, and proprietary formats such as Blackmagic RAW, REDCODE RAW, and ProRes RAW are not
 implemented.
 
 ## Edit with Claude

@@ -20,8 +20,8 @@ Files / platform photo library
        v                         v
 ImageRestorationService   VideoRestorationService
        |                         |
-       +--> Dart isolate         +--> iOS AVFoundation/Core Image
-       +--> iOS Core Image       +--> macOS local ffmpeg process
+       +--> Dart isolate         +--> iOS/macOS AVFoundation/Core Image
+       +--> iOS/macOS Core Image +--> macOS ffmpeg (RAW video only)
        +--> platform RAW decode
              |
              v
@@ -132,9 +132,14 @@ them to the generated Xcode targets.
 
 ## Video
 
-iOS standard video export runs through AVFoundation and Core Image. It supports
-trim bounds, optional audio, metadata removal, MP4 or MOV containers, built-in
-presets, and the current restoration settings. The editor keeps a per-item
+iOS and macOS standard video export runs through AVFoundation and Core Image.
+Both runners compile the same `AquaMediaPipeline.swift`, which holds the
+restoration kernels, scene statistics, LUTs, and export code and imports neither
+Flutter nor UIKit/AppKit. `IosVideoProcessor.swift` and `MacMediaProcessor.swift`
+only register the `aqua_recover/video` and `aqua_recover/image` channels around
+it. The pipeline supports trim bounds, optional audio, metadata removal, MP4 or
+MOV containers, built-in presets, custom `.cube` LUTs (parsed once and cached),
+cancellation, and the current restoration settings. The editor keeps a per-item
 representative frame position and uses it in both the editor and export review;
 the position does not trim or otherwise change the exported timeline. Local
 video exports open with the app's video player.
@@ -144,8 +149,12 @@ On iOS 26 and later, the native bridge submits a user-initiated
 15–25 use a finite `UIApplication` background task as a fallback. Neither path
 adds a permanent audio, location, or network background mode.
 
-macOS can use an `ffmpeg` executable already installed on the machine. Arguments
-are passed as an array rather than a shell command. No FFmpeg binary is bundled.
+macOS previously launched a locally installed `ffmpeg`, which the App Sandbox
+blocks. It now uses the shared native pipeline and keeps the `ffmpeg` process
+only for RAW video descriptors in unsandboxed development builds. Arguments are
+passed as an array rather than a shell command. No FFmpeg binary is bundled.
+Stills and previews on macOS also use Core Image, which adds HEIC and RAW
+decoding without a Dart fallback.
 Android reports video export as unavailable and keeps the photo workflow active.
 
 ## Persistence

@@ -50,9 +50,9 @@ class ImageRestorationService {
       temporary: !exportOptions.keepLocalCopy,
     );
 
-    if (_canUseNativeIos(lutProfile)) {
+    if (_canUseNativeRenderer) {
       try {
-        return await _restoreFileOnIos(
+        return await _restoreFileNatively(
           inputPath,
           outputPath,
           settings,
@@ -102,10 +102,11 @@ class ImageRestorationService {
     );
   }
 
-  bool _canUseNativeIos(LutProfile lutProfile) =>
-      Platform.isIOS && !lutProfile.isCustomCube;
+  /// iOS and macOS render stills with the shared Core Image pipeline, which
+  /// also decodes HEIC and applies custom `.cube` LUTs on the GPU.
+  bool get _canUseNativeRenderer => Platform.isIOS || Platform.isMacOS;
 
-  Future<String> _restoreFileOnIos(
+  Future<String> _restoreFileNatively(
     String inputPath,
     String outputPath,
     RestorationSettings settings, {
@@ -124,7 +125,7 @@ class ImageRestorationService {
     });
     if (restored == null || restored.isEmpty) {
       throw StateError(
-        'Native iOS image restoration did not return an output path.',
+        'Native image restoration did not return an output path.',
       );
     }
     return restored;

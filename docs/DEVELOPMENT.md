@@ -27,8 +27,13 @@ Android Studio is optional. It is a convenient way to install the Android SDK
 and create emulators, but AquaRecover can be built with Flutter, JDK 17, and the
 Android command-line tools alone. Xcode is required for iOS and macOS builds.
 
-macOS video export additionally looks for an `ffmpeg` executable already
-installed on the machine. It is not bundled and is not required for photos.
+macOS video export uses AVFoundation and needs no extra tools. Only RAW video
+descriptors still look for an `ffmpeg` executable installed on the machine,
+which works in unsandboxed development builds only.
+
+Native Swift files live in `platform_overrides/` and are committed in the
+runners too. `test/platform_overrides_sync_test.dart` fails when the copies
+drift or when a Swift file is missing from the Xcode Sources build phase.
 
 ## First checkout
 
