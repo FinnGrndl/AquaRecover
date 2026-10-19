@@ -9,6 +9,10 @@ semantic versioning; the number after `+` is the platform build number.
 
 - Import through permission-free system pickers
 - Read .cube samples red-fastest and apply LUTs on packed buffers
+
+### Performance
+
+- Render stills on packed buffers and parallel bands
 ## 1.3.2 - 2026-09-16
 
 ### Documentation
