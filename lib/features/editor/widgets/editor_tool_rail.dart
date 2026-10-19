@@ -4,6 +4,68 @@ import 'package:flutter/material.dart' show Tooltip;
 import '../editor_tools.dart';
 import 'editor_glass_surface.dart';
 
+/// One tab of a [GlassToolRail].
+class GlassToolRailItem {
+  const GlassToolRailItem({
+    required this.key,
+    required this.icon,
+    required this.label,
+  });
+
+  final Key key;
+  final IconData icon;
+  final String label;
+}
+
+/// The floating glass tab bar at the bottom of the editors. Tapping the
+/// selected tab again toggles its panel, like the Photos editor.
+class GlassToolRail extends StatelessWidget {
+  const GlassToolRail({
+    super.key,
+    required this.items,
+    required this.selectedIndex,
+    required this.panelOpen,
+    required this.onSelected,
+    this.semanticLabel = 'Editing tools',
+  });
+
+  final List<GlassToolRailItem> items;
+  final int selectedIndex;
+  final bool panelOpen;
+  final ValueChanged<int> onSelected;
+  final String semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label: semanticLabel,
+      child: SizedBox(
+        height: 60,
+        child: EditorGlassSurface(
+          style: EditorGlassStyle.clear,
+          borderRadius: 30,
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+          child: Row(
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Expanded(
+                  child: _ToolButton(
+                    key: items[i].key,
+                    item: items[i],
+                    selected: i == selectedIndex,
+                    panelOpen: panelOpen,
+                    onPressed: () => onSelected(i),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class EditorToolRail extends StatelessWidget {
   const EditorToolRail({
     super.key,
@@ -20,45 +82,42 @@ class EditorToolRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      label: 'Editing tools',
-      child: SizedBox(
-        height: 60,
-        child: EditorGlassSurface(
-          style: EditorGlassStyle.clear,
-          borderRadius: 30,
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-          child: Row(
-            children: [
-              for (final group in groups)
-                Expanded(
-                  child: _ToolButton(
-                    key: Key('editor_tool_${group.name}'),
-                    group: group,
-                    selected: group == selectedGroup,
-                    panelOpen: panelOpen,
-                    onPressed: () => onSelected(group),
-                  ),
-                ),
-            ],
+    return GlassToolRail(
+      items: [
+        for (final group in groups)
+          GlassToolRailItem(
+            key: Key('editor_tool_${group.name}'),
+            icon: _iconFor(group),
+            label: group.label,
           ),
-        ),
-      ),
+      ],
+      selectedIndex: groups.indexOf(selectedGroup),
+      panelOpen: panelOpen,
+      onSelected: (index) => onSelected(groups[index]),
     );
   }
+
+  static IconData _iconFor(EditorToolGroup group) => switch (group) {
+    EditorToolGroup.presets => CupertinoIcons.rectangle_grid_2x2,
+    EditorToolGroup.light => CupertinoIcons.slider_horizontal_3,
+    EditorToolGroup.crop => CupertinoIcons.crop_rotate,
+    EditorToolGroup.color => CupertinoIcons.color_filter,
+    EditorToolGroup.details => CupertinoIcons.scope,
+    EditorToolGroup.effects => CupertinoIcons.color_filter,
+    EditorToolGroup.video => CupertinoIcons.film,
+  };
 }
 
 class _ToolButton extends StatelessWidget {
   const _ToolButton({
     super.key,
-    required this.group,
+    required this.item,
     required this.selected,
     required this.panelOpen,
     required this.onPressed,
   });
 
-  final EditorToolGroup group;
+  final GlassToolRailItem item;
   final bool selected;
   final bool panelOpen;
   final VoidCallback onPressed;
@@ -70,8 +129,8 @@ class _ToolButton extends StatelessWidget {
         ? primary
         : CupertinoDynamicColor.resolve(CupertinoColors.label, context);
     final action = selected && panelOpen
-        ? 'Collapse ${group.label} tools'
-        : 'Open ${group.label} tools';
+        ? 'Collapse ${item.label} tools'
+        : 'Open ${item.label} tools';
     return Tooltip(
       message: action,
       child: Semantics(
@@ -89,10 +148,10 @@ class _ToolButton extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(_iconFor(group), size: 20, color: foreground),
+                Icon(item.icon, size: 20, color: foreground),
                 const SizedBox(height: 3),
                 Text(
-                  group.label,
+                  item.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: CupertinoTheme.of(context).textTheme.textStyle
@@ -111,14 +170,4 @@ class _ToolButton extends StatelessWidget {
       ),
     );
   }
-
-  IconData _iconFor(EditorToolGroup group) => switch (group) {
-    EditorToolGroup.presets => CupertinoIcons.rectangle_grid_2x2,
-    EditorToolGroup.light => CupertinoIcons.slider_horizontal_3,
-    EditorToolGroup.crop => CupertinoIcons.crop_rotate,
-    EditorToolGroup.color => CupertinoIcons.color_filter,
-    EditorToolGroup.details => CupertinoIcons.scope,
-    EditorToolGroup.effects => CupertinoIcons.color_filter,
-    EditorToolGroup.video => CupertinoIcons.film,
-  };
 }

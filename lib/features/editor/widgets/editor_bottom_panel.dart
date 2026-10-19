@@ -70,6 +70,45 @@ class EditorBottomPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return GlassBottomPanel(
+      label: '${group.label} tools',
+      open: open,
+      height: height,
+      onClose: onClose,
+      contentPadding: group == EditorToolGroup.crop
+          ? const EdgeInsets.fromLTRB(14, 36, 14, 10)
+          : const EdgeInsets.fromLTRB(14, 48, 14, 18),
+      child: child,
+    );
+  }
+}
+
+/// The floating glass tool panel above a [GlassToolRail], with a chevron
+/// that collapses it.
+class GlassBottomPanel extends StatelessWidget {
+  const GlassBottomPanel({
+    super.key,
+    required this.label,
+    required this.open,
+    required this.height,
+    required this.onClose,
+    required this.child,
+    this.contentPadding = const EdgeInsets.fromLTRB(14, 48, 14, 18),
+    this.scrollable = true,
+  });
+
+  final String label;
+  final bool open;
+  final double height;
+  final VoidCallback onClose;
+  final Widget child;
+  final EdgeInsets contentPadding;
+
+  /// When false, [child] gets the panel's height and handles overflow itself.
+  final bool scrollable;
+
+  @override
+  Widget build(BuildContext context) {
     if (!open) return const SizedBox.shrink();
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -80,18 +119,16 @@ class EditorBottomPanel extends StatelessWidget {
         borderRadius: 24,
         child: Semantics(
           container: true,
-          label: '${group.label} tools',
+          label: label,
           child: Stack(
             fit: StackFit.expand,
             children: [
-              CupertinoScrollbar(
-                child: ListView(
-                  padding: group == EditorToolGroup.crop
-                      ? const EdgeInsets.fromLTRB(14, 36, 14, 10)
-                      : const EdgeInsets.fromLTRB(14, 48, 14, 18),
-                  children: [child],
-                ),
-              ),
+              if (scrollable)
+                CupertinoScrollbar(
+                  child: ListView(padding: contentPadding, children: [child]),
+                )
+              else
+                Padding(padding: contentPadding, child: child),
               Positioned(
                 top: 2,
                 left: 0,
