@@ -169,6 +169,30 @@ vignette, so those stay Apple and stills only. Cancelling bumps a generation
 counter that stops jobs still sampling or baking, then cancels the running
 Transformer or kills the `ffmpeg` process.
 
+## Timelines
+
+`lib/core/timeline` turns photos and clips into one short movie. A
+`TimelineProject` holds the aspect (16:9, 9:16, 1:1), quality, frame rate, and
+an ordered list of `TimelineClip`s. Each clip has its own grade
+(`RestorationSettings`), look (`LutProfile`), in and out points or still
+duration, a cut or crossfade from the previous clip, and an optional slow zoom
+for photos. `TimelineLayout` is the single source of timing: a crossfade
+overlaps two clips by the project's transition length, clamped to half of
+either clip. The renderers receive the layout instead of re-deriving it.
+Projects are saved as versioned JSON by `TimelineProjectStore` and only
+reference media by path.
+
+`TimelineRenderService` picks a backend:
+
+| Platform | Renderer | Grade per clip |
+| --- | --- | --- |
+| iOS, macOS | `AquaTimelineRenderer.swift`: AVAssetReader → Core Image → AVAssetWriter, audio mixed with `AVAudioMix` ramps | Full `AquaMediaPipeline` filters per frame; photos graded once and cached |
+| Android | `TimelineExportBridge.kt`: one Media3 sequence with `Presentation`, slow-zoom `MatrixTransformation`, and forced audio | Baked `SingleColorLut`; crossfades render as a short dip to black because Media3 sequences cannot overlap items |
+| Windows (and tooling) | `FfmpegTimelineRenderer`: one filter graph with `lut3d`, `zoompan`, `xfade`, and `acrossfade` | Baked `.cube` per clip |
+
+`TimelineGradeBaker` caches baked tables by source range, grade, and look, so a
+second export after a small edit only re-bakes the clips that changed.
+
 ## Persistence
 
 `OutputPaths` creates sanitized names in the app documents directory.

@@ -260,7 +260,7 @@ final class AquaMediaPipeline {
     }
   """)
 
-  private let context = CIContext(options: [
+  let context = CIContext(options: [
     .workingColorSpace: NSNull(),
     .outputColorSpace: NSNull(),
   ])
@@ -508,7 +508,7 @@ final class AquaMediaPipeline {
     )
   }
 
-  private func applyFilters(
+  func applyFilters(
     to image: CIImage,
     extent: CGRect,
     settings: VideoSettings,
@@ -631,7 +631,7 @@ final class AquaMediaPipeline {
     return filter.outputImage?.cropped(to: extent) ?? image
   }
 
-  private func estimateSceneStats(asset: AVAsset, timeRange: CMTimeRange) -> VideoSceneStats {
+  func estimateSceneStats(asset: AVAsset, timeRange: CMTimeRange) -> VideoSceneStats {
     let generator = AVAssetImageGenerator(asset: asset)
     generator.appliesPreferredTrackTransform = false
     generator.maximumSize = CGSize(width: 256, height: 256)
@@ -645,7 +645,7 @@ final class AquaMediaPipeline {
     return sceneStats(for: cgImage)
   }
 
-  private func estimateSceneStats(image: CIImage, extent: CGRect) -> VideoSceneStats {
+  func estimateSceneStats(image: CIImage, extent: CGRect) -> VideoSceneStats {
     let maxSide = max(extent.width, extent.height)
     guard maxSide.isFinite, maxSide > 0 else { return .fallback }
     let scale = maxSide > 256.0 ? 256.0 / maxSide : 1.0
@@ -887,12 +887,12 @@ final class AquaMediaPipeline {
     userInfo: [NSLocalizedDescriptionKey: "Video export was cancelled."]
   )
 
-  private func bridgeError(_ message: String) -> NSError {
+  func bridgeError(_ message: String) -> NSError {
     NSError(domain: Self.errorDomain, code: 1, userInfo: [NSLocalizedDescriptionKey: message])
   }
 }
 
-private struct VideoSceneStats {
+struct VideoSceneStats {
   static let fallback = VideoSceneStats(meanR: 80.0, meanG: 112.0, meanB: 150.0, lowMidLuma: 55.0)
 
   init(meanR: Double, meanG: Double, meanB: Double, lowMidLuma: Double) {
@@ -915,7 +915,7 @@ private struct VideoSceneStats {
   var blueGreenRatio: Double { meanB / max(1.0, meanG) }
 }
 
-private struct VideoSettings {
+struct VideoSettings {
   init(_ values: [String: Any]) {
     recovery = double(values, key: "recovery", fallback: 1.18)
     redRecovery = double(values, key: "redRecovery", fallback: 1.24)
@@ -1105,7 +1105,7 @@ private struct ImageTransformSettings {
   }
 }
 
-private struct LutSettings {
+struct LutSettings {
   init(_ values: [String: Any]) throws {
     kind = values["kind"] as? String ?? "none"
     intensity = double(values, key: "intensity", fallback: 0.0)

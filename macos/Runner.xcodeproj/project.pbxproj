@@ -32,6 +32,7 @@
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		DD4A4E7D7DE0A72EDE034DA3 /* AquaMediaPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9AEBCA254D795629077F3A1 /* AquaMediaPipeline.swift */; };
 		792AFCB69F87E6D98D27AD6F /* MacMediaProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D482F9A23A73C53E07004AD /* MacMediaProcessor.swift */; };
+		6F42FEDAA7597E5440DFB491 /* AquaTimelineRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C8C4952501C388E96D13E1 /* AquaTimelineRenderer.swift */; };
 		3A7E2AF0069AB1349E70F213 /* MacPhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5936042F51E8ABE8DD68CADE /* MacPhotoPicker.swift */; };
 /* End PBXBuildFile section */
 
@@ -89,6 +90,7 @@
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		D9AEBCA254D795629077F3A1 /* AquaMediaPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AquaMediaPipeline.swift; sourceTree = "<group>"; };
 		1D482F9A23A73C53E07004AD /* MacMediaProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacMediaProcessor.swift; sourceTree = "<group>"; };
+		60C8C4952501C388E96D13E1 /* AquaTimelineRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AquaTimelineRenderer.swift; sourceTree = "<group>"; };
 		5936042F51E8ABE8DD68CADE /* MacPhotoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacPhotoPicker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -180,6 +182,7 @@
 				33CC11122044BFA00003C045 /* MainFlutterWindow.swift */,
 				321A3B5E9102441BA6351A5E /* RawBridge.swift */,
 				D9AEBCA254D795629077F3A1 /* AquaMediaPipeline.swift */,
+				60C8C4952501C388E96D13E1 /* AquaTimelineRenderer.swift */,
 				1D482F9A23A73C53E07004AD /* MacMediaProcessor.swift */,
 				5936042F51E8ABE8DD68CADE /* MacPhotoPicker.swift */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
@@ -368,6 +371,7 @@
 				33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */,
 				5F9CC096110E3C0847F3962A /* RawBridge.swift in Sources */,
 				DD4A4E7D7DE0A72EDE034DA3 /* AquaMediaPipeline.swift in Sources */,
+				6F42FEDAA7597E5440DFB491 /* AquaTimelineRenderer.swift in Sources */,
 				792AFCB69F87E6D98D27AD6F /* MacMediaProcessor.swift in Sources */,
 				3A7E2AF0069AB1349E70F213 /* MacPhotoPicker.swift in Sources */,
 				33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */,
