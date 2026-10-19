@@ -322,14 +322,6 @@ class _PrecisionWheelState extends State<PrecisionWheel> {
                           decoration: BoxDecoration(
                             color: _enabled ? primary : secondary,
                             borderRadius: BorderRadius.circular(99),
-                            boxShadow: _enabled
-                                ? [
-                                    BoxShadow(
-                                      color: primary.withValues(alpha: .32),
-                                      blurRadius: 7,
-                                    ),
-                                  ]
-                                : null,
                           ),
                         ),
                       ),
