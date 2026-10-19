@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Tooltip;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -32,9 +33,10 @@ import '../../core/processing/scene_suggestion_service.dart';
 import '../../core/processing/image_restoration_service.dart';
 import '../../core/processing/video_restoration_service.dart';
 import '../../core/workflow/editor_workflow.dart';
-import '../../shared/widgets/glass_panel.dart';
 import '../library/export_library_page.dart';
+import '../../shared/reduce_motion.dart';
 import '../../shared/widgets/ocean_backdrop.dart';
+import 'edit_history.dart';
 import 'editor_tools.dart';
 import 'widgets/adjustment_browser.dart';
 import 'widgets/app_license_page.dart';
@@ -131,6 +133,14 @@ class _EditorPageState extends State<EditorPage> {
   bool _cancelRequested = false;
   String? _status = 'Ready.';
 
+  /// Undo history per queue item, keyed by job id.
+  final Map<String, EditHistory<MediaEditState>> _histories = {};
+
+  /// Runs while changes keep coming, so one drag of a wheel or slider
+  /// becomes a single undo step.
+  Timer? _editStepTimer;
+  static const _editStepPause = Duration(milliseconds: 600);
+
   bool get _exportOperationActive => _busy || _exportStartPending;
 
   MediaJob? get _selectedJob {
@@ -151,6 +161,8 @@ class _EditorPageState extends State<EditorPage> {
 
   void _loadEditStateForIndex(int index) {
     if (index < 0 || index >= _jobs.length) return;
+    // A new item never continues the previous item's undo step.
+    _endEditStep();
     final state = _editStates.putIfAbsent(
       _jobs[index].id,
       () => const MediaEditState(),
@@ -161,22 +173,81 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   void _setRestorationSettings(RestorationSettings settings) {
+    if (mapEquals(settings.toJson(), _settings.toJson())) return;
     setState(() {
+      _recordEditStep();
       _settings = settings;
       _storeSelectedEditState();
     });
   }
 
   void _setTransformSettings(ImageTransformSettings transform) {
+    if (mapEquals(transform.toJson(), _transformSettings.toJson())) return;
     setState(() {
+      _recordEditStep();
       _transformSettings = transform;
       _storeSelectedEditState();
     });
   }
 
   void _setLutProfile(LutProfile profile) {
+    if (mapEquals(profile.toJson(), _lutProfile.toJson())) return;
     setState(() {
+      _recordEditStep();
       _lutProfile = profile;
+      _storeSelectedEditState();
+    });
+  }
+
+  EditHistory<MediaEditState> _historyFor(String jobId) =>
+      _histories.putIfAbsent(jobId, () => EditHistory<MediaEditState>());
+
+  /// Records the state before a change of the selected item. Changes that
+  /// follow each other without a pause extend the current undo step.
+  void _recordEditStep() {
+    final job = _selectedJob;
+    if (job == null) return;
+    final history = _historyFor(job.id);
+    if (_editStepTimer?.isActive ?? false) {
+      history.amend();
+    } else {
+      history.record(_currentEditState);
+    }
+    _editStepTimer?.cancel();
+    _editStepTimer = Timer(_editStepPause, () {});
+  }
+
+  void _endEditStep() {
+    _editStepTimer?.cancel();
+    _editStepTimer = null;
+  }
+
+  EditHistory<MediaEditState>? get _selectedHistory {
+    final job = _selectedJob;
+    return job == null ? null : _histories[job.id];
+  }
+
+  bool get _canUndo => !_busy && (_selectedHistory?.canUndo ?? false);
+
+  bool get _canRedo => !_busy && (_selectedHistory?.canRedo ?? false);
+
+  void _undo() => _stepHistory(undo: true);
+
+  void _redo() => _stepHistory(undo: false);
+
+  void _stepHistory({required bool undo}) {
+    final history = _selectedHistory;
+    if (history == null || _busy) return;
+    _endEditStep();
+    final current = _currentEditState;
+    final state = undo ? history.undo(current) : history.redo(current);
+    if (state == null) return;
+    setState(() {
+      // JPEG quality is an export option that rides along in the settings;
+      // undoing an edit must not change it.
+      _settings = state.settings.copyWith(jpegQuality: _settings.jpegQuality);
+      _transformSettings = state.transform;
+      _lutProfile = state.lutProfile;
       _storeSelectedEditState();
     });
   }
@@ -210,6 +281,7 @@ class _EditorPageState extends State<EditorPage> {
 
   @override
   void dispose() {
+    _editStepTimer?.cancel();
     _trimStartController.dispose();
     _trimEndController.dispose();
     super.dispose();
@@ -225,45 +297,80 @@ class _EditorPageState extends State<EditorPage> {
         backgroundColor: CupertinoColors.black,
         child: AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle.light,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final safeInsets = MediaQuery.paddingOf(context);
-              final wide = constraints.maxWidth >= 1040;
-              if (wide) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _editStep(
-                        wide: true,
-                        topInset: safeInsets.top,
-                        bottomInset: safeInsets.bottom,
-                      ),
-                    ),
-                    SizedBox(
-                      width: 390,
-                      child: SafeArea(
-                        left: false,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 20, 20, 20),
-                          child: _sidePane(),
+          child: _editShortcuts(
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final safeInsets = MediaQuery.paddingOf(context);
+                final wide = constraints.maxWidth >= 1040;
+                if (wide) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _editStep(
+                          wide: true,
+                          topInset: safeInsets.top,
+                          bottomInset: safeInsets.bottom,
                         ),
                       ),
-                    ),
-                  ],
+                      SizedBox(
+                        width: 390,
+                        // The pane's cards were made for the start screen's
+                        // ocean gradient, not the scaffold's plain black.
+                        child: OceanBackdrop(
+                          child: SafeArea(left: false, child: _sidePane()),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return _editStep(
+                  wide: false,
+                  topInset: safeInsets.top,
+                  bottomInset: safeInsets.bottom,
                 );
-              }
-              return _editStep(
-                wide: false,
-                topInset: safeInsets.top,
-                bottomInset: safeInsets.bottom,
-              );
-            },
+              },
+            ),
           ),
         ),
       );
     }
     return _importScaffold();
+  }
+
+  /// Cmd-Z and Shift-Cmd-Z (Ctrl on other platforms) for the photo
+  /// editor's undo history. The editor's own focus scope keeps them working
+  /// after a text field gives up focus.
+  Widget _editShortcuts(Widget child) {
+    final apple = switch (defaultTargetPlatform) {
+      TargetPlatform.iOS || TargetPlatform.macOS => true,
+      _ => false,
+    };
+    return Shortcuts(
+      shortcuts: {
+        SingleActivator(LogicalKeyboardKey.keyZ, meta: apple, control: !apple):
+            const _UndoEditIntent(),
+        SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          meta: apple,
+          control: !apple,
+          shift: true,
+        ): const _RedoEditIntent(),
+      },
+      child: Actions(
+        actions: {
+          _UndoEditIntent: _EditHistoryAction<_UndoEditIntent>(
+            () => _canUndo,
+            _undo,
+          ),
+          _RedoEditIntent: _EditHistoryAction<_RedoEditIntent>(
+            () => _canRedo,
+            _redo,
+          ),
+        },
+        child: FocusScope(autofocus: true, child: child),
+      ),
+    );
   }
 
   Widget _importScaffold() {
@@ -302,7 +409,7 @@ class _EditorPageState extends State<EditorPage> {
                                 _importStep(),
                                 if (_shouldShowStartStatus) ...[
                                   const SizedBox(height: 16),
-                                  _statusPanel(dark: true),
+                                  _statusPanel(),
                                 ],
                               ],
                             ),
@@ -348,13 +455,20 @@ class _EditorPageState extends State<EditorPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'AquaRecover',
-                style: TextStyle(
-                  color: CupertinoColors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -.3,
+              // Shrinks a little rather than breaking the name on narrow
+              // phones next to the three 44 pt buttons.
+              const FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'AquaRecover',
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: CupertinoColors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.3,
+                  ),
                 ),
               ),
               const SizedBox(height: 2),
@@ -376,7 +490,10 @@ class _EditorPageState extends State<EditorPage> {
               child: CupertinoButton(
                 key: const Key('start_movies'),
                 padding: EdgeInsets.zero,
-                minimumSize: const Size(42, 42),
+                minimumSize: const Size(
+                  kMinInteractiveDimensionCupertino,
+                  kMinInteractiveDimensionCupertino,
+                ),
                 borderRadius: BorderRadius.circular(99),
                 color: CupertinoColors.white.withValues(alpha: .11),
                 onPressed: _openMovies,
@@ -393,7 +510,10 @@ class _EditorPageState extends State<EditorPage> {
               child: CupertinoButton(
                 key: const Key('start_local_exports'),
                 padding: EdgeInsets.zero,
-                minimumSize: const Size(42, 42),
+                minimumSize: const Size(
+                  kMinInteractiveDimensionCupertino,
+                  kMinInteractiveDimensionCupertino,
+                ),
                 borderRadius: BorderRadius.circular(99),
                 color: CupertinoColors.white.withValues(alpha: .11),
                 onPressed: _openLocalExports,
@@ -410,7 +530,10 @@ class _EditorPageState extends State<EditorPage> {
               child: CupertinoButton(
                 key: const Key('start_about'),
                 padding: EdgeInsets.zero,
-                minimumSize: const Size(42, 42),
+                minimumSize: const Size(
+                  kMinInteractiveDimensionCupertino,
+                  kMinInteractiveDimensionCupertino,
+                ),
                 borderRadius: BorderRadius.circular(99),
                 color: CupertinoColors.white.withValues(alpha: .11),
                 onPressed: _showAbout,
@@ -542,11 +665,23 @@ class _EditorPageState extends State<EditorPage> {
         status != 'No local Photos items were imported.';
   }
 
+  /// The trailing pane at iPad widths. It reuses the start screen's dark
+  /// cards and theme, so no light panel sits inside the dark editor.
   Widget _sidePane() {
-    return CupertinoScrollbar(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(0, 20, 20, 24),
-        children: [_statusPanel(), const SizedBox(height: 12), _queueSection()],
+    return CupertinoTheme(
+      data: CupertinoTheme.of(context).copyWith(
+        brightness: Brightness.dark,
+        primaryColor: CupertinoColors.activeBlue,
+      ),
+      child: CupertinoScrollbar(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          children: [
+            _statusPanel(),
+            const SizedBox(height: 12),
+            _queueSection(),
+          ],
+        ),
       ),
     );
   }
@@ -557,10 +692,7 @@ class _EditorPageState extends State<EditorPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _importHero(job),
-        if (_jobs.isNotEmpty) ...[
-          const SizedBox(height: 22),
-          _queueSection(compact: true),
-        ],
+        if (_jobs.isNotEmpty) ...[const SizedBox(height: 22), _queueSection()],
       ],
     );
   }
@@ -575,7 +707,7 @@ class _EditorPageState extends State<EditorPage> {
               .copyWith(
                 color: CupertinoColors.white,
                 fontWeight: FontWeight.w700,
-                fontSize: job == null ? 38 : 28,
+                fontSize: job == null ? 34 : 28,
                 letterSpacing: -1,
                 height: 1.05,
               ),
@@ -716,17 +848,17 @@ class _EditorPageState extends State<EditorPage> {
             bottomInset;
         final preferredPanelHeight = compact
             ? switch (activeGroup) {
-                EditorToolGroup.light => 300.0,
+                EditorToolGroup.light => 332.0,
                 EditorToolGroup.presets => 340.0,
-                EditorToolGroup.crop => 190.0,
+                EditorToolGroup.crop => 198.0,
                 EditorToolGroup.effects => 240.0,
                 EditorToolGroup.video => 290.0,
                 _ => 255.0,
               }
             : switch (activeGroup) {
-                EditorToolGroup.light => 320.0,
+                EditorToolGroup.light => 352.0,
                 EditorToolGroup.presets => 360.0,
-                EditorToolGroup.crop => 210.0,
+                EditorToolGroup.crop => 218.0,
                 EditorToolGroup.effects => 260.0,
                 EditorToolGroup.video => 315.0,
                 _ => 275.0,
@@ -756,7 +888,11 @@ class _EditorPageState extends State<EditorPage> {
                   immersive: true,
                   showHeader: false,
                   borderRadius: 0,
-                  immersiveTopInset: previewTopInset,
+                  // While cropping, the frame starts below the floating
+                  // buttons so they never cover a corner handle.
+                  immersiveTopInset: activeGroup == EditorToolGroup.crop
+                      ? previewTopInset + kMinInteractiveDimensionCupertino + 12
+                      : previewTopInset,
                   immersiveBottomInset:
                       (panelOpen ? panelHeight + 70 : 108) + bottomInset,
                   transform: _transformSettings,
@@ -772,14 +908,14 @@ class _EditorPageState extends State<EditorPage> {
                       _setVideoDuration(job.id, duration),
                 ),
               ),
+              // Centred between Undo and Redo on the left and the preview
+              // buttons on the right.
               heldIndicator: Positioned(
-                top:
-                    topInset +
-                    (_jobs.length > 1
-                        ? (compact ? 128 : 132)
-                        : (compact ? 76 : 80)),
-                left: horizontalPadding,
-                child: _darkPill('Original'),
+                top: previewTopInset + 8,
+                left: 0,
+                right: 0,
+                height: kMinInteractiveDimensionCupertino,
+                child: Center(child: _darkPill('Original')),
               ),
             ),
             Positioned.fill(
@@ -800,6 +936,11 @@ class _EditorPageState extends State<EditorPage> {
               ),
             Positioned(
               top: previewTopInset + 8,
+              left: horizontalPadding,
+              child: _undoRedoButtons(),
+            ),
+            Positioned(
+              top: previewTopInset + 8,
               right: horizontalPadding,
               child: Column(
                 children: [
@@ -807,12 +948,12 @@ class _EditorPageState extends State<EditorPage> {
                     mode: _compareMode,
                     onPressed: _toggleComparePreview,
                   ),
-                  if (job.kind == MediaKind.photo) ...[
+                  // Cropping always fits the photo, so the button would
+                  // only sit disabled over the crop frame's corner.
+                  if (job.kind == MediaKind.photo &&
+                      activeGroup != EditorToolGroup.crop) ...[
                     const SizedBox(height: 8),
-                    _previewFitButton(
-                      fit: _previewFit,
-                      enabled: activeGroup != EditorToolGroup.crop,
-                    ),
+                    _previewFitButton(fit: _previewFit),
                   ],
                 ],
               ),
@@ -865,6 +1006,30 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Compact Undo and Redo, matching the movie editor's.
+  Widget _undoRedoButtons() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GlassIconButton(
+          key: const Key('editor_undo'),
+          icon: CupertinoIcons.arrow_uturn_left,
+          label: 'Undo',
+          iconSize: 17,
+          onPressed: _canUndo ? _undo : null,
+        ),
+        const SizedBox(width: 8),
+        GlassIconButton(
+          key: const Key('editor_redo'),
+          icon: CupertinoIcons.arrow_uturn_right,
+          label: 'Redo',
+          iconSize: 17,
+          onPressed: _canRedo ? _redo : null,
+        ),
+      ],
+    );
+  }
+
   Widget _previewCompareButton({
     required EditorCompareMode mode,
     required VoidCallback onPressed,
@@ -886,7 +1051,10 @@ class _EditorPageState extends State<EditorPage> {
         child: CupertinoButton(
           key: buttonKey,
           padding: EdgeInsets.zero,
-          minimumSize: const Size(42, 42),
+          minimumSize: const Size(
+            kMinInteractiveDimensionCupertino,
+            kMinInteractiveDimensionCupertino,
+          ),
           borderRadius: BorderRadius.circular(99),
           onPressed: onPressed,
           child: EditorGlassSurface(
@@ -897,9 +1065,10 @@ class _EditorPageState extends State<EditorPage> {
               width: 44,
               height: 44,
               child: AnimatedSwitcher(
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? Duration.zero
-                    : const Duration(milliseconds: 160),
+                duration: motionDuration(
+                  context,
+                  const Duration(milliseconds: 160),
+                ),
                 transitionBuilder: (child, animation) => ScaleTransition(
                   scale: animation,
                   child: FadeTransition(opacity: animation, child: child),
@@ -929,13 +1098,9 @@ class _EditorPageState extends State<EditorPage> {
     setState(() => _exportCompareMode = _exportCompareMode.toggled);
   }
 
-  Widget _previewFitButton({
-    required EditorPreviewFit fit,
-    required bool enabled,
-  }) {
-    final actionLabel = enabled
-        ? '${fit.actionLabel}. Pinch with two fingers to inspect details; double-tap to reset zoom.'
-        : 'Fit is fixed while cropping.';
+  Widget _previewFitButton({required EditorPreviewFit fit}) {
+    final actionLabel =
+        '${fit.actionLabel}. Pinch with two fingers to inspect details; double-tap to reset zoom.';
     return Tooltip(
       message: actionLabel,
       child: Semantics(
@@ -945,11 +1110,12 @@ class _EditorPageState extends State<EditorPage> {
         child: CupertinoButton(
           key: const Key('editor_preview_fit'),
           padding: EdgeInsets.zero,
-          minimumSize: const Size(42, 42),
+          minimumSize: const Size(
+            kMinInteractiveDimensionCupertino,
+            kMinInteractiveDimensionCupertino,
+          ),
           borderRadius: BorderRadius.circular(99),
-          onPressed: !enabled
-              ? null
-              : () => setState(() => _previewFit = fit.toggled),
+          onPressed: () => setState(() => _previewFit = fit.toggled),
           child: EditorGlassSurface(
             style: EditorGlassStyle.clear,
             borderRadius: 99,
@@ -957,9 +1123,10 @@ class _EditorPageState extends State<EditorPage> {
               width: 44,
               height: 44,
               child: AnimatedSwitcher(
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? Duration.zero
-                    : const Duration(milliseconds: 160),
+                duration: motionDuration(
+                  context,
+                  const Duration(milliseconds: 160),
+                ),
                 child: Icon(
                   fit == EditorPreviewFit.fit
                       ? CupertinoIcons.arrow_up_left_arrow_down_right
@@ -1002,9 +1169,9 @@ class _EditorPageState extends State<EditorPage> {
                 ? null
                 : () => setState(() => _step = EditorWorkflowStep.export),
             child: Icon(
-              CupertinoIcons.check_mark,
+              CupertinoIcons.share_up,
               color: CupertinoColors.white.withValues(alpha: _busy ? .38 : 1),
-              size: 21,
+              size: 20,
             ),
           ),
         ),
@@ -1044,9 +1211,10 @@ class _EditorPageState extends State<EditorPage> {
           disabledColor: CupertinoColors.activeBlue.withValues(alpha: .38),
           onPressed: exportEnabled ? _commitExport : null,
           child: AnimatedSwitcher(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 160),
+            duration: motionDuration(
+              context,
+              const Duration(milliseconds: 160),
+            ),
             child: _exportOperationActive
                 ? const Row(
                     key: Key('export_commit_progress'),
@@ -1114,7 +1282,7 @@ class _EditorPageState extends State<EditorPage> {
         .length;
     final pending = total - failed - processing;
     return _floatingGlass(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       borderRadius: 20,
       child: Row(
         children: [
@@ -1131,7 +1299,10 @@ class _EditorPageState extends State<EditorPage> {
             child: CupertinoButton(
               key: const Key('editor_open_queue'),
               padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
+              minimumSize: const Size(
+                kMinInteractiveDimensionCupertino,
+                kMinInteractiveDimensionCupertino,
+              ),
               alignment: Alignment.centerLeft,
               onPressed: _showQueueOverview,
               child: Row(
@@ -1210,8 +1381,11 @@ class _EditorPageState extends State<EditorPage> {
   }) {
     final button = CupertinoButton(
       key: key,
-      padding: const EdgeInsets.all(8),
-      minimumSize: const Size(34, 34),
+      padding: EdgeInsets.zero,
+      minimumSize: const Size(
+        kMinInteractiveDimensionCupertino,
+        kMinInteractiveDimensionCupertino,
+      ),
       borderRadius: BorderRadius.circular(99),
       onPressed: onPressed,
       child: Icon(
@@ -1265,6 +1439,11 @@ class _EditorPageState extends State<EditorPage> {
       return false;
     }
     setState(() {
+      // Each photo that receives the edits can undo them on its own.
+      for (final id in targetIds) {
+        final previous = _editStates[id];
+        if (previous != null) _historyFor(id).record(previous);
+      }
       _editStates = copyMediaEditStateToTargets(
         states: _editStates,
         sourceId: sourceId,
@@ -1285,7 +1464,7 @@ class _EditorPageState extends State<EditorPage> {
       builder: (dialogContext) => CupertinoAlertDialog(
         title: const Text('Apply edits to all photos?'),
         content: const Text(
-          'Die Einstellungen werden nun auf alle anderen Bilder angewendet.',
+          'This photo’s edits will be applied to all other photos in the queue.',
         ),
         actions: [
           CupertinoDialogAction(
@@ -1334,18 +1513,24 @@ class _EditorPageState extends State<EditorPage> {
           trailing: _selectedJob?.kind == MediaKind.photo
               ? CupertinoButton(
                   key: const Key('open_neutral_picker'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(
+                    kMinInteractiveDimensionCupertino,
+                    kMinInteractiveDimensionCupertino,
                   ),
-                  minimumSize: Size.zero,
                   onPressed: _busy ? null : _pickNeutralPoint,
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(CupertinoIcons.eyedropper, size: 16),
                       SizedBox(width: 4),
-                      Text('White balance', style: TextStyle(fontSize: 13)),
+                      // Wraps instead of overflowing at the largest sizes.
+                      Flexible(
+                        child: Text(
+                          'White balance',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
                     ],
                   ),
                 )
@@ -1474,7 +1659,7 @@ class _EditorPageState extends State<EditorPage> {
           const Icon(
             CupertinoIcons.photo_on_rectangle,
             size: 54,
-            color: CupertinoColors.activeBlue,
+            color: CupertinoColors.white,
           ),
           const SizedBox(height: 10),
           Text(
@@ -1555,7 +1740,7 @@ class _EditorPageState extends State<EditorPage> {
             ),
             child: Icon(
               job.kind.isVideo ? CupertinoIcons.film : CupertinoIcons.photo,
-              color: CupertinoColors.activeBlue,
+              color: CupertinoColors.white,
               size: 21,
             ),
           ),
@@ -1706,11 +1891,16 @@ class _EditorPageState extends State<EditorPage> {
               const SizedBox(width: 8),
               CupertinoButton(
                 key: const Key('export_open_queue'),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                minimumSize: const Size(
+                  kMinInteractiveDimensionCupertino,
+                  kMinInteractiveDimensionCupertino,
                 ),
-                minimumSize: Size.zero,
+                // White, not the tint: blue text on the card stays below
+                // 4.5:1.
+                foregroundColor: _exportOperationActive
+                    ? null
+                    : CupertinoColors.white,
                 onPressed: _exportOperationActive ? null : _showQueueOverview,
                 child: const Text('Manage'),
               ),
@@ -1760,13 +1950,16 @@ class _EditorPageState extends State<EditorPage> {
                 const SizedBox(width: 8),
                 CupertinoButton(
                   key: const Key('export_selected_batch'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 9,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: const Size(
+                    kMinInteractiveDimensionCupertino,
+                    kMinInteractiveDimensionCupertino,
                   ),
-                  minimumSize: Size.zero,
                   borderRadius: BorderRadius.circular(11),
                   color: CupertinoColors.white.withValues(alpha: .10),
+                  foregroundColor: canExportSelected
+                      ? CupertinoColors.white
+                      : null,
                   onPressed: canExportSelected ? _commitSelectedExport : null,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1958,9 +2151,9 @@ class _EditorPageState extends State<EditorPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // The pills' 44 pt hit regions already keep the rows apart.
         Wrap(
           spacing: 8,
-          runSpacing: 8,
           children: [
             for (final profile in LutProfile.builtIns)
               _choicePill(
@@ -2006,6 +2199,16 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _exportOptionsSection(BuildContext panelContext) {
     final isVideo = _selectedJob?.kind.isVideo ?? false;
+    // Explicit label colors override the segmented controls' own disabled
+    // style, so the labels and thumb dim themselves during an export.
+    final segmentLabel = TextStyle(
+      color: CupertinoColors.white.withValues(
+        alpha: _exportOperationActive ? .38 : 1,
+      ),
+    );
+    final segmentThumb = CupertinoColors.activeBlue.withValues(
+      alpha: _exportOperationActive ? .38 : 1,
+    );
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -2032,15 +2235,15 @@ class _EditorPageState extends State<EditorPage> {
           CupertinoSlidingSegmentedControl<ExportPreset>(
             groupValue: _exportPreset,
             backgroundColor: CupertinoColors.white.withValues(alpha: .10),
-            thumbColor: CupertinoColors.activeBlue,
+            thumbColor: segmentThumb,
+            disabledChildren: _exportOperationActive
+                ? ExportPreset.values.toSet()
+                : const {},
             children: {
               for (final preset in ExportPreset.values)
                 preset: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(
-                    preset.label,
-                    style: const TextStyle(color: CupertinoColors.white),
-                  ),
+                  child: Text(preset.label, style: segmentLabel),
                 ),
             },
             onValueChanged: (value) {
@@ -2055,15 +2258,15 @@ class _EditorPageState extends State<EditorPage> {
               key: const Key('video_output_format'),
               groupValue: _exportOptions.videoFormat,
               backgroundColor: CupertinoColors.white.withValues(alpha: .10),
-              thumbColor: CupertinoColors.activeBlue,
+              thumbColor: segmentThumb,
+              disabledChildren: _exportOperationActive
+                  ? VideoOutputFormat.values.toSet()
+                  : const {},
               children: {
                 for (final format in VideoOutputFormat.values)
                   format: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      format.label,
-                      style: const TextStyle(color: CupertinoColors.white),
-                    ),
+                    child: Text(format.label, style: segmentLabel),
                   ),
               },
               onValueChanged: (value) {
@@ -2082,21 +2285,18 @@ class _EditorPageState extends State<EditorPage> {
               key: const Key('image_output_format'),
               groupValue: _exportOptions.imageFormat,
               backgroundColor: CupertinoColors.white.withValues(alpha: .10),
-              thumbColor: CupertinoColors.activeBlue,
-              children: const {
+              thumbColor: segmentThumb,
+              disabledChildren: _exportOperationActive
+                  ? ImageOutputFormat.values.toSet()
+                  : const {},
+              children: {
                 ImageOutputFormat.jpeg: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'JPEG',
-                    style: TextStyle(color: CupertinoColors.white),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('JPEG', style: segmentLabel),
                 ),
                 ImageOutputFormat.png: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'PNG',
-                    style: TextStyle(color: CupertinoColors.white),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('PNG', style: segmentLabel),
                 ),
               },
               onValueChanged: (value) {
@@ -2145,7 +2345,7 @@ class _EditorPageState extends State<EditorPage> {
                 children: [
                   const Icon(
                     CupertinoIcons.folder_fill,
-                    color: CupertinoColors.activeBlue,
+                    color: CupertinoColors.white,
                     size: 18,
                   ),
                   const SizedBox(width: 8),
@@ -2159,11 +2359,14 @@ class _EditorPageState extends State<EditorPage> {
                   ),
                   CupertinoButton(
                     key: const Key('change_export_files_folder'),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 5,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(
+                      kMinInteractiveDimensionCupertino,
+                      kMinInteractiveDimensionCupertino,
                     ),
-                    minimumSize: Size.zero,
+                    foregroundColor: _exportOperationActive
+                        ? null
+                        : CupertinoColors.white,
                     onPressed: _exportOperationActive
                         ? null
                         : () => unawaited(_chooseExportDirectory()),
@@ -2219,64 +2422,18 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _queueSection({bool compact = false}) {
-    final titleStyle = compact
-        ? const TextStyle(
-            color: CupertinoColors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-          )
-        : CupertinoTheme.of(context).textTheme.navTitleTextStyle;
-    final subtitleStyle = compact
-        ? TextStyle(
-            color: CupertinoColors.white.withValues(alpha: .62),
-            fontSize: 12,
-          )
-        : _secondaryText(context);
-    final child = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Queue', style: titleStyle),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${_jobs.length} item${_jobs.length == 1 ? '' : 's'} selected',
-                    style: subtitleStyle,
-                  ),
-                ],
-              ),
-            ),
-            if (_jobs.isNotEmpty)
-              CupertinoButton(
-                key: const Key('start_open_queue'),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                minimumSize: Size.zero,
-                onPressed: _busy ? null : _showQueueOverview,
-                child: const Text('Manage'),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (_jobs.isEmpty)
-          Text('No media imported.', style: subtitleStyle)
-        else
-          Column(
-            children: [
-              for (var i = 0; i < _jobs.length; i++)
-                _queueRow(i, _jobs[i], dark: compact),
-            ],
-          ),
-      ],
+  /// The queue card on the start screen and in the editor's iPad side pane.
+  /// Both sit on dark backgrounds, so the card uses the dark style.
+  Widget _queueSection() {
+    const titleStyle = TextStyle(
+      color: CupertinoColors.white,
+      fontSize: 20,
+      fontWeight: FontWeight.w700,
     );
-    if (!compact) return GlassPanel(child: child);
+    final subtitleStyle = TextStyle(
+      color: CupertinoColors.white.withValues(alpha: .78),
+      fontSize: 12,
+    );
     return Container(
       key: const Key('start_queue'),
       padding: const EdgeInsets.all(14),
@@ -2285,11 +2442,55 @@ class _EditorPageState extends State<EditorPage> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: CupertinoColors.white.withValues(alpha: .13)),
       ),
-      child: child,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Queue', style: titleStyle),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${_jobs.length} item${_jobs.length == 1 ? '' : 's'} selected',
+                      style: subtitleStyle,
+                    ),
+                  ],
+                ),
+              ),
+              if (_jobs.isNotEmpty)
+                CupertinoButton(
+                  key: const Key('start_open_queue'),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(
+                    kMinInteractiveDimensionCupertino,
+                    kMinInteractiveDimensionCupertino,
+                  ),
+                  // White, not the tint: blue text on this card stays
+                  // below 4.5:1 over the ocean gradient.
+                  foregroundColor: _busy ? null : CupertinoColors.white,
+                  onPressed: _busy ? null : _showQueueOverview,
+                  child: const Text('Manage'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_jobs.isEmpty)
+            Text('No media imported.', style: subtitleStyle)
+          else
+            Column(
+              children: [
+                for (var i = 0; i < _jobs.length; i++) _queueRow(i, _jobs[i]),
+              ],
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _queueRow(int index, MediaJob job, {bool dark = false}) {
+  Widget _queueRow(int index, MediaJob job) {
     final selected = index == _selectedIndex;
     final primary = CupertinoTheme.of(context).primaryColor;
     final details = <String>[
@@ -2300,6 +2501,9 @@ class _EditorPageState extends State<EditorPage> {
       if (job.metadata?.dimensionsLabel != null) job.metadata!.dimensionsLabel!,
       if (job.metadata?.durationLabel != null) job.metadata!.durationLabel!,
     ];
+    final canRemove =
+        (!_busy || job.status == JobStatus.pending) &&
+        job.status != JobStatus.processing;
     return Semantics(
       button: true,
       selected: selected,
@@ -2317,28 +2521,18 @@ class _EditorPageState extends State<EditorPage> {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: selected
-                ? primary.withValues(alpha: dark ? .18 : .12)
-                : dark
-                ? CupertinoColors.white.withValues(alpha: .055)
-                : CupertinoDynamicColor.resolve(
-                    CupertinoColors.secondarySystemGroupedBackground,
-                    context,
-                  ),
+                ? primary.withValues(alpha: .18)
+                : CupertinoColors.white.withValues(alpha: .055),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: selected
                   ? primary.withValues(alpha: 0.42)
-                  : dark
-                  ? CupertinoColors.white.withValues(alpha: .10)
-                  : CupertinoDynamicColor.resolve(
-                      CupertinoColors.separator,
-                      context,
-                    ),
+                  : CupertinoColors.white.withValues(alpha: .10),
             ),
           ),
           child: Row(
             children: [
-              _queueInlineThumbnail(job, dark: dark),
+              _queueInlineThumbnail(job),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -2351,21 +2545,27 @@ class _EditorPageState extends State<EditorPage> {
                             _friendlyMediaName(job),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: dark
-                                ? const TextStyle(
-                                    color: CupertinoColors.white,
-                                    fontWeight: FontWeight.w600,
-                                  )
-                                : const TextStyle(fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                              color: CupertinoColors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
+                        // White text and a checkmark: system blue text
+                        // would disappear on the selected blue row.
                         if (selected) ...[
                           const SizedBox(width: 6),
+                          const Icon(
+                            CupertinoIcons.checkmark_alt,
+                            color: CupertinoColors.white,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 2),
                           const Text(
                             'Selected',
                             style: TextStyle(
-                              color: CupertinoColors.activeBlue,
-                              fontSize: 11,
+                              color: CupertinoColors.white,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -2377,14 +2577,10 @@ class _EditorPageState extends State<EditorPage> {
                       details.join(' · '),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: dark
-                          ? TextStyle(
-                              color: CupertinoColors.white.withValues(
-                                alpha: .58,
-                              ),
-                              fontSize: 12,
-                            )
-                          : _secondaryText(context),
+                      style: TextStyle(
+                        color: CupertinoColors.white.withValues(alpha: .78),
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -2401,26 +2597,22 @@ class _EditorPageState extends State<EditorPage> {
                   CupertinoIcons.exclamationmark_triangle_fill,
                   color: CupertinoColors.destructiveRed,
                 ),
-              const SizedBox(width: 4),
               CupertinoButton(
                 key: Key('queue_inline_remove_${job.id}'),
-                padding: const EdgeInsets.all(7),
-                minimumSize: Size.zero,
-                onPressed:
-                    (!_busy || job.status == JobStatus.pending) &&
-                        job.status != JobStatus.processing
-                    ? () => _removeJob(job.id)
-                    : null,
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(
+                  kMinInteractiveDimensionCupertino,
+                  kMinInteractiveDimensionCupertino,
+                ),
+                onPressed: canRemove ? () => _removeJob(job.id) : null,
                 child: Icon(
                   CupertinoIcons.trash,
                   semanticLabel:
                       'Remove ${job.displayName ?? p.basename(job.inputPath)} from queue',
                   size: 18,
-                  color:
-                      (!_busy || job.status == JobStatus.pending) &&
-                          job.status != JobStatus.processing
+                  color: canRemove
                       ? CupertinoColors.destructiveRed
-                      : CupertinoColors.systemGrey3.resolveFrom(context),
+                      : CupertinoColors.white.withValues(alpha: .34),
                 ),
               ),
             ],
@@ -2430,16 +2622,12 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _queueInlineThumbnail(MediaJob job, {required bool dark}) {
+  Widget _queueInlineThumbnail(MediaJob job) {
     final placeholder = ColoredBox(
-      color: dark
-          ? CupertinoColors.white.withValues(alpha: .07)
-          : CupertinoColors.systemGrey5.resolveFrom(context),
+      color: CupertinoColors.white.withValues(alpha: .07),
       child: Icon(
         _iconFor(job),
-        color: dark
-            ? CupertinoColors.white.withValues(alpha: .64)
-            : CupertinoColors.secondaryLabel.resolveFrom(context),
+        color: CupertinoColors.white.withValues(alpha: .78),
         size: 20,
       ),
     );
@@ -2460,78 +2648,12 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _statusPanel({bool dark = false}) {
-    final child = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (dark)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Status',
-                style: TextStyle(
-                  color: CupertinoColors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                _busy ? 'Working locally' : 'Idle',
-                style: TextStyle(
-                  color: CupertinoColors.white.withValues(alpha: .62),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          )
-        else
-          _sectionHeader('Status', _busy ? 'Working locally' : 'Idle'),
-        if (_busy)
-          const Padding(
-            padding: EdgeInsets.only(top: 10),
-            child: CupertinoActivityIndicator(),
-          ),
-        if (_status != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Text(
-              _status!,
-              maxLines: 5,
-              overflow: TextOverflow.ellipsis,
-              style: dark
-                  ? TextStyle(
-                      color: CupertinoColors.white.withValues(alpha: .64),
-                      fontSize: 13,
-                    )
-                  : _secondaryText(context),
-            ),
-          ),
-        if (_busy && _canCancelCurrentWork)
-          CupertinoButton(
-            padding: EdgeInsets.zero,
-            onPressed: _cancelProcessing,
-            child: const Text('Cancel'),
-          )
-        else if (_busy)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Text(
-              'The export can continue if you switch apps. Return to AquaRecover to check its progress.',
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: dark
-                  ? TextStyle(
-                      color: CupertinoColors.white.withValues(alpha: .64),
-                      fontSize: 13,
-                    )
-                  : _secondaryText(context),
-            ),
-          ),
-      ],
+  /// The status card on the start screen and in the editor's iPad side pane.
+  Widget _statusPanel() {
+    final detailStyle = TextStyle(
+      color: CupertinoColors.white.withValues(alpha: .78),
+      fontSize: 13,
     );
-    if (!dark) return GlassPanel(child: child);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -2539,7 +2661,58 @@ class _EditorPageState extends State<EditorPage> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: CupertinoColors.white.withValues(alpha: .13)),
       ),
-      child: child,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Status',
+            style: TextStyle(
+              color: CupertinoColors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            _busy ? 'Working locally' : 'Idle',
+            style: TextStyle(
+              color: CupertinoColors.white.withValues(alpha: .78),
+              fontSize: 12,
+            ),
+          ),
+          if (_busy)
+            const Padding(
+              padding: EdgeInsets.only(top: 10),
+              child: CupertinoActivityIndicator(),
+            ),
+          if (_status != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                _status!,
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+                style: detailStyle,
+              ),
+            ),
+          if (_busy && _canCancelCurrentWork)
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: _cancelProcessing,
+              child: const Text('Cancel'),
+            )
+          else if (_busy)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                'The export can continue if you switch apps. Return to AquaRecover to check its progress.',
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: detailStyle,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -3101,6 +3274,7 @@ class _EditorPageState extends State<EditorPage> {
       id: id,
     );
     _editStates.remove(id);
+    _histories.remove(id);
     _videoPreviewPositions.remove(id);
     _videoDurations.remove(id);
     _jobs = result.jobs;
@@ -3189,6 +3363,7 @@ class _EditorPageState extends State<EditorPage> {
     setState(() {
       _storeSelectedEditState();
       _editStates.remove(id);
+      _histories.remove(id);
       _videoPreviewPositions.remove(id);
       _videoDurations.remove(id);
       _jobs = remaining;
@@ -3408,20 +3583,6 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _sectionHeader(String title, String subtitle) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
-        ),
-        const SizedBox(height: 3),
-        Text(subtitle, style: _secondaryText(context)),
-      ],
-    );
-  }
-
   Widget _choicePill({
     required String label,
     required bool selected,
@@ -3429,28 +3590,43 @@ class _EditorPageState extends State<EditorPage> {
     BuildContext? styleContext,
   }) {
     final resolvedContext = styleContext ?? context;
+    final primary = CupertinoTheme.of(resolvedContext).primaryColor;
+    // A compact capsule inside the 44 pt hit region, like the preset chips.
     return CupertinoButton(
-      minimumSize: Size.zero,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      color: selected
-          ? CupertinoTheme.of(
-              resolvedContext,
-            ).primaryColor.withValues(alpha: .16)
-          : CupertinoDynamicColor.resolve(
-              CupertinoColors.systemBackground,
-              resolvedContext,
-            ),
-      borderRadius: BorderRadius.circular(99),
+      padding: EdgeInsets.zero,
+      minimumSize: const Size(
+        kMinInteractiveDimensionCupertino,
+        kMinInteractiveDimensionCupertino,
+      ),
       onPressed: onPressed,
-      child: Text(
-        label,
-        style: TextStyle(
-          color: selected
-              ? CupertinoTheme.of(resolvedContext).primaryColor
+      child: DecoratedBox(
+        decoration: ShapeDecoration(
+          shape: const StadiumBorder(),
+          color: onPressed == null
+              ? CupertinoDynamicColor.resolve(
+                  CupertinoColors.quaternarySystemFill,
+                  resolvedContext,
+                )
+              : selected
+              ? primary.withValues(alpha: .16)
               : CupertinoDynamicColor.resolve(
-                  CupertinoColors.label,
+                  CupertinoColors.systemBackground,
                   resolvedContext,
                 ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected
+                  ? primary
+                  : CupertinoDynamicColor.resolve(
+                      CupertinoColors.label,
+                      resolvedContext,
+                    ),
+            ),
+          ),
         ),
       ),
     );
@@ -3566,6 +3742,37 @@ class _EditorPageState extends State<EditorPage> {
         : job.kind.isRaw
         ? CupertinoIcons.doc_richtext
         : CupertinoIcons.photo;
+  }
+}
+
+class _UndoEditIntent extends Intent {
+  const _UndoEditIntent();
+}
+
+class _RedoEditIntent extends Intent {
+  const _RedoEditIntent();
+}
+
+/// Runs undo or redo from a keyboard shortcut. It stands aside while a text
+/// field has focus, so Cmd-Z there still undoes typing.
+class _EditHistoryAction<T extends Intent> extends Action<T> {
+  _EditHistoryAction(this._canRun, this._run);
+
+  final bool Function() _canRun;
+  final VoidCallback _run;
+
+  @override
+  bool isEnabled(T intent) {
+    final focused = FocusManager.instance.primaryFocus?.context;
+    final editingText =
+        focused?.findAncestorStateOfType<EditableTextState>() != null;
+    return !editingText && _canRun();
+  }
+
+  @override
+  Object? invoke(T intent) {
+    _run();
+    return null;
   }
 }
 

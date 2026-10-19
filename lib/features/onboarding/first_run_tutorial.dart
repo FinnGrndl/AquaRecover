@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
+import '../../shared/reduce_motion.dart';
+
 Future<void> showFirstRunTutorial(BuildContext context) {
   return showCupertinoModalPopup<void>(
     context: context,
@@ -176,7 +178,7 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
           icon: CupertinoIcons.slider_horizontal_3,
           title: 'Edit, inspect, and compare',
           body:
-              'Start with a preset, then fine-tune adjustments, crop, and LUT. Tap a value bubble to restore its preset value.',
+              'Start with a preset, then fine-tune adjustments, crop, and LUT. Tap a value bubble to adjust it; Reset restores the preset value.',
           child: _EditorDemo(
             selectedTool: _selectedTool,
             split: _splitPreview,
@@ -254,8 +256,7 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
   }
 
   void _goToPage(int page) {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    if (reduceMotion) {
+    if (reduceMotionOf(context)) {
       _pageController.jumpToPage(page);
     } else {
       _pageController.animateToPage(
@@ -324,7 +325,7 @@ class _TutorialPage extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: CupertinoColors.white,
-                fontSize: 27,
+                fontSize: 28,
                 height: 1.12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -.55,
@@ -376,9 +377,10 @@ class _TutorialPageControl extends StatelessWidget {
               padding: EdgeInsets.zero,
               onPressed: () => onSelected(index),
               child: AnimatedContainer(
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? Duration.zero
-                    : const Duration(milliseconds: 180),
+                duration: motionDuration(
+                  context,
+                  const Duration(milliseconds: 180),
+                ),
                 width: index == selectedIndex ? 18 : 7,
                 height: 7,
                 margin: const EdgeInsets.symmetric(horizontal: 2),
@@ -546,9 +548,10 @@ class _ImportDemo extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           AnimatedSwitcher(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 180),
+            duration: motionDuration(
+              context,
+              const Duration(milliseconds: 180),
+            ),
             child: Text(
               count == 1
                   ? 'The photo opens directly in the editor.'
@@ -581,7 +584,7 @@ class _EditorDemo extends StatelessWidget {
     (CupertinoIcons.rectangle_grid_2x2, 'Presets', 'Choose a starting look.'),
     (CupertinoIcons.slider_horizontal_3, 'Adjust', 'Fine-tune each value.'),
     (CupertinoIcons.crop_rotate, 'Crop', 'Crop, rotate, and flip.'),
-    (CupertinoIcons.color_filter, 'LUT', 'Apply a finishing LUT.'),
+    (CupertinoIcons.sparkles, 'LUT', 'Apply a finishing LUT.'),
   ];
 
   final int selectedTool;
@@ -716,9 +719,7 @@ class _DemoImage extends StatelessWidget {
       key: Key(
         original ? 'tutorial_original_preview' : 'tutorial_edited_preview',
       ),
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : const Duration(milliseconds: 180),
+      duration: motionDuration(context, const Duration(milliseconds: 180)),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -804,7 +805,7 @@ class _DemoToolButton extends StatelessWidget {
               maxLines: 1,
               style: const TextStyle(
                 color: CupertinoColors.white,
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),

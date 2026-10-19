@@ -8,6 +8,8 @@ enum EditorGlassStyle { clear, regular }
 ///
 /// Content cards remain opaque. This surface is reserved for controls that
 /// float above the photo or video, matching Apple's material hierarchy.
+/// Depth comes from the blur and fill alone: no drop shadow and no sheen,
+/// only a hairline edge that gets stronger with Increase Contrast.
 class EditorGlassSurface extends StatelessWidget {
   const EditorGlassSurface({
     super.key,

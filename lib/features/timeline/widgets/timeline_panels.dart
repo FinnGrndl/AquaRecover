@@ -70,12 +70,14 @@ class CutPanel extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onAdd,
-    required this.onMessage,
+    required this.onError,
   });
 
   final TimelineController controller;
   final VoidCallback onAdd;
-  final ValueChanged<String> onMessage;
+
+  /// Explains why an edit could not be made, with a title and a message.
+  final void Function(String title, String message) onError;
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +108,8 @@ class CutPanel extends StatelessWidget {
                 onPressed: hasClip
                     ? () {
                         if (!controller.splitAtPlayhead()) {
-                          onMessage(
+                          onError(
+                            'Can’t split here',
                             'Move the playhead inside a clip, at least half a second from its edges.',
                           );
                         }
@@ -119,7 +122,8 @@ class CutPanel extends StatelessWidget {
                 onPressed: clip != null && clip.isVideo
                     ? () {
                         if (!controller.trimStartToPlayhead()) {
-                          onMessage(
+                          onError(
+                            'Can’t set the start',
                             'Put the playhead inside the selected clip to set its start.',
                           );
                         }
@@ -132,7 +136,8 @@ class CutPanel extends StatelessWidget {
                 onPressed: hasClip
                     ? () {
                         if (!controller.trimEndToPlayhead()) {
-                          onMessage(
+                          onError(
+                            'Can’t set the end',
                             'Put the playhead inside the selected clip to set its end.',
                           );
                         }
@@ -287,7 +292,10 @@ class _DurationStepper extends StatelessWidget {
       label: label,
       child: CupertinoButton(
         padding: EdgeInsets.zero,
-        minimumSize: const Size(36, 36),
+        minimumSize: const Size(
+          kMinInteractiveDimensionCupertino,
+          kMinInteractiveDimensionCupertino,
+        ),
         onPressed: () => onChanged(seconds + delta),
         child: Icon(icon, size: 20, color: TimelineColors.text),
       ),
@@ -538,10 +546,10 @@ class _ChipRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 46,
+      height: 48,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
         children: [
           for (final child in children)
             Padding(padding: const EdgeInsets.only(right: 6), child: child),
@@ -579,18 +587,29 @@ class _Chip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
+      // A compact capsule inside the 44 pt hit region.
       child: CupertinoButton(
-        padding: const EdgeInsets.symmetric(horizontal: 13),
-        minimumSize: const Size(0, 34),
-        borderRadius: BorderRadius.circular(99),
-        color: fill,
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(
+          kMinInteractiveDimensionCupertino,
+          kMinInteractiveDimensionCupertino,
+        ),
         onPressed: onTap,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: foreground,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 13),
+          alignment: Alignment.center,
+          decoration: ShapeDecoration(
+            shape: const StadiumBorder(),
+            color: fill,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: foreground,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -623,10 +642,17 @@ class DeliverPanel extends StatelessWidget {
   final VoidCallback onOpenLibrary;
   final String? backendNote;
 
+  static const _frameRates = [24, 30, 60];
+  static const _fadeSeconds = [0.3, 0.6, 1.0, 1.5];
+
   @override
   Widget build(BuildContext context) {
     final project = controller.project;
     final (:width, :height) = project.outputSize;
+    // The settings stay visible but read as disabled while rendering.
+    final thumb = CupertinoColors.activeBlue.withValues(
+      alpha: rendering ? .38 : 1,
+    );
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       children: [
@@ -711,20 +737,22 @@ class DeliverPanel extends StatelessWidget {
           child: CupertinoSlidingSegmentedControl<TimelineAspect>(
             groupValue: project.aspect,
             backgroundColor: TimelineColors.fill,
-            thumbColor: CupertinoColors.activeBlue,
+            thumbColor: thumb,
             children: {
               for (final aspect in TimelineAspect.values)
                 aspect: _segmentText(
                   '${aspect.widthRatio}:${aspect.heightRatio}',
+                  enabled: !rendering,
                 ),
             },
-            onValueChanged: rendering
-                ? (_) {}
-                : (v) {
-                    if (v != null) {
-                      controller.updateProject((p) => p.copyWith(aspect: v));
-                    }
-                  },
+            disabledChildren: rendering
+                ? TimelineAspect.values.toSet()
+                : const {},
+            onValueChanged: (v) {
+              if (v != null) {
+                controller.updateProject((p) => p.copyWith(aspect: v));
+              }
+            },
           ),
         ),
         _SettingRow(
@@ -732,18 +760,19 @@ class DeliverPanel extends StatelessWidget {
           child: CupertinoSlidingSegmentedControl<TimelineQuality>(
             groupValue: project.quality,
             backgroundColor: TimelineColors.fill,
-            thumbColor: CupertinoColors.activeBlue,
+            thumbColor: thumb,
             children: {
               for (final quality in TimelineQuality.values)
-                quality: _segmentText(quality.label),
+                quality: _segmentText(quality.label, enabled: !rendering),
             },
-            onValueChanged: rendering
-                ? (_) {}
-                : (v) {
-                    if (v != null) {
-                      controller.updateProject((p) => p.copyWith(quality: v));
-                    }
-                  },
+            disabledChildren: rendering
+                ? TimelineQuality.values.toSet()
+                : const {},
+            onValueChanged: (v) {
+              if (v != null) {
+                controller.updateProject((p) => p.copyWith(quality: v));
+              }
+            },
           ),
         ),
         _SettingRow(
@@ -751,17 +780,17 @@ class DeliverPanel extends StatelessWidget {
           child: CupertinoSlidingSegmentedControl<int>(
             groupValue: project.frameRate,
             backgroundColor: TimelineColors.fill,
-            thumbColor: CupertinoColors.activeBlue,
+            thumbColor: thumb,
             children: {
-              for (final fps in const [24, 30, 60]) fps: _segmentText('$fps'),
+              for (final fps in _frameRates)
+                fps: _segmentText('$fps', enabled: !rendering),
             },
-            onValueChanged: rendering
-                ? (_) {}
-                : (v) {
-                    if (v != null) {
-                      controller.updateProject((p) => p.copyWith(frameRate: v));
-                    }
-                  },
+            disabledChildren: rendering ? _frameRates.toSet() : const {},
+            onValueChanged: (v) {
+              if (v != null) {
+                controller.updateProject((p) => p.copyWith(frameRate: v));
+              }
+            },
           ),
         ),
         _SettingRow(
@@ -769,31 +798,35 @@ class DeliverPanel extends StatelessWidget {
           child: CupertinoSlidingSegmentedControl<double>(
             groupValue: project.transitionSeconds,
             backgroundColor: TimelineColors.fill,
-            thumbColor: CupertinoColors.activeBlue,
+            thumbColor: thumb,
             children: {
-              for (final s in const [0.3, 0.6, 1.0, 1.5])
-                s: _segmentText('${s}s'),
+              for (final s in _fadeSeconds)
+                s: _segmentText('${s}s', enabled: !rendering),
             },
-            onValueChanged: rendering
-                ? (_) {}
-                : (v) {
-                    if (v != null) {
-                      controller.updateProject(
-                        (p) => p.copyWith(transitionSeconds: v),
-                      );
-                    }
-                  },
+            disabledChildren: rendering ? _fadeSeconds.toSet() : const {},
+            onValueChanged: (v) {
+              if (v != null) {
+                controller.updateProject(
+                  (p) => p.copyWith(transitionSeconds: v),
+                );
+              }
+            },
           ),
         ),
       ],
     );
   }
 
-  static Widget _segmentText(String text) => Padding(
+  /// A segment label. Its explicit color overrides the control's own
+  /// disabled style, so a disabled label dims itself.
+  static Widget _segmentText(String text, {required bool enabled}) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 4),
     child: Text(
       text,
-      style: const TextStyle(color: TimelineColors.text, fontSize: 13),
+      style: TextStyle(
+        color: TimelineColors.text.withValues(alpha: enabled ? 1 : .38),
+        fontSize: 13,
+      ),
     ),
   );
 }

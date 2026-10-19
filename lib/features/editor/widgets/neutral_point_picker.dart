@@ -194,7 +194,6 @@ class _NeutralPointPickerState extends State<NeutralPointPicker> {
                   title: 'White balance',
                   subtitle: 'Tap something white or grey',
                   trailingWidth: 76,
-                  trailingTint: CupertinoColors.activeBlue,
                   trailing: CupertinoButton(
                     key: const Key('neutral_picker_done'),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -338,24 +337,38 @@ class _Reticle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const shadow = [BoxShadow(color: Color(0x88000000), blurRadius: 4)];
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: CupertinoColors.white, width: 2),
-        boxShadow: shadow,
-      ),
-      child: Center(
-        child: Container(
-          width: 4,
-          height: 4,
-          decoration: const BoxDecoration(
-            color: CupertinoColors.white,
-            shape: BoxShape.circle,
-            boxShadow: shadow,
-          ),
-        ),
-      ),
-    );
+    return const CustomPaint(painter: _ReticlePainter());
   }
+}
+
+/// A white ring and centre dot, each over a slightly wider dark stroke, like
+/// the crop overlay's lines. The crisp outline keeps the marker visible on
+/// any colour without a blurred shadow darkening the patch being judged.
+class _ReticlePainter extends CustomPainter {
+  const _ReticlePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide / 2 - 2;
+    final outline = Paint()
+      ..color = CupertinoColors.black.withValues(alpha: .5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+    final ring = Paint()
+      ..color = CupertinoColors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawCircle(center, radius, outline);
+    canvas.drawCircle(center, radius, ring);
+    canvas.drawCircle(
+      center,
+      3,
+      Paint()..color = CupertinoColors.black.withValues(alpha: .5),
+    );
+    canvas.drawCircle(center, 2, Paint()..color = CupertinoColors.white);
+  }
+
+  @override
+  bool shouldRepaint(_ReticlePainter oldDelegate) => false;
 }

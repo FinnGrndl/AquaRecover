@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
+import '../../../shared/reduce_motion.dart';
+
 /// A horizontally scrolling, discrete value wheel inspired by Apple Photos.
 ///
 /// The fixed center marker represents the selected value. Each crossed tick
@@ -149,6 +151,10 @@ class _PrecisionWheelState extends State<PrecisionWheel> {
   void _selectIndex(int index) {
     if (!_enabled) return;
     _focusNode.requestFocus();
+    if (reduceMotionOf(context)) {
+      _scrollController.jumpTo(index * _tickSpacing);
+      return;
+    }
     _userInteractionActive = true;
     unawaited(
       _scrollController
@@ -172,8 +178,7 @@ class _PrecisionWheelState extends State<PrecisionWheel> {
     if (!_scrollController.hasClients) return;
     final target = index * _tickSpacing;
     if ((_scrollController.offset - target).abs() < .1) return;
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    if (reduceMotion) {
+    if (reduceMotionOf(context)) {
       _scrollController.jumpTo(target);
       return;
     }
@@ -191,7 +196,7 @@ class _PrecisionWheelState extends State<PrecisionWheel> {
       if (!mounted || !_scrollController.hasClients) return;
       final target = _positionForValue(value) * _tickSpacing;
       _syncingExternalValue = true;
-      if (MediaQuery.disableAnimationsOf(context)) {
+      if (reduceMotionOf(context)) {
         _scrollController.jumpTo(target);
         _syncingExternalValue = false;
         return;
