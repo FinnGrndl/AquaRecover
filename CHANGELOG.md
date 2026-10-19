@@ -7,6 +7,7 @@ semantic versioning; the number after `+` is the platform build number.
 
 ### Added
 
+- Export video natively with a shared AVFoundation pipeline
 - Add an MCP server so Claude can restore dive media
 
 ### Fixed
