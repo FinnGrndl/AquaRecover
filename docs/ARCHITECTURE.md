@@ -20,9 +20,9 @@ Files / platform photo library
        v                         v
 ImageRestorationService   VideoRestorationService
        |                         |
-       +--> Dart isolate         +--> iOS AVFoundation/Core Image
-       +--> iOS Core Image       +--> macOS local ffmpeg process
-       +--> platform RAW decode
+       +--> Dart isolate         +--> iOS/macOS AVFoundation/Core Image
+       +--> iOS/macOS Core Image +--> Android Media3 + baked 3D LUT
+       +--> platform RAW decode  +--> Windows ffmpeg lut3d + baked 3D LUT
              |
              v
      export + JSON sidecar + optional Photos save
@@ -60,6 +60,22 @@ Deletion is restricted to that directory and also removes the adjacent
 `.aquarecover.json` sidecar. The UI supports individual and confirmed batch
 deletion. The imported source and copies in Photos are never touched.
 
+## Photos import
+
+`PhotoLibraryService.resolveImportRoute` chooses the import surface. iPhone
+uses the PHPicker-based system picker, Android uses the Android Photo Picker,
+and macOS 13 or later presents `PHPickerViewController` through the native
+`aqua_recover/photo_picker` channel (`MacPhotoPicker.swift`). These pickers run
+out of process and only return what the user selects, so they need no library
+permission and are not affected by Terminal or VS Code being blamed for a
+privacy request during development. The macOS picker copies each original
+into a per-import folder in the app's temporary directory before the call
+returns.
+
+iPad and macOS 12 or older use `PhotoLibrarySheet`, the in-app PhotoKit
+browser. It pages albums in groups of 120 assets, caches thumbnail requests per
+asset, and downloads iCloud originals with progress feedback.
+
 ## Still-image pipeline
 
 `ImageRestorationService` validates the encoded file before decoding. On iOS,
@@ -83,10 +99,24 @@ Encoded still files are limited to 512 MiB before the decode step.
 ## Preview and export
 
 Preview work uses bounded dimensions and skips the final high-cost detail pass.
-Changes are scheduled away from the UI thread. Full-resolution export reruns the
-pipeline from the original file; the preview bitmap is not upscaled or reused as
-the final output. Recent preview renders are kept in a small memory cache so
-switching between edited and split views does not start the same render twice.
+Previews render on one long-lived worker isolate (`PreviewRenderWorker`). It
+keeps the last three decoded and downscaled sources, so a slider change only
+re-runs the restoration on the preview bitmap instead of decoding the original
+again. A queued render for a file is replaced when a newer one for the same
+file arrives, so fast slider drags cannot build a backlog. Full-resolution
+export reruns the pipeline from the original file; the preview bitmap is not
+upscaled or reused as the final output. Recent preview renders are kept in a
+small memory cache so switching between edited and split views does not start
+the same render twice.
+
+The portable renderer works directly on a packed 8-bit RGBA buffer. Images in
+other formats (16-bit PNG/TIFF, palette, grayscale) are converted first so the
+algorithm always sees 0–255 values. Per-image constants live in sendable
+correction and fusion plans; exports above about 1.5 MP are split into row
+bands that run on up to eight worker isolates and produce the same pixels as
+the sequential path. `pow` calls with a per-image exponent use interpolated
+lookup tables. Settings, LUT and export options share one JSON format
+(`toJson`/`fromJson` on the models) across isolates, sidecars and tools.
 
 ## Apple native channels
 
@@ -102,9 +132,14 @@ them to the generated Xcode targets.
 
 ## Video
 
-iOS standard video export runs through AVFoundation and Core Image. It supports
-trim bounds, optional audio, metadata removal, MP4 or MOV containers, built-in
-presets, and the current restoration settings. The editor keeps a per-item
+iOS and macOS standard video export runs through AVFoundation and Core Image.
+Both runners compile the same `AquaMediaPipeline.swift`, which holds the
+restoration kernels, scene statistics, LUTs, and export code and imports neither
+Flutter nor UIKit/AppKit. `IosVideoProcessor.swift` and `MacMediaProcessor.swift`
+only register the `aqua_recover/video` and `aqua_recover/image` channels around
+it. The pipeline supports trim bounds, optional audio, metadata removal, MP4 or
+MOV containers, built-in presets, custom `.cube` LUTs (parsed once and cached),
+cancellation, and the current restoration settings. The editor keeps a per-item
 representative frame position and uses it in both the editor and export review;
 the position does not trim or otherwise change the exported timeline. Local
 video exports open with the app's video player.
@@ -114,9 +149,61 @@ On iOS 26 and later, the native bridge submits a user-initiated
 15–25 use a finite `UIApplication` background task as a fallback. Neither path
 adds a permanent audio, location, or network background mode.
 
-macOS can use an `ffmpeg` executable already installed on the machine. Arguments
-are passed as an array rather than a shell command. No FFmpeg binary is bundled.
-Android reports video export as unavailable and keeps the photo workflow active.
+macOS previously launched a locally installed `ffmpeg`, which the App Sandbox
+blocks. It now uses the shared native pipeline and keeps the `ffmpeg` process
+only for RAW video descriptors in unsandboxed development builds. Arguments are
+passed as an array rather than a shell command. No FFmpeg binary is bundled.
+Stills and previews on macOS also use Core Image, which adds HEIC and RAW
+decoding without a Dart fallback.
+
+Android and Windows have no AquaRecover shaders, so `VideoLutBaker` turns the
+restoration into a 33³ colour table first. It samples five frames from the
+trimmed range, stacks them into one scene sample for the statistics, and runs
+`UnderwaterProcessor.bakeColorLattice`, the same per-pixel correction the still
+renderer uses, over every lattice colour. Each colour fills a 2×2 block so the
+local-structure term sees a flat region. A creative LUT is composed on top.
+Android hands the table to Media3 Transformer as a `SingleColorLut`, tone-mapping
+HDR clips to SDR first; Windows writes a `.cube` file next to an `ffmpeg`
+`lut3d` filter. The table cannot hold Retinex fusion, sharpening, or the
+vignette, so those stay Apple and stills only. Cancelling bumps a generation
+counter that stops jobs still sampling or baking, then cancels the running
+Transformer or kills the `ffmpeg` process.
+
+## Timelines
+
+`lib/core/timeline` turns photos and clips into one short movie. A
+`TimelineProject` holds the aspect (16:9, 9:16, 1:1), quality, frame rate, and
+an ordered list of `TimelineClip`s. Each clip has its own grade
+(`RestorationSettings`), look (`LutProfile`), in and out points or still
+duration, a cut or crossfade from the previous clip, and an optional slow zoom
+for photos. `TimelineLayout` is the single source of timing: a crossfade
+overlaps two clips by the project's transition length, clamped to half of
+either clip. The renderers receive the layout instead of re-deriving it.
+Projects are saved as versioned JSON by `TimelineProjectStore` and only
+reference media by path.
+
+`TimelineRenderService` picks a backend:
+
+| Platform | Renderer | Grade per clip |
+| --- | --- | --- |
+| iOS, macOS | `AquaTimelineRenderer.swift`: AVAssetReader → Core Image → AVAssetWriter, audio mixed with `AVAudioMix` ramps | Full `AquaMediaPipeline` filters per frame; photos graded once and cached |
+| Android | `TimelineExportBridge.kt`: one Media3 sequence with `Presentation`, slow-zoom `MatrixTransformation`, and forced audio | Baked `SingleColorLut`; crossfades render as a short dip to black because Media3 sequences cannot overlap items |
+| Windows (and tooling) | `FfmpegTimelineRenderer`: one filter graph with `lut3d`, `zoompan`, `xfade`, and `acrossfade` | Baked `.cube` per clip |
+
+The editor lives in `lib/features/timeline`. `TimelineController` owns the
+immutable project, the selection, the playhead, a bounded undo and redo history,
+and a debounced autosave. `TimelineEditorPage` stacks the viewer, the transport,
+the centred-playhead `TimelineStrip`, and the Edit, Color, and Export panels; on
+screens 900 points and wider the panels move into a side column. It reuses the
+photo editor's chrome (`GlassNavigationBar`, `GlassBottomPanel`,
+`GlassToolRail`, `EditorGlassSurface`, and `OceanBackdrop`), so both editors
+share one material, one accent colour, and the same tab-to-collapse behaviour. The viewer uses
+the accurate still renderer for photos and the platform player with a
+colour-matrix approximation for video, so scrubbing stays real time while the
+render applies the full grade.
+
+`TimelineGradeBaker` caches baked tables by source range, grade, and look, so a
+second export after a small edit only re-bakes the clips that changed.
 
 ## Persistence
 
@@ -129,6 +216,17 @@ appears in the local export directory.
 `FolderExportService` copies output to a directory selected by the system file
 picker and creates a numbered file name instead of overwriting an existing
 file. Batch items reuse the selected folder for the current editor session.
+
+## MCP server
+
+`bin/aquarecover_mcp.dart` serves the Model Context Protocol over stdio. The
+protocol layer (`lib/mcp/mcp_server.dart`) is independent of the tools; the
+tools (`lib/mcp/aquarecover_tools.dart`) use the Flutter-free
+`StillRenderPipeline`, `SceneAnalyzer`, `SidecarService` and model JSON, so
+the server renders exactly like the app's portable path. `PathPolicy` limits
+file access to `--allow` folders. HEIC/RAW decoding uses macOS `sips`, and
+video uses a host `ffmpeg`, because the CLI has no platform channels. See
+[MCP.md](MCP.md).
 
 ## Dependencies
 

@@ -70,6 +70,21 @@ control and remain the baseline for later edits. Tapping an adjustment value
 restores only that control to the value supplied by the preset. The **None**
 preset is deliberately neutral and leaves the image unchanged.
 
+For photos the Presets panel also suggests a starting point. It reads a small
+thumbnail, measures how much red is missing and whether the water leans blue
+or green, and offers one preset and strength with the reason, for example
+"Green water: Green water 86%". One tap applies it; nothing changes until you
+do. RAW photos and videos get no suggestion, since their thumbnails do not
+show the developed colours.
+
+**White balance** trims what the water correction leaves behind. In Adjust,
+tap **White balance** and then tap something in the photo that should be
+white or grey, such as sand, a slate, or a tank. AquaRecover sets
+**Temperature** and **Tint** so that spot comes out neutral, and you can drag
+to try other spots before tapping Done. Both values are also plain sliders,
+apply last (before a look LUT) on every platform, and are part of the grade
+in movies.
+
 The editor keeps comparison close to the image. Switch between edited and
 split views, press and hold to reveal the original, fit the complete frame or
 fill the preview, and pinch to inspect details. Cropping is nondestructive and
@@ -88,6 +103,31 @@ is confirmed, and each destination is independent:
 Local exports receive a small `.aquarecover.json` sidecar with the edit,
 transform, LUT, and export settings. It records file names, not the original
 absolute path.
+
+## Make a movie
+
+The film button on the start screen opens **Movies**. **New movie** goes
+straight to the photo picker, as in iMovie, and the editor opens with your
+picks. The editor uses the same floating glass panel and tab bar as the photo
+editor and fits a phone held in portrait:
+
+- **Edit**: add photos and clips, split at the playhead, set clip start and
+  end, reorder, duplicate, mute, choose cut or fade, and give photos a
+  duration and a slow zoom. The playhead stays centred and the timeline scrolls
+  under it; pinch to zoom the timeline.
+- **Color**: pick a preset per clip, tune one parameter at a time on a precision
+  wheel (recovery, red, balance, exposure, contrast, saturation, haze, shadows,
+  highlights, hue), add a look, and match every clip to the current grade.
+- **Export**: choose 16:9, 9:16, or 1:1, 720p to 4K, 24 to 60 fps, and the fade
+  length, then export an H.264 movie on the device and save it to Photos. The
+  share button at the top right opens it from anywhere.
+
+Tap the open tab again to fold its panel away and give the viewer more room.
+Swipe left on a movie in the list to delete it.
+
+**Make a movie from N items** on the start screen turns the current queue into a
+movie and keeps the grade and look each item already has. Projects save
+automatically, support undo and redo, and reference media in place.
 
 ## What happens to a pixel
 
@@ -239,17 +279,31 @@ paths measurable as the algorithm evolves.
 | Capability | iOS | macOS | Android | Windows |
 | --- | --- | --- | --- | --- |
 | JPEG, PNG, and WebP correction | Yes | Yes | Yes | Yes |
-| Photos-library import | Native Photos APIs | Native Photos APIs | System media access | — |
+| Photos-library import | System picker (iPhone), PhotoKit browser (iPad) | System picker on macOS 13+, PhotoKit browser before | Android Photo Picker, no media permission | — |
 | File import and folder export | Yes | Yes | Yes | Yes |
 | HEIC/HEIF decode | Native | Native | Platform dependent | Platform dependent |
 | Supported RAW still decode | Core Image | Core Image | ImageDecoder on API 28+ | — |
-| Standard video export | MP4/MOV via AVFoundation | MP4/MOV with local `ffmpeg` | — | — |
+| Standard video export | MP4/MOV via AVFoundation | MP4/MOV via AVFoundation | MP4 via Media3 Transformer | MP4/MOV with local `ffmpeg` |
+| Custom `.cube` LUT for video | Yes | Yes | Yes | Yes |
 | Custom `.cube` LUT for stills | Yes | Yes | Yes | Yes |
 
 AquaRecover is photo-first. Video support is currently strongest on Apple
-platforms, custom LUTs are not supported by the native iOS video path, and
-proprietary formats such as Blackmagic RAW, REDCODE RAW, and ProRes RAW are not
+platforms, where iOS and macOS share one AVFoundation and Core Image renderer.
+Android and Windows apply the same restoration as a baked 3D colour table, which
+matches the still renderer on smooth areas but skips the local detail fusion and
+sharpening. RAW video on macOS still needs a locally installed `ffmpeg` outside
+the App Sandbox, and proprietary formats such as Blackmagic RAW, REDCODE RAW, and ProRes RAW are not
 implemented.
+
+## Edit with Claude
+
+AquaRecover includes an MCP server, so Claude can analyse, preview, and
+restore dive photos and videos on your computer in conversation: "fix the
+colours in this folder, keep it natural, and export the results". The server
+uses the same restoration code as the app, compares before and after previews,
+writes `.aquarecover.json` sidecars, and only touches folders you allow. See
+[Using AquaRecover with Claude](docs/MCP.md) for setup in Claude Desktop and
+Claude Code.
 
 ## Privacy is part of the architecture
 
@@ -270,7 +324,7 @@ contains the Android APK, Windows installer, and signed macOS disk image. iOS
 builds are distributed through TestFlight while store preparation is in
 progress.
 
-Current source version: `1.3.2+14`.
+Current source version: `1.4.0+16`.
 
 To run from source with the same Flutter toolchain used by CI:
 

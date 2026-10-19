@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/services.dart' hide Uint8List;
-import 'package:image/image.dart' as img;
 
 import '../models/export_options.dart';
 import '../models/image_transform_settings.dart';
@@ -11,7 +10,7 @@ import '../models/lut_profile.dart';
 import '../models/restoration_settings.dart';
 import '../utils/output_paths.dart';
 import 'lut_service.dart';
-import 'image_transform_service.dart';
+import 'still_render_pipeline.dart';
 import 'underwater_processor.dart';
 
 class ImageRestorationService {
@@ -51,9 +50,9 @@ class ImageRestorationService {
       temporary: !exportOptions.keepLocalCopy,
     );
 
-    if (_canUseNativeIos(lutProfile)) {
+    if (_canUseNativeRenderer) {
       try {
-        return await _restoreFileOnIos(
+        return await _restoreFileNatively(
           inputPath,
           outputPath,
           settings,
@@ -103,24 +102,11 @@ class ImageRestorationService {
     );
   }
 
-  static void _validateDecodedImage(img.Image decoded) {
-    if (decoded.width <= 0 || decoded.height <= 0) {
-      throw const FormatException('Decoded image dimensions are invalid.');
-    }
-    if (decoded.width > maxDecodedImageDimension ||
-        decoded.height > maxDecodedImageDimension ||
-        decoded.width * decoded.height > maxDecodedImagePixels) {
-      throw StateError(
-        'Decoded image is too large for local processing '
-        '(${decoded.width}x${decoded.height}).',
-      );
-    }
-  }
+  /// iOS and macOS render stills with the shared Core Image pipeline, which
+  /// also decodes HEIC and applies custom `.cube` LUTs on the GPU.
+  bool get _canUseNativeRenderer => Platform.isIOS || Platform.isMacOS;
 
-  bool _canUseNativeIos(LutProfile lutProfile) =>
-      Platform.isIOS && !lutProfile.isCustomCube;
-
-  Future<String> _restoreFileOnIos(
+  Future<String> _restoreFileNatively(
     String inputPath,
     String outputPath,
     RestorationSettings settings, {
@@ -139,7 +125,7 @@ class ImageRestorationService {
     });
     if (restored == null || restored.isEmpty) {
       throw StateError(
-        'Native iOS image restoration did not return an output path.',
+        'Native image restoration did not return an output path.',
       );
     }
     return restored;
@@ -199,96 +185,12 @@ Future<Uint8List> _restoreFileBytesInBackground(
   );
 }
 
-Future<Uint8List> _restoreBytesInBackground(
-  _ImageBytesRestoreRequest request,
-) async {
-  final decoded = img.decodeImage(request.inputBytes);
-  if (decoded == null) {
-    throw const FormatException('Could not decode image bytes.');
-  }
-  ImageRestorationService._validateDecodedImage(decoded);
-  final settings = _settingsFromJson(request.settings);
-  final exportOptions = _exportOptionsFromJson(request.exportOptions);
-  final lutProfile = _lutProfileFromJson(request.lutProfile);
-  final transform = ImageTransformSettings.fromJson(request.transform);
-  final restored = const UnderwaterProcessor().restoreImage(decoded, settings);
-  final withLut = await const LutService().apply(restored, lutProfile);
-  final transformed = const ImageTransformService().apply(withLut, transform);
-  if (exportOptions.outputPng) {
-    return Uint8List.fromList(img.encodePng(transformed));
-  }
-  return Uint8List.fromList(
-    img.encodeJpg(
-      transformed,
-      quality: settings.jpegQuality.clamp(1, 100).toInt(),
-    ),
-  );
-}
-
-RestorationSettings _settingsFromJson(Map<String, Object?> map) {
-  double d(String key, double fallback) =>
-      (map[key] as num?)?.toDouble() ?? fallback;
-  int i(String key, int fallback) => (map[key] as num?)?.toInt() ?? fallback;
-  final presetName = map['preset'] as String?;
-  final preset = RestorationPreset.values.firstWhere(
-    (value) => value.name == presetName,
-    orElse: () => RestorationPreset.auto,
-  );
-  return RestorationSettings(
-    preset: preset,
-    presetStrength: d(
-      'presetStrength',
-      preset == RestorationPreset.none ? 0 : 1,
-    ),
-    recovery: d('recovery', 1.18),
-    redRecovery: d('redRecovery', 1.24),
-    autoWhiteBalance: d('autoWhiteBalance', 0.76),
-    contrastStretch: d('contrastStretch', 0.52),
-    contrast: d('contrast', 1.04),
-    gamma: d('gamma', 0.98),
-    saturation: d('saturation', 0.88),
-    vibrance: d('vibrance', 0.06),
-    clarity: d('clarity', 0.18),
-    sharpness: d('sharpness', 0.18),
-    hazeReduction: d('hazeReduction', 0.14),
-    highlightProtection: d('highlightProtection', 0.55),
-    hue: d('hue', 0),
-    brightness: d('brightness', 0),
-    exposure: d('exposure', -0.04),
-    highlights: d('highlights', 0),
-    shadows: d('shadows', 0),
-    blackPoint: d('blackPoint', 0),
-    vignette: d('vignette', 0),
-    jpegQuality: i('jpegQuality', 94),
-  );
-}
-
-ExportOptions _exportOptionsFromJson(Map<String, Object?> map) {
-  final formatName = map['imageFormat'] as String?;
-  final format = ImageOutputFormat.values.firstWhere(
-    (value) => value.name == formatName,
-    orElse: () => ImageOutputFormat.jpeg,
-  );
-  return ExportOptions(
-    imageFormat: format,
-    stripMetadata: map['stripMetadata'] as bool? ?? true,
-    keepLocalCopy: map['keepLocalCopy'] as bool? ?? true,
-    saveToPhotoLibrary: map['saveToPhotoLibrary'] as bool? ?? false,
-    saveToFiles: map['saveToFiles'] as bool? ?? false,
-    keepAudio: map['keepAudio'] as bool? ?? true,
-  );
-}
-
-LutProfile _lutProfileFromJson(Map<String, Object?> map) {
-  final kindName = map['kind'] as String?;
-  final kind = LutKind.values.firstWhere(
-    (value) => value.name == kindName,
-    orElse: () => LutKind.none,
-  );
-  return LutProfile(
-    kind: kind,
-    name: map['name'] as String? ?? 'None',
-    path: map['path'] as String?,
-    intensity: (map['intensity'] as num?)?.toDouble() ?? 0,
+Future<Uint8List> _restoreBytesInBackground(_ImageBytesRestoreRequest request) {
+  return const StillRenderPipeline().renderEncoded(
+    request.inputBytes,
+    settings: RestorationSettings.fromJson(request.settings),
+    exportOptions: ExportOptions.fromJson(request.exportOptions),
+    lutProfile: LutProfile.fromJson(request.lutProfile),
+    transform: ImageTransformSettings.fromJson(request.transform),
   );
 }

@@ -3,6 +3,38 @@
 Changes are generated from Conventional Commit messages. AquaRecover follows
 semantic versioning; the number after `+` is the platform build number.
 
+## 1.4.0 - 2026-10-19
+
+### Added
+
+- Export video natively with a shared AVFoundation pipeline
+- Export video on Android and Windows with a baked 3D LUT
+- Add a timeline engine that renders photos and clips into one movie
+- Add a Resolve-style mobile movie editor
+- Match the movie editor to the app's design
+- Tap-to-set white balance with temperature and tint
+- Give the white balance picker the editor's glass chrome
+- Render plan v2 with effects, overlays, titles and audio tracks
+- Add an MCP server so Claude can restore dive media
+- Live preview of the layered movie
+- Render the v2 movie plan with Media3
+- Render the v2 movie plan with ffmpeg on Windows and Linux
+- Suggest a preset for each photo
+- CapCut-style movie editor with lanes, toolbar and inspector
+
+### Fixed
+
+- Follow Apple's HIG across the editor, library and movies
+- Import through permission-free system pickers
+- Read .cube samples red-fastest and apply LUTs on packed buffers
+- Pick movie media with the file_picker 13 API
+- Give the preset suggestion room and a clear applied state
+- Follow Apple's HIG for the preset suggestion and glass chrome
+- Enable Export from the renderer's own backend
+
+### Performance
+
+- Render stills on packed buffers and parallel bands
 ## 1.3.2 - 2026-09-16
 
 ### Documentation

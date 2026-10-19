@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
@@ -78,32 +79,43 @@ class LutService {
     double intensity,
     _Recipe recipe,
   ) {
-    final out = source.clone();
     final amount = intensity.clamp(0.0, 1.0).toDouble();
-    for (var y = 0; y < source.height; y++) {
-      for (var x = 0; x < source.width; x++) {
-        final p = source.getPixel(x, y);
-        final originalR = p.r.toDouble();
-        final originalG = p.g.toDouble();
-        final originalB = p.b.toDouble();
-        var r = (originalR * recipe.red - 128) * recipe.contrast + 128;
-        var g = (originalG * recipe.green - 128) * recipe.contrast + 128;
-        var b = (originalB * recipe.blue - 128) * recipe.contrast + 128;
-        final luma = .2126 * r + .7152 * g + .0722 * b;
-        r = luma + (r - luma) * recipe.saturation;
-        g = luma + (g - luma) * recipe.saturation;
-        b = luma + (b - luma) * recipe.saturation;
-        out.setPixelRgba(
-          x,
-          y,
-          _byte(_mix(originalR, r, amount)),
-          _byte(_mix(originalG, g, amount)),
-          _byte(_mix(originalB, b, amount)),
-          p.a.toInt(),
-        );
-      }
+    return _mapRgb(source, (data, i) {
+      final originalR = data[i].toDouble();
+      final originalG = data[i + 1].toDouble();
+      final originalB = data[i + 2].toDouble();
+      var r = (originalR * recipe.red - 128) * recipe.contrast + 128;
+      var g = (originalG * recipe.green - 128) * recipe.contrast + 128;
+      var b = (originalB * recipe.blue - 128) * recipe.contrast + 128;
+      final luma = .2126 * r + .7152 * g + .0722 * b;
+      r = luma + (r - luma) * recipe.saturation;
+      g = luma + (g - luma) * recipe.saturation;
+      b = luma + (b - luma) * recipe.saturation;
+      data[i] = _byte(_mix(originalR, r, amount));
+      data[i + 1] = _byte(_mix(originalG, g, amount));
+      data[i + 2] = _byte(_mix(originalB, b, amount));
+    });
+  }
+
+  /// Copies [source] into an 8-bit RGB(A) image and runs [mapPixel] on each
+  /// pixel's red byte offset in the packed buffer. This avoids the per-pixel
+  /// `getPixel`/`setPixelRgba` object traffic of the generic accessors.
+  static img.Image _mapRgb(
+    img.Image source,
+    void Function(Uint8List data, int offset) mapPixel,
+  ) {
+    final packed =
+        source.format == img.Format.uint8 &&
+            source.numChannels >= 3 &&
+            !source.hasPalette
+        ? source.clone()
+        : source.convert(format: img.Format.uint8, numChannels: 4);
+    final data = packed.data!.toUint8List();
+    final stride = packed.numChannels;
+    for (var i = 0; i + 2 < data.length; i += stride) {
+      mapPixel(data, i);
     }
-    return out;
+    return packed;
   }
 
   static double _mix(double a, double b, double t) => a + (b - a) * t;
@@ -111,10 +123,12 @@ class LutService {
 }
 
 class CubeLut {
-  const CubeLut._({required this.size, required List<_Rgb> values})
-    : _values = values;
+  const CubeLut._({required this.size, required Float32List table})
+    : _table = table;
   final int size;
-  final List<_Rgb> _values;
+
+  /// Packed RGB samples in file order (red changes fastest).
+  final Float32List _table;
 
   static Future<CubeLut> read(String path) async {
     final file = File(path);
@@ -126,7 +140,7 @@ class CubeLut {
     }
     final lines = await file.readAsLines();
     var size = 0;
-    final values = <_Rgb>[];
+    final values = <double>[];
     for (final raw in lines) {
       final line = raw.trim();
       if (line.isEmpty || line.startsWith('#')) continue;
@@ -148,78 +162,67 @@ class CubeLut {
       }
       final parts = line.split(RegExp(r'\s+'));
       if (parts.length >= 3) {
-        values.add(
-          _Rgb(
-            double.parse(parts[0]),
-            double.parse(parts[1]),
-            double.parse(parts[2]),
-          ),
-        );
+        values
+          ..add(double.parse(parts[0]))
+          ..add(double.parse(parts[1]))
+          ..add(double.parse(parts[2]));
       }
     }
     if (size == 0) {
       throw const FormatException('Missing LUT_3D_SIZE in .cube file.');
     }
     final expected = size * size * size;
-    if (values.length != expected) {
+    if (values.length != expected * 3) {
       throw FormatException(
-        'Expected $expected LUT samples, found ${values.length}.',
+        'Expected $expected LUT samples, found ${values.length ~/ 3}.',
       );
     }
-    return CubeLut._(size: size, values: values);
+    return CubeLut._(size: size, table: Float32List.fromList(values));
   }
 
   img.Image apply(img.Image source, double intensity) {
-    final out = source.clone();
     final amount = intensity.clamp(0.0, 1.0).toDouble();
-    for (var y = 0; y < source.height; y++) {
-      for (var x = 0; x < source.width; x++) {
-        final p = source.getPixel(x, y);
-        final mapped = _sample(p.r / 255.0, p.g / 255.0, p.b / 255.0);
-        out.setPixelRgba(
-          x,
-          y,
-          _byte(_mix(p.r.toDouble(), mapped.r * 255, amount)),
-          _byte(_mix(p.g.toDouble(), mapped.g * 255, amount)),
-          _byte(_mix(p.b.toDouble(), mapped.b * 255, amount)),
-          p.a.toInt(),
-        );
-      }
-    }
-    return out;
-  }
-
-  _Rgb _sample(double r, double g, double b) {
     final maxIndex = size - 1;
-    final rf = r.clamp(0.0, 1.0) * maxIndex;
-    final gf = g.clamp(0.0, 1.0) * maxIndex;
-    final bf = b.clamp(0.0, 1.0) * maxIndex;
-    final r0 = rf.floor().clamp(0, maxIndex);
-    final g0 = gf.floor().clamp(0, maxIndex);
-    final b0 = bf.floor().clamp(0, maxIndex);
-    final r1 = math.min(r0 + 1, maxIndex);
-    final g1 = math.min(g0 + 1, maxIndex);
-    final b1 = math.min(b0 + 1, maxIndex);
-    final c000 = _at(r0, g0, b0);
-    final c001 = _at(r0, g0, b1);
-    final c010 = _at(r0, g1, b0);
-    final c011 = _at(r0, g1, b1);
-    final c100 = _at(r1, g0, b0);
-    final c101 = _at(r1, g0, b1);
-    final c110 = _at(r1, g1, b0);
-    final c111 = _at(r1, g1, b1);
-    final c00 = _Rgb.mix(c000, c100, rf - r0);
-    final c01 = _Rgb.mix(c001, c101, rf - r0);
-    final c10 = _Rgb.mix(c010, c110, rf - r0);
-    final c11 = _Rgb.mix(c011, c111, rf - r0);
-    return _Rgb.mix(
-      _Rgb.mix(c00, c10, gf - g0),
-      _Rgb.mix(c01, c11, gf - g0),
-      bf - b0,
-    );
+    // Per-byte lattice coordinates, shared by all three channels.
+    final lower = Int32List(256);
+    final upper = Int32List(256);
+    final fraction = Float64List(256);
+    for (var v = 0; v < 256; v++) {
+      final f = v / 255.0 * maxIndex;
+      final i0 = math.min(f.floor(), maxIndex);
+      lower[v] = i0;
+      upper[v] = math.min(i0 + 1, maxIndex);
+      fraction[v] = f - i0;
+    }
+    final table = _table;
+    final plane = size * size;
+    return LutService._mapRgb(source, (data, i) {
+      final sr = data[i];
+      final sg = data[i + 1];
+      final sb = data[i + 2];
+      final fr = fraction[sr];
+      final fg = fraction[sg];
+      final fb = fraction[sb];
+      // `.cube` stores red fastest, then green, then blue.
+      final r0 = lower[sr], r1 = upper[sr];
+      final g0 = lower[sg] * size, g1 = upper[sg] * size;
+      final b0 = lower[sb] * plane, b1 = upper[sb] * plane;
+      final i000 = (b0 + g0 + r0) * 3, i100 = (b0 + g0 + r1) * 3;
+      final i010 = (b0 + g1 + r0) * 3, i110 = (b0 + g1 + r1) * 3;
+      final i001 = (b1 + g0 + r0) * 3, i101 = (b1 + g0 + r1) * 3;
+      final i011 = (b1 + g1 + r0) * 3, i111 = (b1 + g1 + r1) * 3;
+      for (var c = 0; c < 3; c++) {
+        final c00 = _mix(table[i000 + c], table[i100 + c], fr);
+        final c10 = _mix(table[i010 + c], table[i110 + c], fr);
+        final c01 = _mix(table[i001 + c], table[i101 + c], fr);
+        final c11 = _mix(table[i011 + c], table[i111 + c], fr);
+        final mapped = _mix(_mix(c00, c10, fg), _mix(c01, c11, fg), fb);
+        final original = data[i + c].toDouble();
+        data[i + c] = _byte(_mix(original, mapped * 255, amount));
+      }
+    });
   }
 
-  _Rgb _at(int r, int g, int b) => _values[(r * size * size) + (g * size) + b];
   static double _mix(double a, double b, double t) => a + (b - a) * t;
   static int _byte(double v) => v.round().clamp(0, 255).toInt();
 }
@@ -237,13 +240,4 @@ class _Recipe {
   final double blue;
   final double saturation;
   final double contrast;
-}
-
-class _Rgb {
-  const _Rgb(this.r, this.g, this.b);
-  final double r;
-  final double g;
-  final double b;
-  static _Rgb mix(_Rgb a, _Rgb b, double t) =>
-      _Rgb(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
 }

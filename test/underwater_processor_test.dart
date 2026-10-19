@@ -438,45 +438,39 @@ void main() {
     );
   });
 
-  test(
-    'video backend is supported on iOS through native AVFoundation export',
-    () {
+  test('video backends cover iOS, macOS, Android, and Windows with ffmpeg', () {
+    for (final os in ['ios', 'macos']) {
       expect(
-        VideoRestorationService.isBackendSupportedForOperatingSystem('ios'),
+        VideoRestorationService.isBackendSupportedForOperatingSystem(os),
         isTrue,
       );
       expect(
-        VideoRestorationService.isBackendSupportedForOperatingSystem('macos'),
+        VideoRestorationService.isBackendAvailableForOperatingSystem(os),
         isTrue,
       );
-      expect(
-        VideoRestorationService.isBackendAvailableForOperatingSystem('ios'),
-        isTrue,
-      );
-      expect(
-        VideoRestorationService.isBackendAvailableForOperatingSystem(
-          'macos',
-          ffmpegAvailable: false,
-        ),
-        isFalse,
-      );
-      expect(
-        VideoRestorationService.isBackendAvailableForOperatingSystem(
-          'macos',
-          ffmpegAvailable: true,
-        ),
-        isTrue,
-      );
-      expect(
-        VideoRestorationService.isBackendAvailableForOperatingSystem('android'),
-        isFalse,
-      );
-      expect(
-        VideoRestorationService.backendUnavailableReason,
-        isNot(contains('/Users/')),
-      );
-    },
-  );
+    }
+    expect(
+      VideoRestorationService.backendFor('android'),
+      VideoBackend.androidMedia3,
+    );
+    expect(VideoRestorationService.backendFor('windows'), VideoBackend.none);
+    expect(
+      VideoRestorationService.backendFor('windows', ffmpegAvailable: true),
+      VideoBackend.ffmpegLut,
+    );
+    expect(VideoRestorationService.backendFor('linux'), VideoBackend.none);
+    expect(
+      VideoRestorationService.outputFormatFor(
+        VideoBackend.androidMedia3,
+        VideoOutputFormat.mov,
+      ),
+      VideoOutputFormat.mp4,
+    );
+    expect(
+      VideoRestorationService.backendUnavailableReason,
+      isNot(contains('/Users/')),
+    );
+  });
 
   test(
     'image restoration service restores bytes on a background path',
@@ -786,6 +780,8 @@ void main() {
         'saturation',
         'vibrance',
         'hue',
+        'temperature',
+        'tint',
       ]),
     );
 
@@ -796,10 +792,10 @@ void main() {
     expect(updated.preset, RestorationPreset.auto);
     expect(updated.redRecovery, 1.8);
 
-    expect(allImageAdjustmentControls, hasLength(19));
+    expect(allImageAdjustmentControls, hasLength(21));
     expect(
       allImageAdjustmentControls.map((control) => control.id).toSet(),
-      hasLength(19),
+      hasLength(21),
     );
     final waterCorrection = allImageAdjustmentControls.firstWhere(
       (control) => control.id == 'recovery',
@@ -1205,7 +1201,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     expect(
       find.text(
-        'Die Einstellungen werden nun auf alle anderen Bilder angewendet.',
+        'This photo’s edits will be applied to all other photos in the queue.',
       ),
       findsOneWidget,
     );
@@ -1481,7 +1477,9 @@ void main() {
     expect(find.byIcon(CupertinoIcons.rectangle_grid_2x2), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.slider_horizontal_3), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.crop_rotate), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.color_filter), findsOneWidget);
+    // Color and LUT tools never share a symbol.
+    expect(find.byIcon(CupertinoIcons.sparkles), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.color_filter), findsNothing);
 
     await tester.tap(find.byKey(const Key('editor_tool_light')));
     await tester.pumpAndSettle();
@@ -1527,9 +1525,11 @@ void main() {
       final wheel = tester.widget<PrecisionWheel>(find.byType(PrecisionWheel));
       expect(wheel.showValue, isFalse);
 
-      final hint = find.text('Tap a value to restore the preset value');
-      final wheelCenter = tester.getRect(find.byType(PrecisionWheel)).center.dx;
-      expect(tester.getCenter(hint).dx, closeTo(wheelCenter, 1));
+      final hint = find.text('Tap a value to adjust it');
+      final wheelLeft = tester.getRect(find.byType(PrecisionWheel)).left;
+      expect(tester.getTopLeft(hint).dx, closeTo(wheelLeft, 1));
+      final reset = tester.getSize(find.byKey(const Key('adjustment_reset')));
+      expect(reset.height, greaterThanOrEqualTo(44));
       final valuesBottom = tester
           .getRect(find.byKey(const Key('all_adjustment_values')))
           .bottom;
@@ -1602,32 +1602,47 @@ void main() {
     expect(hapticCount, greaterThan(0));
   });
 
-  testWidgets('adjustment bubble resets only its value to the preset base', (
-    tester,
-  ) async {
-    final preset = RestorationPreset.deep.settingsAtStrength(.5);
-    var settings = preset.copyWith(contrast: 1.4, saturation: 1.5);
-    await tester.pumpWidget(
-      CupertinoApp(
-        home: StatefulBuilder(
-          builder: (context, setState) => AdjustmentBrowser(
-            controls: allImageAdjustmentControls,
-            settings: settings,
-            presetSettings: preset,
-            selectedId: 'recovery',
-            onSelected: (_) {},
-            onChanged: (value) => setState(() => settings = value),
+  testWidgets(
+    'tapping a bubble only selects it; Reset restores just that value',
+    (tester) async {
+      final preset = RestorationPreset.deep.settingsAtStrength(.5);
+      var settings = preset.copyWith(contrast: 1.4, saturation: 1.5);
+      var selectedId = 'recovery';
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: StatefulBuilder(
+            builder: (context, setState) => AdjustmentBrowser(
+              controls: allImageAdjustmentControls,
+              settings: settings,
+              presetSettings: preset,
+              selectedId: selectedId,
+              onSelected: (id) => setState(() => selectedId = id),
+              onChanged: (value) => setState(() => settings = value),
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.byKey(const Key('adjustment_contrast')));
-    await tester.pumpAndSettle();
-    expect(settings.contrast, preset.contrast);
-    expect(settings.saturation, 1.5);
-    expect(settings.preset, RestorationPreset.deep);
-  });
+      CupertinoButton reset() => tester.widget<CupertinoButton>(
+        find.byKey(const Key('adjustment_reset')),
+      );
+      // Water correction still has its preset value.
+      expect(reset().onPressed, isNull);
+
+      await tester.tap(find.byKey(const Key('adjustment_contrast')));
+      await tester.pumpAndSettle();
+      expect(selectedId, 'contrast');
+      expect(settings.contrast, 1.4);
+      expect(reset().onPressed, isNotNull);
+
+      await tester.tap(find.byKey(const Key('adjustment_reset')));
+      await tester.pumpAndSettle();
+      expect(settings.contrast, preset.contrast);
+      expect(settings.saturation, 1.5);
+      expect(settings.preset, RestorationPreset.deep);
+      expect(reset().onPressed, isNull);
+    },
+  );
 
   testWidgets('presets scroll and keep their identity through adjustments', (
     tester,

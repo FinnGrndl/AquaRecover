@@ -10,6 +10,8 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     RawBridge.register(binaryMessenger: flutterViewController.engine.binaryMessenger)
+    MacMediaProcessor.register(binaryMessenger: flutterViewController.engine.binaryMessenger)
+    MacPhotoPicker.register(viewController: flutterViewController)
 
     super.awakeFromNib()
   }

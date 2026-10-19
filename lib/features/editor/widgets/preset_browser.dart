@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 
 import '../../../core/models/restoration_settings.dart';
+import '../../../core/processing/scene_analyzer.dart';
 import '../editor_tools.dart';
 import 'setting_slider.dart';
 
@@ -11,11 +12,15 @@ class PresetBrowser extends StatelessWidget {
     required this.settings,
     required this.onChanged,
     this.enabled = true,
+    this.suggestion,
   });
 
   final RestorationSettings settings;
   final ValueChanged<RestorationSettings> onChanged;
   final bool enabled;
+
+  /// What the scene analysis suggests for the selected photo, if anything.
+  final SceneAnalysis? suggestion;
 
   @override
   Widget build(BuildContext context) {
@@ -27,8 +32,23 @@ class PresetBrowser extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (suggestion case final suggestion?)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: SuggestionCard(
+              suggestion: suggestion,
+              applied: _isApplied(suggestion),
+              onApply: enabled
+                  ? () => onChanged(
+                      suggestion.suggestedSettings.copyWith(
+                        jpegQuality: settings.jpegQuality,
+                      ),
+                    )
+                  : null,
+            ),
+          ),
         SizedBox(
-          height: 40,
+          height: kMinInteractiveDimensionCupertino,
           child: ListView.separated(
             key: const Key('preset_list'),
             scrollDirection: Axis.horizontal,
@@ -42,6 +62,7 @@ class PresetBrowser extends StatelessWidget {
               return _PresetButton(
                 preset: preset,
                 selected: settings.preset == preset,
+                suggested: suggestion?.suggestedPreset == preset,
                 enabled: enabled,
                 onPressed: () {
                   final strength = preset == RestorationPreset.none
@@ -99,18 +120,129 @@ class PresetBrowser extends StatelessWidget {
       ],
     );
   }
+
+  bool _isApplied(SceneAnalysis suggestion) =>
+      settings.preset == suggestion.suggestedPreset &&
+      (settings.presetStrength - suggestion.suggestedStrength).abs() < .015;
+}
+
+/// Offers the analyzed preset for the photo with a one-line reason.
+class SuggestionCard extends StatelessWidget {
+  const SuggestionCard({
+    super.key,
+    required this.suggestion,
+    required this.applied,
+    required this.onApply,
+  });
+
+  final SceneAnalysis suggestion;
+  final bool applied;
+  final VoidCallback? onApply;
+
+  static String waterLabel(WaterType water) => switch (water) {
+    WaterType.blue => 'Blue water',
+    WaterType.green => 'Green water',
+    WaterType.neutral => 'Little color cast',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = CupertinoTheme.of(context).primaryColor;
+    final secondary = CupertinoDynamicColor.resolve(
+      CupertinoColors.secondaryLabel,
+      context,
+    );
+    final textStyle = CupertinoTheme.of(context).textTheme.textStyle;
+    final preset = suggestion.suggestedPreset;
+    final strength = (suggestion.suggestedStrength * 100).round();
+    final reason = suggestion.reasons.isEmpty ? null : suggestion.reasons.first;
+    return Semantics(
+      container: true,
+      label:
+          '${waterLabel(suggestion.waterType)}. Suggested ${preset.label} '
+          'at $strength percent.',
+      // A neutral card, so the Apply button stays the only tinted control.
+      child: Container(
+        key: const Key('preset_suggestion'),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        decoration: BoxDecoration(
+          color: CupertinoDynamicColor.resolve(
+            CupertinoColors.tertiarySystemFill,
+            context,
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(CupertinoIcons.wand_stars, size: 20, color: secondary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${waterLabel(suggestion.waterType)}: '
+                    '${preset.label} $strength%',
+                    style: textStyle.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (reason != null)
+                    Text(
+                      reason,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textStyle.copyWith(fontSize: 12, color: secondary),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            CupertinoButton(
+              key: const Key('apply_preset_suggestion'),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              minimumSize: const Size.square(kMinInteractiveDimensionCupertino),
+              borderRadius: BorderRadius.circular(99),
+              color: applied ? null : primary,
+              onPressed: applied ? null : onApply,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (applied) ...[
+                    Icon(CupertinoIcons.checkmark, size: 15, color: secondary),
+                    const SizedBox(width: 4),
+                  ],
+                  Text(
+                    applied ? 'Applied' : 'Apply',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: applied ? secondary : CupertinoColors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _PresetButton extends StatelessWidget {
   const _PresetButton({
     required this.preset,
     required this.selected,
+    required this.suggested,
     required this.enabled,
     required this.onPressed,
   });
 
   final RestorationPreset preset;
   final bool selected;
+  final bool suggested;
   final bool enabled;
   final VoidCallback onPressed;
 
@@ -120,28 +252,61 @@ class _PresetButton extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: '${preset.label} preset',
+      label: '${preset.label} preset${suggested ? ', suggested' : ''}',
       hint: preset.help,
+      // The chip keeps its compact capsule; the button around it keeps the
+      // 44 pt hit region.
       child: CupertinoButton(
         key: Key('preset_${preset.name}'),
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-        minimumSize: Size.zero,
-        borderRadius: BorderRadius.circular(99),
-        color: selected
-            ? primary
-            : CupertinoDynamicColor.resolve(
-                CupertinoColors.secondarySystemFill,
-                context,
-              ),
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(
+          kMinInteractiveDimensionCupertino,
+          kMinInteractiveDimensionCupertino,
+        ),
         onPressed: enabled ? onPressed : null,
-        child: Text(
-          preset.label,
-          style: TextStyle(
-            color: selected
-                ? CupertinoColors.white
-                : CupertinoDynamicColor.resolve(CupertinoColors.label, context),
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
+        // Dimmed, not recolored, so the selected preset still shows while
+        // the chips are disabled.
+        child: Opacity(
+          opacity: enabled ? 1 : .5,
+          child: DecoratedBox(
+            decoration: ShapeDecoration(
+              shape: const StadiumBorder(),
+              color: selected
+                  ? primary
+                  : CupertinoDynamicColor.resolve(
+                      CupertinoColors.secondarySystemFill,
+                      context,
+                    ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (suggested) ...[
+                    Icon(
+                      CupertinoIcons.wand_stars,
+                      size: 13,
+                      color: selected ? CupertinoColors.white : primary,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  Text(
+                    preset.label,
+                    style: TextStyle(
+                      color: selected
+                          ? CupertinoColors.white
+                          : CupertinoDynamicColor.resolve(
+                              CupertinoColors.label,
+                              context,
+                            ),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

@@ -27,8 +27,15 @@ Android Studio is optional. It is a convenient way to install the Android SDK
 and create emulators, but AquaRecover can be built with Flutter, JDK 17, and the
 Android command-line tools alone. Xcode is required for iOS and macOS builds.
 
-macOS video export additionally looks for an `ffmpeg` executable already
-installed on the machine. It is not bundled and is not required for photos.
+macOS video export uses AVFoundation and needs no extra tools. Only RAW video
+descriptors still look for an `ffmpeg` executable installed on the machine,
+which works in unsandboxed development builds only. Windows video export needs
+`ffmpeg` with `libx264` on the machine (for example `winget install ffmpeg`).
+Android video export uses Media3 and needs nothing extra.
+
+Native Swift files live in `platform_overrides/` and are committed in the
+runners too. `test/platform_overrides_sync_test.dart` fails when the copies
+drift or when a Swift file is missing from the Xcode Sources build phase.
 
 ## First checkout
 
@@ -267,8 +274,11 @@ flutter pub get
 open macos/Runner.xcworkspace
 ```
 
-Select **Runner**, choose **My Mac**, and press **Run**. Xcode is the preferred
-way to test the first Photos permission request. macOS can attribute protected
+Select **Runner**, choose **My Mac**, and press **Run**. On macOS 13 or later,
+**Choose from Photos** opens the system Photos picker, which needs no library
+permission. The permission notes below apply to the in-app library browser,
+which is used on older macOS releases. Xcode is the preferred way to test the
+first Photos permission request. macOS can attribute protected
 resource requests to Terminal or VS Code when a debug process is launched from
 there, causing a denial without an AquaRecover prompt. A standalone signed app
 or an Xcode launch owns its permission request correctly.
@@ -367,7 +377,7 @@ maintainer release pipeline handles those credentials outside the repository.
 Run the same source checks used by pull-request CI:
 
 ```bash
-dart format --output=none --set-exit-if-changed lib test tool
+dart format --output=none --set-exit-if-changed lib test tool bin
 flutter analyze
 flutter test
 scripts/test_release_snapshot.sh

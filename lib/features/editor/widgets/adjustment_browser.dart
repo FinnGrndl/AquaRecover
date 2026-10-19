@@ -1,11 +1,17 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 
 import '../../../core/models/restoration_settings.dart';
+import '../../../shared/reduce_motion.dart';
 import '../editor_tools.dart';
 import 'setting_slider.dart';
 
 /// Apple Photos-inspired adjustment browser: every current value stays visible
 /// in one horizontal strip while the selected value gets a precise slider.
+///
+/// Tapping a value only selects it. Reset restores the selected value to the
+/// preset's, so choosing a control never throws away an adjustment.
 class AdjustmentBrowser extends StatelessWidget {
   const AdjustmentBrowser({
     super.key,
@@ -16,6 +22,7 @@ class AdjustmentBrowser extends StatelessWidget {
     required this.onSelected,
     required this.onChanged,
     this.enabled = true,
+    this.trailing,
   });
 
   final List<AdjustmentControl> controls;
@@ -26,32 +33,70 @@ class AdjustmentBrowser extends StatelessWidget {
   final ValueChanged<RestorationSettings> onChanged;
   final bool enabled;
 
+  /// Optional action shown next to the hint, such as the white balance
+  /// picker.
+  final Widget? trailing;
+
   @override
   Widget build(BuildContext context) {
     final active = controls.firstWhere(
       (control) => control.id == selectedId,
       orElse: () => controls.first,
     );
+    final presetValue = active.value(presetSettings);
+    final canReset =
+        enabled && (active.value(settings) - presetValue).abs() > 1e-9;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Align(
-          alignment: Alignment.center,
-          child: Text(
-            'Tap a value to restore the preset value',
-            textAlign: TextAlign.center,
-            style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-              color: CupertinoDynamicColor.resolve(
-                CupertinoColors.secondaryLabel,
-                context,
+        // At large text sizes the buttons move below the hint instead of
+        // squeezing it. The full width keeps them trailing otherwise.
+        SizedBox(
+          width: double.infinity,
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Tap a value to adjust it',
+                style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                  color: CupertinoDynamicColor.resolve(
+                    CupertinoColors.secondaryLabel,
+                    context,
+                  ),
+                  fontSize: 11,
+                ),
               ),
-              fontSize: 11,
-            ),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ?trailing,
+                  CupertinoButton(
+                    key: const Key('adjustment_reset'),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    minimumSize: const Size(
+                      kMinInteractiveDimensionCupertino,
+                      kMinInteractiveDimensionCupertino,
+                    ),
+                    onPressed: canReset
+                        ? () => onChanged(active.apply(settings, presetValue))
+                        : null,
+                    child: Text(
+                      'Reset',
+                      semanticsLabel: 'Reset ${active.label}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 82,
+          height: _AdjustmentValueButton.stripHeight(
+            MediaQuery.textScalerOf(context),
+          ),
           child: ListView.separated(
             key: const Key('all_adjustment_values'),
             scrollDirection: Axis.horizontal,
@@ -66,12 +111,7 @@ class AdjustmentBrowser extends StatelessWidget {
                 value: control.value(settings),
                 selected: selected,
                 enabled: enabled,
-                onPressed: () {
-                  onSelected(control.id);
-                  onChanged(
-                    control.apply(settings, control.value(presetSettings)),
-                  );
-                },
+                onPressed: () => onSelected(control.id),
               );
             },
           ),
@@ -112,6 +152,25 @@ class _AdjustmentValueButton extends StatelessWidget {
   final bool enabled;
   final VoidCallback onPressed;
 
+  static const _topGap = 6.0;
+  static const _circleSize = 38.0;
+  static const _labelGap = 5.0;
+  static const _labelSize = 11.0;
+
+  /// Caption 2 leading: 13 pt lines for 11 pt text.
+  static const _labelLineHeight = 13 / 11;
+
+  /// Fits the circle and a two-line label at the current text size, so a
+  /// larger Dynamic Type size grows the strip instead of clipping labels.
+  static double stripHeight(TextScaler scaler) => math.max(
+    82,
+    _topGap +
+        _circleSize +
+        _labelGap +
+        2 * scaler.scale(_labelSize) * _labelLineHeight +
+        1,
+  );
+
   @override
   Widget build(BuildContext context) {
     final accent = CupertinoTheme.of(context).primaryColor;
@@ -133,13 +192,18 @@ class _AdjustmentValueButton extends StatelessWidget {
         onPressed: enabled ? onPressed : null,
         child: SizedBox(
           width: 76,
+          // Top-aligned so the circles stay in line when a label wraps.
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
+              const SizedBox(height: _topGap),
               AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                width: 38,
-                height: 38,
+                duration: motionDuration(
+                  context,
+                  const Duration(milliseconds: 160),
+                ),
+                width: _circleSize,
+                height: _circleSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: selected
@@ -161,15 +225,16 @@ class _AdjustmentValueButton extends StatelessWidget {
                       ),
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: _labelGap),
               Text(
                 control.label,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
                   color: foreground,
-                  fontSize: 10,
+                  fontSize: _labelSize,
+                  height: _labelLineHeight,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
