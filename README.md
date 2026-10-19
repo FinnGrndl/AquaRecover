@@ -239,7 +239,7 @@ paths measurable as the algorithm evolves.
 | Capability | iOS | macOS | Android | Windows |
 | --- | --- | --- | --- | --- |
 | JPEG, PNG, and WebP correction | Yes | Yes | Yes | Yes |
-| Photos-library import | Native Photos APIs | Native Photos APIs | System media access | — |
+| Photos-library import | System picker (iPhone), PhotoKit browser (iPad) | System picker on macOS 13+, PhotoKit browser before | Android Photo Picker, no media permission | — |
 | File import and folder export | Yes | Yes | Yes | Yes |
 | HEIC/HEIF decode | Native | Native | Platform dependent | Platform dependent |
 | Supported RAW still decode | Core Image | Core Image | ImageDecoder on API 28+ | — |
@@ -252,6 +252,16 @@ platforms, where iOS and macOS share one AVFoundation and Core Image renderer.
 RAW video on macOS still needs a locally installed `ffmpeg` outside the App
 Sandbox, and proprietary formats such as Blackmagic RAW, REDCODE RAW, and ProRes RAW are not
 implemented.
+
+## Edit with Claude
+
+AquaRecover includes an MCP server, so Claude can analyse, preview, and
+restore dive photos and videos on your computer in conversation: "fix the
+colours in this folder, keep it natural, and export the results". The server
+uses the same restoration code as the app, compares before and after previews,
+writes `.aquarecover.json` sidecars, and only touches folders you allow. See
+[Using AquaRecover with Claude](docs/MCP.md) for setup in Claude Desktop and
+Claude Code.
 
 ## Privacy is part of the architecture
 
@@ -272,7 +282,7 @@ contains the Android APK, Windows installer, and signed macOS disk image. iOS
 builds are distributed through TestFlight while store preparation is in
 progress.
 
-Current source version: `1.3.2+14`.
+Current source version: `1.4.0+16`.
 
 To run from source with the same Flutter toolchain used by CI:
 

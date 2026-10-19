@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/services.dart' hide Uint8List;
-import 'package:image/image.dart' as img;
 
 import '../models/export_options.dart';
 import '../models/image_transform_settings.dart';
@@ -11,7 +10,7 @@ import '../models/lut_profile.dart';
 import '../models/restoration_settings.dart';
 import '../utils/output_paths.dart';
 import 'lut_service.dart';
-import 'image_transform_service.dart';
+import 'still_render_pipeline.dart';
 import 'underwater_processor.dart';
 
 class ImageRestorationService {
@@ -103,20 +102,6 @@ class ImageRestorationService {
     );
   }
 
-  static void _validateDecodedImage(img.Image decoded) {
-    if (decoded.width <= 0 || decoded.height <= 0) {
-      throw const FormatException('Decoded image dimensions are invalid.');
-    }
-    if (decoded.width > maxDecodedImageDimension ||
-        decoded.height > maxDecodedImageDimension ||
-        decoded.width * decoded.height > maxDecodedImagePixels) {
-      throw StateError(
-        'Decoded image is too large for local processing '
-        '(${decoded.width}x${decoded.height}).',
-      );
-    }
-  }
-
   /// iOS and macOS render stills with the shared Core Image pipeline, which
   /// also decodes HEIC and applies custom `.cube` LUTs on the GPU.
   bool get _canUseNativeRenderer => Platform.isIOS || Platform.isMacOS;
@@ -200,31 +185,12 @@ Future<Uint8List> _restoreFileBytesInBackground(
   );
 }
 
-Future<Uint8List> _restoreBytesInBackground(
-  _ImageBytesRestoreRequest request,
-) async {
-  final decoded = img.decodeImage(request.inputBytes);
-  if (decoded == null) {
-    throw const FormatException('Could not decode image bytes.');
-  }
-  ImageRestorationService._validateDecodedImage(decoded);
-  final settings = RestorationSettings.fromJson(request.settings);
-  final exportOptions = ExportOptions.fromJson(request.exportOptions);
-  final lutProfile = LutProfile.fromJson(request.lutProfile);
-  final transform = ImageTransformSettings.fromJson(request.transform);
-  final restored = await const UnderwaterProcessor().restoreImageInParallel(
-    decoded,
-    settings,
-  );
-  final withLut = await const LutService().apply(restored, lutProfile);
-  final transformed = const ImageTransformService().apply(withLut, transform);
-  if (exportOptions.outputPng) {
-    return Uint8List.fromList(img.encodePng(transformed));
-  }
-  return Uint8List.fromList(
-    img.encodeJpg(
-      transformed,
-      quality: settings.jpegQuality.clamp(1, 100).toInt(),
-    ),
+Future<Uint8List> _restoreBytesInBackground(_ImageBytesRestoreRequest request) {
+  return const StillRenderPipeline().renderEncoded(
+    request.inputBytes,
+    settings: RestorationSettings.fromJson(request.settings),
+    exportOptions: ExportOptions.fromJson(request.exportOptions),
+    lutProfile: LutProfile.fromJson(request.lutProfile),
+    transform: ImageTransformSettings.fromJson(request.transform),
   );
 }
