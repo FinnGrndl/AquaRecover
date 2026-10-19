@@ -307,23 +307,12 @@ void main() {
       tester,
     ) async {
       _phoneViewport(tester);
-      final directory = Directory.systemTemp.createTempSync('aquarecover_hig_');
-      addTearDown(() => directory.delete(recursive: true));
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'),
-        (call) async => directory.path,
-      );
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          null,
-        ),
-      );
       await tester.pumpWidget(
         CupertinoApp(
           home: TimelineEditorPage(
             store: _MemoryStore(),
             renderService: _FailingRenderService(),
+            exportDirectory: () async => Directory('/exports'),
             project: const TimelineProject(
               id: 'w',
               clips: [
@@ -340,13 +329,7 @@ void main() {
       await tester.tap(find.byKey(const Key('timeline_page_export')));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.byKey(const Key('timeline_render')));
-      // Finding the export folder touches the real file system.
-      for (var i = 0; i < 6; i++) {
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
-        );
-        await tester.pump();
-      }
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Export failed'), findsOneWidget);
@@ -644,6 +627,11 @@ class _ExportLibrary extends ExportLibraryService {
 }
 
 class _FailingRenderService extends TimelineRenderService {
+  // Pretend an encoder exists, as on a phone, so Export is enabled even on
+  // a CI machine without ffmpeg.
+  @override
+  TimelineRenderBackend get backend => TimelineRenderBackend.apple;
+
   @override
   Future<String> render(
     TimelineProject project, {

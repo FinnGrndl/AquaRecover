@@ -5,6 +5,7 @@ import 'package:aqua_recover/core/models/restoration_settings.dart';
 import 'package:aqua_recover/core/timeline/ffmpeg_timeline_renderer.dart';
 import 'package:aqua_recover/core/timeline/timeline_project.dart';
 import 'package:aqua_recover/core/timeline/timeline_project_store.dart';
+import 'package:aqua_recover/core/timeline/timeline_render_plan.dart';
 import 'package:aqua_recover/core/timeline/timeline_render_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -125,27 +126,33 @@ void main() {
         _photo('c'),
       ],
     );
-    final args = FfmpegTimelineRenderer.buildArguments(project, const [
-      ClipSourceInfo(hasAudio: false),
-      ClipSourceInfo(hasAudio: true),
-      ClipSourceInfo(hasAudio: false),
-    ], outputPath: '/out/movie.mp4');
-    final graph = args[args.indexOf('-filter_complex') + 1];
-    expect(args, containsAllInOrder(['-loop', '1', '-i', '/media/a.jpg']));
-    expect(args, containsAllInOrder(['-ss', '2.000', '-t', '4.000']));
+    final plan = TimelineCompiler.compile(project);
+    final job = FfmpegTimelineRenderer.buildArguments(
+      plan,
+      outputPath: '/out/movie.mp4',
+      cubeFiles: {for (final (i, c) in plan.clips.indexed) c.id: 'clip$i.cube'},
+      hasAudio: (path) => path == '/media/b.mov',
+    );
+    final args = job.arguments, graph = job.graph;
+    // Photos are decoded once and looped; the video is trimmed at its source.
+    expect(args, containsAllInOrder(['-i', '/media/a.jpg']));
+    expect(args, containsAllInOrder(['-ss', '2', '-t', '4.033333']));
     for (var i = 0; i < 3; i++) {
       expect(graph, contains('lut3d=file=clip$i.cube'));
     }
-    expect(graph, contains('zoompan='));
+    // The zooming photo moves through perspective instead of zoompan.
+    expect(graph, contains('perspective='));
+    expect(graph, contains('loop=loop=-1:size=1'));
     expect(
       graph,
-      contains('xfade=transition=fade:duration=0.600:offset=2.400'),
+      contains('[m0][m1]xfade=transition=fade:duration=0.6:offset=2.4[mx1]'),
     );
-    expect(graph, contains('acrossfade=d=0.600'));
-    expect(graph, contains('[1:a]aformat'));
-    expect(graph, isNot(contains('[0:a]')));
-    expect(graph, contains('[vx1][v2]concat=n=2:v=1:a=0[vx2]'));
-    expect(args, containsAllInOrder(['-map', '[vx2]', '-map', '[ax2]']));
+    expect(graph, contains('[mx1][m2]concat=n=2:v=1:a=0[mx2]'));
+    // Audio comes from the plan's segments only: b's sound, nothing else.
+    expect(graph, contains('afade=t=in:st=0:d=0.6'));
+    expect(graph, contains('amix=inputs=2'));
+    expect(graph, contains('[mx2]scale=out_color_matrix=bt709'));
+    expect(args, containsAllInOrder(['-map', '[vout]', '-map', '[aout]']));
     expect(args.last, '/out/movie.mp4');
   });
 

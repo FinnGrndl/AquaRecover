@@ -70,6 +70,13 @@ control and remain the baseline for later edits. Tapping an adjustment value
 restores only that control to the value supplied by the preset. The **None**
 preset is deliberately neutral and leaves the image unchanged.
 
+For photos the Presets panel also suggests a starting point. It reads a small
+thumbnail, measures how much red is missing and whether the water leans blue
+or green, and offers one preset and strength with the reason, for example
+"Green water: Green water 86%". One tap applies it; nothing changes until you
+do. RAW photos and videos get no suggestion, since their thumbnails do not
+show the developed colours.
+
 **White balance** trims what the water correction leaves behind. In Adjust,
 tap **White balance** and then tap something in the photo that should be
 white or grey, such as sand, a slate, or a tank. AquaRecover sets
