@@ -14,8 +14,12 @@ semantic versioning; the number after `+` is the platform build number.
 - Match the movie editor to the app's design
 - Tap-to-set white balance with temperature and tint
 - Give the white balance picker the editor's glass chrome
+- Render plan v2 with effects, overlays, titles and audio tracks
 - Add an MCP server so Claude can restore dive media
+- Render the v2 movie plan with Media3
+- Render the v2 movie plan with ffmpeg on Windows and Linux
 - Suggest a preset for each photo
+- Live preview of the layered movie
 
 ### Fixed
 
