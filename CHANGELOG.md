@@ -11,6 +11,7 @@ semantic versioning; the number after `+` is the platform build number.
 - Add an MCP server so Claude can restore dive media
 - Suggest a preset for each photo
 - Export video on Android and Windows with a baked 3D LUT
+- Add a timeline engine that renders photos and clips into one movie
 
 ### Fixed
 
