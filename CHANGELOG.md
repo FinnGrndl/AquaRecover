@@ -3,6 +3,20 @@
 Changes are generated from Conventional Commit messages. AquaRecover follows
 semantic versioning; the number after `+` is the platform build number.
 
+## 1.4.0 - 2026-10-19
+
+### Added
+
+- Add an MCP server so Claude can restore dive media
+
+### Fixed
+
+- Import through permission-free system pickers
+- Read .cube samples red-fastest and apply LUTs on packed buffers
+
+### Performance
+
+- Render stills on packed buffers and parallel bands
 ## 1.3.2 - 2026-09-16
 
 ### Documentation

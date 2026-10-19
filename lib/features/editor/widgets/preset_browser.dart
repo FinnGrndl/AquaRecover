@@ -28,7 +28,7 @@ class PresetBrowser extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          height: 40,
+          height: kMinInteractiveDimensionCupertino,
           child: ListView.separated(
             key: const Key('preset_list'),
             scrollDirection: Axis.horizontal,
@@ -122,26 +122,46 @@ class _PresetButton extends StatelessWidget {
       selected: selected,
       label: '${preset.label} preset',
       hint: preset.help,
+      // The chip keeps its compact capsule; the button around it keeps the
+      // 44 pt hit region.
       child: CupertinoButton(
         key: Key('preset_${preset.name}'),
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-        minimumSize: Size.zero,
-        borderRadius: BorderRadius.circular(99),
-        color: selected
-            ? primary
-            : CupertinoDynamicColor.resolve(
-                CupertinoColors.secondarySystemFill,
-                context,
-              ),
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(
+          kMinInteractiveDimensionCupertino,
+          kMinInteractiveDimensionCupertino,
+        ),
         onPressed: enabled ? onPressed : null,
-        child: Text(
-          preset.label,
-          style: TextStyle(
-            color: selected
-                ? CupertinoColors.white
-                : CupertinoDynamicColor.resolve(CupertinoColors.label, context),
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
+        // Dimmed, not recolored, so the selected preset still shows while
+        // the chips are disabled.
+        child: Opacity(
+          opacity: enabled ? 1 : .5,
+          child: DecoratedBox(
+            decoration: ShapeDecoration(
+              shape: const StadiumBorder(),
+              color: selected
+                  ? primary
+                  : CupertinoDynamicColor.resolve(
+                      CupertinoColors.secondarySystemFill,
+                      context,
+                    ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+              child: Text(
+                preset.label,
+                style: TextStyle(
+                  color: selected
+                      ? CupertinoColors.white
+                      : CupertinoDynamicColor.resolve(
+                          CupertinoColors.label,
+                          context,
+                        ),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
           ),
         ),
       ),

@@ -132,7 +132,7 @@ class _TimelineStripState extends State<TimelineStrip> {
                                         .textStyle
                                         .copyWith(
                                           color: TimelineColors.secondaryText,
-                                          fontSize: 9,
+                                          fontSize: 11,
                                           fontFeatures: const [
                                             FontFeature.tabularFigures(),
                                           ],
@@ -181,23 +181,45 @@ class _TimelineStripState extends State<TimelineStrip> {
   }
 }
 
-/// White playhead line, as in Photos and iMovie.
+/// White playhead line, as in Photos and iMovie, over a slightly wider dark
+/// stroke like the crop overlay's lines, so it stays crisp on bright
+/// thumbnails without a blurred shadow.
 class _Playhead extends StatelessWidget {
   const _Playhead();
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 2,
-        decoration: BoxDecoration(
-          color: TimelineColors.playhead,
-          borderRadius: BorderRadius.circular(1),
-          boxShadow: const [BoxShadow(color: Color(0x99000000), blurRadius: 4)],
-        ),
-      ),
+    return const CustomPaint(painter: _PlayheadPainter());
+  }
+}
+
+class _PlayheadPainter extends CustomPainter {
+  const _PlayheadPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final top = Offset(size.width / 2, 1);
+    final bottom = Offset(size.width / 2, size.height - 1);
+    canvas.drawLine(
+      top,
+      bottom,
+      Paint()
+        ..color = CupertinoColors.black.withValues(alpha: .5)
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawLine(
+      top,
+      bottom,
+      Paint()
+        ..color = TimelineColors.playhead
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round,
     );
   }
+
+  @override
+  bool shouldRepaint(_PlayheadPainter oldDelegate) => false;
 }
 
 class _ClipTile extends StatelessWidget {
@@ -331,7 +353,7 @@ class _ClipTile extends StatelessWidget {
                       overflow: TextOverflow.clip,
                       style: const TextStyle(
                         color: TimelineColors.secondaryText,
-                        fontSize: 10,
+                        fontSize: 11,
                         fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),

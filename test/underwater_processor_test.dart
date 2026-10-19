@@ -1201,7 +1201,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     expect(
       find.text(
-        'Die Einstellungen werden nun auf alle anderen Bilder angewendet.',
+        'This photo’s edits will be applied to all other photos in the queue.',
       ),
       findsOneWidget,
     );
@@ -1477,7 +1477,9 @@ void main() {
     expect(find.byIcon(CupertinoIcons.rectangle_grid_2x2), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.slider_horizontal_3), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.crop_rotate), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.color_filter), findsOneWidget);
+    // Color and LUT tools never share a symbol.
+    expect(find.byIcon(CupertinoIcons.sparkles), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.color_filter), findsNothing);
 
     await tester.tap(find.byKey(const Key('editor_tool_light')));
     await tester.pumpAndSettle();
@@ -1523,9 +1525,11 @@ void main() {
       final wheel = tester.widget<PrecisionWheel>(find.byType(PrecisionWheel));
       expect(wheel.showValue, isFalse);
 
-      final hint = find.text('Tap a value to restore the preset value');
-      final wheelCenter = tester.getRect(find.byType(PrecisionWheel)).center.dx;
-      expect(tester.getCenter(hint).dx, closeTo(wheelCenter, 1));
+      final hint = find.text('Tap a value to adjust it');
+      final wheelLeft = tester.getRect(find.byType(PrecisionWheel)).left;
+      expect(tester.getTopLeft(hint).dx, closeTo(wheelLeft, 1));
+      final reset = tester.getSize(find.byKey(const Key('adjustment_reset')));
+      expect(reset.height, greaterThanOrEqualTo(44));
       final valuesBottom = tester
           .getRect(find.byKey(const Key('all_adjustment_values')))
           .bottom;
@@ -1598,32 +1602,47 @@ void main() {
     expect(hapticCount, greaterThan(0));
   });
 
-  testWidgets('adjustment bubble resets only its value to the preset base', (
-    tester,
-  ) async {
-    final preset = RestorationPreset.deep.settingsAtStrength(.5);
-    var settings = preset.copyWith(contrast: 1.4, saturation: 1.5);
-    await tester.pumpWidget(
-      CupertinoApp(
-        home: StatefulBuilder(
-          builder: (context, setState) => AdjustmentBrowser(
-            controls: allImageAdjustmentControls,
-            settings: settings,
-            presetSettings: preset,
-            selectedId: 'recovery',
-            onSelected: (_) {},
-            onChanged: (value) => setState(() => settings = value),
+  testWidgets(
+    'tapping a bubble only selects it; Reset restores just that value',
+    (tester) async {
+      final preset = RestorationPreset.deep.settingsAtStrength(.5);
+      var settings = preset.copyWith(contrast: 1.4, saturation: 1.5);
+      var selectedId = 'recovery';
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: StatefulBuilder(
+            builder: (context, setState) => AdjustmentBrowser(
+              controls: allImageAdjustmentControls,
+              settings: settings,
+              presetSettings: preset,
+              selectedId: selectedId,
+              onSelected: (id) => setState(() => selectedId = id),
+              onChanged: (value) => setState(() => settings = value),
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.byKey(const Key('adjustment_contrast')));
-    await tester.pumpAndSettle();
-    expect(settings.contrast, preset.contrast);
-    expect(settings.saturation, 1.5);
-    expect(settings.preset, RestorationPreset.deep);
-  });
+      CupertinoButton reset() => tester.widget<CupertinoButton>(
+        find.byKey(const Key('adjustment_reset')),
+      );
+      // Water correction still has its preset value.
+      expect(reset().onPressed, isNull);
+
+      await tester.tap(find.byKey(const Key('adjustment_contrast')));
+      await tester.pumpAndSettle();
+      expect(selectedId, 'contrast');
+      expect(settings.contrast, 1.4);
+      expect(reset().onPressed, isNotNull);
+
+      await tester.tap(find.byKey(const Key('adjustment_reset')));
+      await tester.pumpAndSettle();
+      expect(settings.contrast, preset.contrast);
+      expect(settings.saturation, 1.5);
+      expect(settings.preset, RestorationPreset.deep);
+      expect(reset().onPressed, isNull);
+    },
+  );
 
   testWidgets('presets scroll and keep their identity through adjustments', (
     tester,

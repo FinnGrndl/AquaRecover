@@ -178,7 +178,6 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
                           ? 'Made on this device'
                           : '$count movie${count == 1 ? '' : 's'}',
                       trailingWidth: 46,
-                      trailingTint: CupertinoColors.activeBlue,
                       trailing: Tooltip(
                         message: 'New movie',
                         child: Semantics(
@@ -248,7 +247,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
                   ),
                   child: const Icon(
                     CupertinoIcons.film,
-                    color: CupertinoColors.activeBlue,
+                    color: CupertinoColors.white,
                     size: 36,
                   ),
                 ),
@@ -265,7 +264,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Line up photos and clips, give each the colour it needs, '
+                  'Line up photos and clips, give each the color it needs, '
                   'and export a movie without leaving this device.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -334,7 +333,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
                     color: CupertinoColors.white,
                   ),
                 ),
-                child: _ProjectRow(
+                child: _ProjectContextMenu(
                   project: project,
                   onOpen: () => _openProject(project),
                   onDelete: () => _delete(project),
@@ -344,7 +343,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
           const Padding(
             padding: EdgeInsets.only(top: 4, left: 4),
             child: Text(
-              'Swipe left on a movie to delete it.',
+              'Swipe left or touch and hold a movie to delete it.',
               style: TextStyle(
                 color: TimelineColors.secondaryText,
                 fontSize: 12,
@@ -357,8 +356,9 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
   }
 }
 
-class _ProjectRow extends StatelessWidget {
-  const _ProjectRow({
+/// A movie row with a touch-and-hold menu, the alternative to swiping.
+class _ProjectContextMenu extends StatelessWidget {
+  const _ProjectContextMenu({
     required this.project,
     required this.onOpen,
     required this.onDelete,
@@ -367,6 +367,92 @@ class _ProjectRow extends StatelessWidget {
   final TimelineProject project;
   final VoidCallback onOpen;
   final VoidCallback onDelete;
+
+  /// Closes the menu, then runs [action] on the page underneath once the
+  /// menu has finished animating away, so the two transitions never overlap.
+  static void _closeThen(BuildContext menuContext, VoidCallback action) {
+    final animation = ModalRoute.of(menuContext)?.animation;
+    Navigator.of(menuContext).pop();
+    if (animation == null) {
+      action();
+      return;
+    }
+    late final AnimationStatusListener listener;
+    listener = (status) {
+      if (!status.isDismissed) return;
+      animation.removeStatusListener(listener);
+      action();
+    };
+    animation.addStatusListener(listener);
+  }
+
+  /// The menu route takes the app's light theme, so each action resolves its
+  /// fill and label against a dark one to match the page behind it.
+  static Widget _darkAction(BuildContext menuContext, Widget action) =>
+      CupertinoTheme(
+        data: CupertinoTheme.of(
+          menuContext,
+        ).copyWith(brightness: Brightness.dark),
+        child: action,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoContextMenu.builder(
+      enableHapticFeedback: true,
+      actions: [
+        Builder(
+          builder: (menuContext) => _darkAction(
+            menuContext,
+            CupertinoContextMenuAction(
+              trailingIcon: CupertinoIcons.film,
+              onPressed: () => _closeThen(menuContext, onOpen),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+        Builder(
+          builder: (menuContext) => _darkAction(
+            menuContext,
+            CupertinoContextMenuAction(
+              key: Key('movie_delete_${project.id}'),
+              isDestructiveAction: true,
+              trailingIcon: CupertinoIcons.delete,
+              onPressed: () => _closeThen(menuContext, onDelete),
+              child: const Text('Delete'),
+            ),
+          ),
+        ),
+      ],
+      builder: (context, animation) {
+        // Once the menu is open the row floats over the dimmed, blurred
+        // page. It is built inside the menu's route then, so its actions
+        // close the menu first instead of opening on top of it.
+        final inMenu = animation.value > CupertinoContextMenu.animationOpensAt;
+        return _ProjectRow(
+          project: project,
+          onOpen: inMenu ? () => _closeThen(context, onOpen) : onOpen,
+          onDelete: inMenu ? () => _closeThen(context, onDelete) : onDelete,
+          // An opaque fill instead of the translucent one.
+          lifted: inMenu,
+        );
+      },
+    );
+  }
+}
+
+class _ProjectRow extends StatelessWidget {
+  const _ProjectRow({
+    required this.project,
+    required this.onOpen,
+    required this.onDelete,
+    this.lifted = false,
+  });
+
+  final TimelineProject project;
+  final VoidCallback onOpen;
+  final VoidCallback onDelete;
+  final bool lifted;
 
   String? get _posterPath {
     for (final clip in project.clips) {
@@ -393,7 +479,9 @@ class _ProjectRow extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: CupertinoColors.white.withValues(alpha: .08),
+            color: lifted
+                ? const Color(0xff174a5b)
+                : CupertinoColors.white.withValues(alpha: .08),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: CupertinoColors.white.withValues(alpha: .14),
@@ -413,7 +501,7 @@ class _ProjectRow extends StatelessWidget {
                           ),
                           child: const Icon(
                             CupertinoIcons.film,
-                            color: CupertinoColors.activeBlue,
+                            color: CupertinoColors.white,
                           ),
                         )
                       : Image.file(
@@ -428,6 +516,7 @@ class _ProjectRow extends StatelessWidget {
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(

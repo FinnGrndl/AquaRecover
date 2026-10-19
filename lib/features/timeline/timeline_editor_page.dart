@@ -133,12 +133,36 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     if (mounted) setState(() => _playing = false);
   }
 
+  /// Shows a short confirmation in the toast. Errors go to [_showError], so
+  /// they never vanish on a timer.
   void _say(String message) {
     _messageTimer?.cancel();
     setState(() => _message = message);
     _messageTimer = Timer(const Duration(seconds: 4), () {
       if (mounted) setState(() => _message = null);
     });
+  }
+
+  Future<void> _showError(String title, String message) {
+    _messageTimer?.cancel();
+    if (_message != null) setState(() => _message = null);
+    return showCupertinoDialog<void>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(message),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _addMedia() async {
@@ -162,9 +186,10 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       grade: selected?.grade ?? const RestorationSettings(),
     );
     if (skipped.isNotEmpty) {
-      _say(
-        'Skipped ${skipped.length} file${skipped.length == 1 ? '' : 's'} '
-        'that cannot go on a timeline (RAW video or unknown type).',
+      await _showError(
+        'Some files were skipped',
+        '${skipped.length} file${skipped.length == 1 ? '' : 's'} cannot go '
+            'on a timeline (RAW video or unknown type).',
       );
     }
   }
@@ -189,7 +214,10 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     _stop();
     final project = _controller.project;
     if (project.clips.isEmpty) {
-      _say('Add at least one photo or clip first.');
+      await _showError(
+        'Nothing to export',
+        'Add at least one photo or clip first.',
+      );
       return;
     }
     setState(() {
@@ -214,7 +242,11 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     } on TimelineRenderCancelled {
       _say('Render cancelled.');
     } on Object catch (error) {
-      _say(_friendly(error));
+      if (!mounted) return;
+      // The Deliver panel behind the alert drops the failed render's
+      // progress right away, not only after OK.
+      setState(() => _rendering = false);
+      await _showError('Export failed', _friendly(error));
     } finally {
       if (mounted) setState(() => _rendering = false);
     }
@@ -227,7 +259,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       await const PhotoLibraryService().saveExport(path, MediaKind.video);
       _say('Saved to Photos.');
     } on Object catch (error) {
-      _say(_friendly(error));
+      if (mounted) await _showError('Not saved to Photos', _friendly(error));
     }
   }
 
@@ -397,7 +429,6 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                 '${project.aspect.label}',
       onTitlePressed: _rendering ? null : _rename,
       trailingWidth: 46,
-      trailingTint: CupertinoColors.activeBlue,
       trailing: Tooltip(
         message: 'Export movie',
         child: Semantics(
@@ -583,7 +614,6 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                     key: const Key('timeline_undo'),
                     icon: CupertinoIcons.arrow_uturn_left,
                     label: 'Undo',
-                    size: 40,
                     iconSize: 17,
                     onPressed: _controller.canUndo && !_rendering
                         ? _controller.undo
@@ -594,7 +624,6 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                     key: const Key('timeline_redo'),
                     icon: CupertinoIcons.arrow_uturn_right,
                     label: 'Redo',
-                    size: 40,
                     iconSize: 17,
                     onPressed: _controller.canRedo && !_rendering
                         ? _controller.redo
@@ -623,7 +652,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       TimelinePage.edit => CutPanel(
         controller: _controller,
         onAdd: _addMedia,
-        onMessage: _say,
+        onError: _showError,
       ),
       TimelinePage.color => ColorPanel(controller: _controller),
       TimelinePage.export => DeliverPanel(
@@ -650,7 +679,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       open: _panelOpen && _controller.project.clips.isNotEmpty,
       height: panelHeight,
       scrollable: false,
-      contentPadding: const EdgeInsets.only(top: 40, bottom: 6),
+      contentPadding: const EdgeInsets.only(top: 44, bottom: 6),
       onClose: () => setState(() => _panelOpen = false),
       child: body,
     );

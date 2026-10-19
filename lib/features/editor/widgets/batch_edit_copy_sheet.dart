@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../../../core/models/media_job.dart';
 import '../../../core/models/media_kind.dart';
+import '../../../shared/reduce_motion.dart';
 
 class BatchEditCopySheet extends StatefulWidget {
   const BatchEditCopySheet({
@@ -171,7 +172,7 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
                 }
               }),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: motionDuration(context, const Duration(milliseconds: 150)),
           padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
             color: selected

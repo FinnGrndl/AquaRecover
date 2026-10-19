@@ -8,6 +8,8 @@ enum EditorGlassStyle { clear, regular }
 ///
 /// Content cards remain opaque. This surface is reserved for controls that
 /// float above the photo or video, matching Apple's material hierarchy.
+/// Depth comes from the blur and fill alone: no drop shadow and no sheen,
+/// only a hairline edge that gets stronger with Increase Contrast.
 class EditorGlassSurface extends StatelessWidget {
   const EditorGlassSurface({
     super.key,
@@ -16,7 +18,6 @@ class EditorGlassSurface extends StatelessWidget {
     this.borderRadius = 22,
     this.padding = EdgeInsets.zero,
     this.tint,
-    this.shadow = false,
   });
 
   final Widget child;
@@ -24,7 +25,6 @@ class EditorGlassSurface extends StatelessWidget {
   final double borderRadius;
   final EdgeInsetsGeometry padding;
   final Color? tint;
-  final bool shadow;
 
   @override
   Widget build(BuildContext context) {
@@ -35,10 +35,9 @@ class EditorGlassSurface extends StatelessWidget {
     final baseOpacity = highContrast
         ? (clear ? .90 : .96)
         : (clear ? .48 : .70);
-    final rimOpacity = highContrast ? .34 : (clear ? .20 : .16);
     final radius = BorderRadius.circular(borderRadius);
 
-    final surface = ClipRRect(
+    return ClipRRect(
       borderRadius: radius,
       child: BackdropFilter.grouped(
         filter: ui.ImageFilter.blur(
@@ -50,43 +49,15 @@ class EditorGlassSurface extends StatelessWidget {
             color: baseTint.withValues(alpha: baseOpacity),
             borderRadius: radius,
             border: Border.all(
-              color: CupertinoColors.white.withValues(alpha: rimOpacity),
-            ),
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: radius,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  CupertinoColors.white.withValues(
-                    alpha: highContrast ? .08 : .11,
-                  ),
-                  CupertinoColors.transparent,
-                  CupertinoColors.black.withValues(alpha: clear ? .08 : .12),
-                ],
-                stops: const [0, .42, 1],
+              color: CupertinoColors.white.withValues(
+                alpha: highContrast ? .30 : .10,
               ),
+              width: .5,
             ),
-            child: Padding(padding: padding, child: child),
           ),
+          child: Padding(padding: padding, child: child),
         ),
       ),
-    );
-    if (!shadow) return surface;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: [
-          BoxShadow(
-            color: CupertinoColors.black.withValues(alpha: .26),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: surface,
     );
   }
 }

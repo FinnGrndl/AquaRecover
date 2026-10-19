@@ -41,13 +41,6 @@ class TimelineViewer extends StatelessWidget {
             color: CupertinoColors.black,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: TimelineColors.stroke, width: .7),
-            boxShadow: [
-              BoxShadow(
-                color: CupertinoColors.black.withValues(alpha: .35),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),

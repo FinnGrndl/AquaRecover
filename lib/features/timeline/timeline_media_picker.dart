@@ -12,7 +12,7 @@ import '../../core/models/media_kind.dart';
 /// a file dialog limited to supported formats.
 Future<List<String>> pickTimelineMedia() async {
   final mobile = Platform.isIOS || Platform.isAndroid;
-  final result = await FilePicker.platform.pickFiles(
+  final files = await FilePicker.pickFiles(
     type: mobile ? FileType.media : FileType.custom,
     allowedExtensions: mobile
         ? null
@@ -21,10 +21,8 @@ Future<List<String>> pickTimelineMedia() async {
             ...MediaClassifier.rawPhotoExtensions,
             ...MediaClassifier.videoExtensions,
           ],
-    allowMultiple: true,
   );
-  return result?.files.map((f) => f.path).whereType<String>().toList() ??
-      const [];
+  return files.map((f) => f.path).whereType<String>().toList();
 }
 
 /// Reads a video's length with the platform player, or returns null for

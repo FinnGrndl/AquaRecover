@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 
+import '../../../shared/reduce_motion.dart';
 import '../editor_tools.dart';
 import 'editor_glass_surface.dart';
 
@@ -21,7 +22,11 @@ class EditorCollapsedPanelButton extends StatelessWidget {
       child: CupertinoButton(
         key: const Key('editor_tool_panel_open'),
         padding: EdgeInsets.zero,
-        minimumSize: Size.zero,
+        // The pill stays compact; the hit region keeps the 44 pt minimum.
+        minimumSize: const Size(
+          kMinInteractiveDimensionCupertino,
+          kMinInteractiveDimensionCupertino,
+        ),
         onPressed: onPressed,
         child: EditorGlassSurface(
           style: EditorGlassStyle.clear,
@@ -76,7 +81,7 @@ class EditorBottomPanel extends StatelessWidget {
       height: height,
       onClose: onClose,
       contentPadding: group == EditorToolGroup.crop
-          ? const EdgeInsets.fromLTRB(14, 36, 14, 10)
+          ? const EdgeInsets.fromLTRB(14, 44, 14, 10)
           : const EdgeInsets.fromLTRB(14, 48, 14, 18),
       child: child,
     );
@@ -111,13 +116,12 @@ class GlassBottomPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!open) return const SizedBox.shrink();
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
+      duration: motionDuration(context, const Duration(milliseconds: 180)),
       curve: Curves.easeOut,
       height: height,
       margin: const EdgeInsets.fromLTRB(6, 0, 6, 7),
       child: EditorGlassSurface(
         borderRadius: 24,
-        shadow: true,
         child: Semantics(
           container: true,
           label: label,
@@ -131,17 +135,17 @@ class GlassBottomPanel extends StatelessWidget {
               else
                 Padding(padding: contentPadding, child: child),
               Positioned(
-                top: 2,
+                top: 0,
                 left: 0,
                 right: 0,
                 child: Center(
                   child: CupertinoButton(
                     key: const Key('editor_tool_panel_close'),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 6,
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    minimumSize: const Size(
+                      kMinInteractiveDimensionCupertino,
+                      kMinInteractiveDimensionCupertino,
                     ),
-                    minimumSize: const Size(44, 38),
                     onPressed: onClose,
                     child: Icon(
                       CupertinoIcons.chevron_down,

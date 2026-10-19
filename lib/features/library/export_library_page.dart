@@ -125,7 +125,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
     if (_selectionMode) {
       final allSelected = _selectedPaths.length == _items.length;
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 12, 4),
+        padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
         child: Row(
           children: [
             Text(
@@ -135,8 +135,11 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
             const Spacer(),
             CupertinoButton(
               key: const Key('local_export_select_all'),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(
+                kMinInteractiveDimensionCupertino,
+                kMinInteractiveDimensionCupertino,
+              ),
               onPressed: _deleting ? null : _toggleSelectAll,
               child: Text(allSelected ? 'Deselect all' : 'Select all'),
             ),
@@ -145,7 +148,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
       );
     }
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 12, 4),
+      padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
       child: Row(
         children: [
           Text(
@@ -155,8 +158,11 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
           const Spacer(),
           CupertinoButton(
             key: const Key('delete_all_local_exports'),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            minimumSize: Size.zero,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            minimumSize: const Size(
+              kMinInteractiveDimensionCupertino,
+              kMinInteractiveDimensionCupertino,
+            ),
             onPressed: _deleting
                 ? null
                 : () => _confirmDelete(_items, deleteAll: true),

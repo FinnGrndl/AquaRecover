@@ -3,8 +3,12 @@ import 'package:flutter/cupertino.dart';
 import 'editor_glass_surface.dart';
 
 /// The floating top bar used over photos, videos, and the movie viewer: a
-/// glass back capsule, a centred title with a subtitle, and a glass trailing
-/// action, usually the screen's primary action in system blue.
+/// glass back capsule, a centred title with a subtitle, and the screen's
+/// primary action on the trailing side.
+///
+/// The trailing action is a filled capsule button of its own, so it gets no
+/// glass behind it: glass never layers under an opaque control. Over photos
+/// the screen adds a dark scrim band behind the bar instead of text shadows.
 class GlassNavigationBar extends StatelessWidget {
   const GlassNavigationBar({
     super.key,
@@ -14,7 +18,6 @@ class GlassNavigationBar extends StatelessWidget {
     required this.subtitle,
     required this.trailingWidth,
     required this.trailing,
-    this.trailingTint,
     this.onTitlePressed,
     this.leadingKey,
     this.leadingWidth = 108,
@@ -27,7 +30,6 @@ class GlassNavigationBar extends StatelessWidget {
   final String subtitle;
   final double trailingWidth;
   final Widget trailing;
-  final Color? trailingTint;
 
   /// Makes the title tappable, for example to rename.
   final VoidCallback? onTitlePressed;
@@ -51,13 +53,6 @@ class GlassNavigationBar extends StatelessWidget {
           style: textStyle.copyWith(
             color: CupertinoColors.white,
             fontWeight: FontWeight.w700,
-            shadows: const [
-              Shadow(
-                color: Color(0x99000000),
-                blurRadius: 8,
-                offset: Offset(0, 1),
-              ),
-            ],
           ),
         ),
         Text(
@@ -66,9 +61,8 @@ class GlassNavigationBar extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
           style: textStyle.copyWith(
-            color: CupertinoColors.white.withValues(alpha: .72),
-            fontSize: 11,
-            shadows: const [Shadow(color: Color(0xaa000000), blurRadius: 7)],
+            color: CupertinoColors.white.withValues(alpha: .86),
+            fontSize: 12,
           ),
         ),
       ],
@@ -104,11 +98,13 @@ class GlassNavigationBar extends StatelessWidget {
               child: EditorGlassSurface(
                 style: EditorGlassStyle.clear,
                 borderRadius: 99,
-                shadow: true,
                 child: CupertinoButton(
                   key: leadingKey,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  minimumSize: const Size(44, 44),
+                  minimumSize: const Size(
+                    kMinInteractiveDimensionCupertino,
+                    kMinInteractiveDimensionCupertino,
+                  ),
                   borderRadius: BorderRadius.circular(99),
                   onPressed: onLeadingPressed,
                   child: Row(
@@ -144,17 +140,7 @@ class GlassNavigationBar extends StatelessWidget {
           ),
           Align(
             alignment: Alignment.centerRight,
-            child: SizedBox(
-              width: trailingWidth,
-              height: 46,
-              child: EditorGlassSurface(
-                style: EditorGlassStyle.clear,
-                borderRadius: 99,
-                tint: trailingTint,
-                shadow: true,
-                child: trailing,
-              ),
-            ),
+            child: SizedBox(width: trailingWidth, height: 46, child: trailing),
           ),
         ],
       ),
@@ -169,7 +155,7 @@ class GlassIconButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onPressed,
-    this.size = 44,
+    this.size = kMinInteractiveDimensionCupertino,
     this.iconSize = 19,
     this.tint,
   });
@@ -193,7 +179,6 @@ class GlassIconButton extends StatelessWidget {
           style: EditorGlassStyle.clear,
           borderRadius: 99,
           tint: tint,
-          shadow: true,
           child: CupertinoButton(
             padding: EdgeInsets.zero,
             minimumSize: Size.square(size),
