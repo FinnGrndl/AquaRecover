@@ -340,8 +340,14 @@ void main() {
       await tester.tap(find.byKey(const Key('timeline_page_export')));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.byKey(const Key('timeline_render')));
-      // Finding the export folder touches the real file system.
-      for (var i = 0; i < 6; i++) {
+      // Finding the export folder touches the real file system, which can
+      // take a while on a busy machine, so wait for the alert instead of a
+      // fixed number of turns.
+      for (
+        var i = 0;
+        i < 250 && find.text('Export failed').evaluate().isEmpty;
+        i++
+      ) {
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 20)),
         );
