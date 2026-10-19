@@ -77,6 +77,14 @@ or green, and offers one preset and strength with the reason, for example
 do. RAW photos and videos get no suggestion, since their thumbnails do not
 show the developed colours.
 
+**White balance** trims what the water correction leaves behind. In Adjust,
+tap **White balance** and then tap something in the photo that should be
+white or grey, such as sand, a slate, or a tank. AquaRecover sets
+**Temperature** and **Tint** so that spot comes out neutral, and you can drag
+to try other spots before tapping Done. Both values are also plain sliders,
+apply last (before a look LUT) on every platform, and are part of the grade
+in movies.
+
 The editor keeps comparison close to the image. Switch between edited and
 split views, press and hold to reveal the original, fit the complete frame or
 fill the preview, and pinch to inspect details. Cropping is nondestructive and

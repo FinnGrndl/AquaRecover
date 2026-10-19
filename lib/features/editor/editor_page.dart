@@ -44,6 +44,7 @@ import 'widgets/editor_bottom_panel.dart';
 import 'widgets/editor_glass_surface.dart';
 import 'widgets/editor_preview_stage.dart';
 import 'widgets/editor_tool_rail.dart';
+import 'widgets/neutral_point_picker.dart';
 import 'widgets/preset_browser.dart';
 import 'widgets/glass_navigation_bar.dart';
 import 'widgets/photo_library_sheet.dart';
@@ -1330,6 +1331,25 @@ class _EditorPageState extends State<EditorPage> {
           presetSettings: _settings.presetBaseline,
           selectedId: _selectedAdjustmentId,
           enabled: !_busy,
+          trailing: _selectedJob?.kind == MediaKind.photo
+              ? CupertinoButton(
+                  key: const Key('open_neutral_picker'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  minimumSize: Size.zero,
+                  onPressed: _busy ? null : _pickNeutralPoint,
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(CupertinoIcons.eyedropper, size: 16),
+                      SizedBox(width: 4),
+                      Text('White balance', style: TextStyle(fontSize: 13)),
+                    ],
+                  ),
+                )
+              : null,
           onSelected: (id) => setState(() => _selectedAdjustmentId = id),
           onChanged: _setRestorationSettings,
         ),
@@ -3101,6 +3121,20 @@ class _EditorPageState extends State<EditorPage> {
         onRemove: _removeJob,
       ),
     );
+  }
+
+  Future<void> _pickNeutralPoint() async {
+    final job = _selectedJob;
+    if (job == null) return;
+    final picked = await NeutralPointPicker.show(
+      context,
+      path: job.inputPath,
+      settings: _settings,
+      lutProfile: _lutProfile,
+    );
+    if (picked == null || !mounted || _selectedJob?.id != job.id) return;
+    _setRestorationSettings(picked);
+    setState(() => _selectedAdjustmentId = 'temperature');
   }
 
   /// Returns the cached suggestion for [job] and starts analysing it when the

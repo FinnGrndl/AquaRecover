@@ -344,7 +344,9 @@ class GradeControl {
       0,
       1,
       (s) => s.presetStrength,
-      (s, v) => s.preset.settingsAtStrength(v),
+      (s, v) => s.preset
+          .settingsAtStrength(v)
+          .copyWith(temperature: s.temperature, tint: s.tint),
     ),
     GradeControl(
       'Recovery',
@@ -367,6 +369,14 @@ class GradeControl {
       (s) => s.autoWhiteBalance,
       (s, v) => s.copyWith(autoWhiteBalance: v),
     ),
+    GradeControl(
+      'Temp',
+      -1,
+      1,
+      (s) => s.temperature,
+      (s, v) => s.copyWith(temperature: v),
+    ),
+    GradeControl('Tint', -1, 1, (s) => s.tint, (s, v) => s.copyWith(tint: v)),
     GradeControl(
       'Exposure',
       -1,

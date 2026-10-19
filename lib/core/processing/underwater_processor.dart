@@ -61,6 +61,7 @@ class UnderwaterProcessor {
     final plan = _CorrectionPlan.from(settings, stats, width, height);
     plan.correctRows(src.bytes, 0, out, 0, 0, height);
     final fused = _retinexFusion(src, output, stats, settings, quality);
+    _applyWhiteBalance(fused.data!.toUint8List(), settings);
     return _applyDetail(fused, settings, quality);
   }
 
@@ -151,6 +152,7 @@ class UnderwaterProcessor {
           ),
       ]);
     }
+    _applyWhiteBalance(corrected, settings);
     return _applyDetail(output, settings, quality);
   }
 
@@ -210,6 +212,7 @@ class UnderwaterProcessor {
       width,
       height,
     ).correctRows(source, 0, out, 0, 0, height);
+    _applyWhiteBalance(out, colourSettings);
     for (var cell = 0; cell < size * size * size; cell++) {
       final o = (((cell ~/ size) * 2 + 1) * width + (cell % size) * 2 + 1) * 4;
       lattice[cell * 3] = out[o];
@@ -217,6 +220,83 @@ class UnderwaterProcessor {
       lattice[cell * 3 + 2] = out[o + 2];
     }
     return lattice;
+  }
+
+  /// The [RestorationSettings.temperature] and [RestorationSettings.tint]
+  /// that make a source colour come out neutral grey, for a "tap something
+  /// that should be white" picker.
+  ///
+  /// [r], [g], [b] are the original colour of the tapped area; it goes
+  /// through the colour stage of [settings] for the scene in [sceneSample]
+  /// (as in [bakeColorLattice]), and the white balance then cancels whatever
+  /// cast remains. Values are clamped to the slider range, so very strong
+  /// casts are only partly removed.
+  ({double temperature, double tint}) neutralBalance(
+    img.Image sceneSample,
+    RestorationSettings settings,
+    int r,
+    int g,
+    int b,
+  ) {
+    final colourSettings = settings.copyWith(
+      vignette: 0,
+      temperature: 0,
+      tint: 0,
+    );
+    var cr = r.toDouble();
+    var cg = g.toDouble();
+    var cb = b.toDouble();
+    if (!colourSettings.isIdentity) {
+      final source = Uint8List(16);
+      for (var i = 0; i < 16; i += 4) {
+        source
+          ..[i] = r
+          ..[i + 1] = g
+          ..[i + 2] = b
+          ..[i + 3] = 255;
+      }
+      final out = Uint8List(16);
+      _CorrectionPlan.from(
+        colourSettings,
+        _ImageStats.from(_Rgba8.of(sceneSample)),
+        2,
+        2,
+      ).correctRows(source, 0, out, 0, 0, 2);
+      cr = out[12].toDouble();
+      cg = out[13].toDouble();
+      cb = out[14].toDouble();
+    }
+    cr = math.max(1.0, cr);
+    cg = math.max(1.0, cg);
+    cb = math.max(1.0, cb);
+    const range = RestorationSettings.whiteBalanceRange;
+    final temperature = _clampD((cb - cr) / (range * (cr + cb)), -1.0, 1.0);
+    final grey =
+        (cr * (1 + range * temperature) + cb * (1 - range * temperature)) / 2;
+    final tint = _clampD((1 - grey / cg) / range, -1.0, 1.0);
+    return (temperature: temperature, tint: tint);
+  }
+
+  /// Applies the final white-balance gains to RGBA [bytes] in place.
+  static void _applyWhiteBalance(
+    Uint8List bytes,
+    RestorationSettings settings,
+  ) {
+    if (!settings.hasWhiteBalance) return;
+    final gains = settings.whiteBalanceGains;
+    final lr = Uint8List(256);
+    final lg = Uint8List(256);
+    final lb = Uint8List(256);
+    for (var v = 0; v < 256; v++) {
+      lr[v] = _byte(v * gains.r);
+      lg[v] = _byte(v * gains.g);
+      lb[v] = _byte(v * gains.b);
+    }
+    for (var i = 0; i < bytes.length; i += 4) {
+      bytes[i] = lr[bytes[i]];
+      bytes[i + 1] = lg[bytes[i + 1]];
+      bytes[i + 2] = lb[bytes[i + 2]];
+    }
   }
 
   /// How many bands [restoreImageInParallel] uses for [pixels] on a machine

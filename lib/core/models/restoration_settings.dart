@@ -256,6 +256,8 @@ class RestorationSettings {
     this.shadows = 0,
     this.blackPoint = 0,
     this.vignette = 0,
+    this.temperature = 0,
+    this.tint = 0,
     this.jpegQuality = 94,
   });
 
@@ -280,7 +282,27 @@ class RestorationSettings {
   final double shadows;
   final double blackPoint;
   final double vignette;
+
+  /// Final white-balance trim from -1 (cooler) to 1 (warmer), applied as
+  /// opposing red and blue gains after all other colour work.
+  final double temperature;
+
+  /// Final green-magenta trim from -1 (greener) to 1 (more magenta).
+  final double tint;
+
   final int jpegQuality;
+
+  /// How far [temperature] and [tint] move a channel at their extremes.
+  static const whiteBalanceRange = 0.35;
+
+  /// Red, green, and blue gains for [temperature] and [tint].
+  ({double r, double g, double b}) get whiteBalanceGains => (
+    r: 1 + whiteBalanceRange * temperature.clamp(-1.0, 1.0),
+    g: 1 - whiteBalanceRange * tint.clamp(-1.0, 1.0),
+    b: 1 - whiteBalanceRange * temperature.clamp(-1.0, 1.0),
+  );
+
+  bool get hasWhiteBalance => temperature.abs() > 0.0001 || tint.abs() > 0.0001;
 
   RestorationSettings copyWith({
     RestorationPreset? preset,
@@ -304,6 +326,8 @@ class RestorationSettings {
     double? shadows,
     double? blackPoint,
     double? vignette,
+    double? temperature,
+    double? tint,
     int? jpegQuality,
   }) {
     return RestorationSettings(
@@ -328,6 +352,8 @@ class RestorationSettings {
       shadows: shadows ?? this.shadows,
       blackPoint: blackPoint ?? this.blackPoint,
       vignette: vignette ?? this.vignette,
+      temperature: temperature ?? this.temperature,
+      tint: tint ?? this.tint,
       jpegQuality: jpegQuality ?? this.jpegQuality,
     );
   }
@@ -394,7 +420,8 @@ class RestorationSettings {
         same(highlights, neutral.highlights) &&
         same(shadows, neutral.shadows) &&
         same(blackPoint, neutral.blackPoint) &&
-        same(vignette, neutral.vignette);
+        same(vignette, neutral.vignette) &&
+        !hasWhiteBalance;
   }
 
   List<String> ffmpegFilters({List<String> extraFilters = const []}) {
@@ -426,10 +453,13 @@ class RestorationSettings {
         .clamp(0.0, 1.5)
         .toDouble();
     final hueDegrees = (hue.clamp(-1.0, 1.0) * 180.0).toDouble();
+    final gains = whiteBalanceGains;
     return [
       'colorbalance=rs=${red.toStringAsFixed(4)}:rm=${red.toStringAsFixed(4)}:rh=${red.toStringAsFixed(4)}:gs=${greenTrim.toStringAsFixed(4)}:gm=${greenTrim.toStringAsFixed(4)}:gh=${greenTrim.toStringAsFixed(4)}:bs=${blueTrim.toStringAsFixed(4)}:bm=${blueTrim.toStringAsFixed(4)}:bh=${blueTrim.toStringAsFixed(4)}',
       'eq=contrast=${ctr.toStringAsFixed(3)}:saturation=${sat.toStringAsFixed(3)}:gamma=${gamma.clamp(0.1, 3.0).toStringAsFixed(3)}:brightness=${bright.toStringAsFixed(3)}',
       if (hueDegrees.abs() > .001) 'hue=h=${hueDegrees.toStringAsFixed(2)}',
+      if (hasWhiteBalance)
+        'colorchannelmixer=rr=${gains.r.toStringAsFixed(4)}:gg=${gains.g.toStringAsFixed(4)}:bb=${gains.b.toStringAsFixed(4)}',
       if (sharp > 0.001) 'unsharp=5:5:${sharp.toStringAsFixed(3)}:3:3:0.0',
       if (vignette > 0.001) 'vignette=PI/5',
       ...extraFilters,
@@ -488,6 +518,8 @@ class RestorationSettings {
       shadows: d('shadows', defaults.shadows),
       blackPoint: d('blackPoint', defaults.blackPoint),
       vignette: d('vignette', defaults.vignette),
+      temperature: d('temperature', 0).clamp(-1.0, 1.0).toDouble(),
+      tint: d('tint', 0).clamp(-1.0, 1.0).toDouble(),
       jpegQuality: quality is num
           ? quality.toInt().clamp(1, 100)
           : defaults.jpegQuality,
@@ -516,6 +548,8 @@ class RestorationSettings {
     'shadows': shadows,
     'blackPoint': blackPoint,
     'vignette': vignette,
+    'temperature': temperature,
+    'tint': tint,
     'jpegQuality': jpegQuality,
   };
 }
