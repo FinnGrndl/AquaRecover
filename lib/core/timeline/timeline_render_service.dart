@@ -172,11 +172,19 @@ class TimelineRenderService {
           'Timeline export needs iOS, macOS, Android, or ffmpeg on this computer.',
         );
       case TimelineRenderBackend.ffmpeg:
+        final plan = TimelineCompiler.compile(
+          project,
+          titleAspect: titleAspectRatio,
+        );
+        final generated = await writeGeneratedSources(plan, _textures);
+        if (_cancelled) throw const TimelineRenderCancelled();
         final renderer = _ffmpeg ??= FfmpegTimelineRenderer(
           FfmpegVideoBackend(FfmpegVideoBackend.locate()!),
         );
         return renderer.render(
           project,
+          plan: plan,
+          generatedPaths: generated,
           outputPath: outputPath,
           onProgress: onProgress,
         );
