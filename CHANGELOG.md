@@ -3,7 +3,11 @@
 Changes are generated from Conventional Commit messages. AquaRecover follows
 semantic versioning; the number after `+` is the platform build number.
 
-## 1.3.3 - 2026-10-19
+## 1.4.0 - 2026-10-19
+
+### Added
+
+- Add an MCP server so Claude can restore dive media
 
 ### Fixed
 
