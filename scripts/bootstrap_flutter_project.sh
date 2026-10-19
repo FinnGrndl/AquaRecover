@@ -185,7 +185,7 @@ if [ -f "$WINDOWS_RESOURCES" ]; then
   ' "$WINDOWS_RESOURCES"
 fi
 
-python3 - "$ROOT/ios/Runner.xcodeproj/project.pbxproj:RawBridge.swift:AppDelegate.swift" "$ROOT/ios/Runner.xcodeproj/project.pbxproj:IosVideoProcessor.swift:RawBridge.swift" "$ROOT/macos/Runner.xcodeproj/project.pbxproj:RawBridge.swift:MainFlutterWindow.swift" <<'PY'
+python3 - "$ROOT/ios/Runner.xcodeproj/project.pbxproj:RawBridge.swift:AppDelegate.swift" "$ROOT/ios/Runner.xcodeproj/project.pbxproj:IosVideoProcessor.swift:RawBridge.swift" "$ROOT/macos/Runner.xcodeproj/project.pbxproj:RawBridge.swift:MainFlutterWindow.swift" "$ROOT/macos/Runner.xcodeproj/project.pbxproj:MacPhotoPicker.swift:RawBridge.swift" <<'PY'
 from pathlib import Path
 import hashlib
 import re

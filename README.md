@@ -239,7 +239,7 @@ paths measurable as the algorithm evolves.
 | Capability | iOS | macOS | Android | Windows |
 | --- | --- | --- | --- | --- |
 | JPEG, PNG, and WebP correction | Yes | Yes | Yes | Yes |
-| Photos-library import | Native Photos APIs | Native Photos APIs | System media access | — |
+| Photos-library import | System picker (iPhone), PhotoKit browser (iPad) | System picker on macOS 13+, PhotoKit browser before | Android Photo Picker, no media permission | — |
 | File import and folder export | Yes | Yes | Yes | Yes |
 | HEIC/HEIF decode | Native | Native | Platform dependent | Platform dependent |
 | Supported RAW still decode | Core Image | Core Image | ImageDecoder on API 28+ | — |
