@@ -103,7 +103,7 @@ class EditorToolRail extends StatelessWidget {
     EditorToolGroup.crop => CupertinoIcons.crop_rotate,
     EditorToolGroup.color => CupertinoIcons.color_filter,
     EditorToolGroup.details => CupertinoIcons.scope,
-    EditorToolGroup.effects => CupertinoIcons.color_filter,
+    EditorToolGroup.effects => CupertinoIcons.sparkles,
     EditorToolGroup.video => CupertinoIcons.film,
   };
 }
@@ -157,7 +157,7 @@ class _ToolButton extends StatelessWidget {
                   style: CupertinoTheme.of(context).textTheme.textStyle
                       .copyWith(
                         color: foreground,
-                        fontSize: 10.5,
+                        fontSize: 11,
                         fontWeight: selected
                             ? FontWeight.w600
                             : FontWeight.w500,
