@@ -305,7 +305,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
   bool get _canSaveToPhotos =>
       Platform.isIOS || Platform.isMacOS || Platform.isAndroid;
 
-  String? get _backendNote => switch (TimelineRenderService.currentBackend) {
+  String? get _backendNote => switch (_renderer.backend) {
     TimelineRenderBackend.android => 'fades render as dips to black',
     TimelineRenderBackend.none => 'needs ffmpeg on this computer',
     _ => null,
@@ -666,8 +666,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
         progress: _progress,
         outputPath: _outputPath,
         backendNote: _backendNote,
-        onRender:
-            TimelineRenderService.currentBackend == TimelineRenderBackend.none
+        onRender: _renderer.backend == TimelineRenderBackend.none
             ? null
             : _render,
         onCancel: _renderer.cancel,

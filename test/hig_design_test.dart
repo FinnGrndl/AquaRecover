@@ -627,6 +627,11 @@ class _ExportLibrary extends ExportLibraryService {
 }
 
 class _FailingRenderService extends TimelineRenderService {
+  // Pretend an encoder exists, as on a phone, so Export is enabled even on
+  // a CI machine without ffmpeg.
+  @override
+  TimelineRenderBackend get backend => TimelineRenderBackend.apple;
+
   @override
   Future<String> render(
     TimelineProject project, {
