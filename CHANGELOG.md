@@ -10,6 +10,7 @@ semantic versioning; the number after `+` is the platform build number.
 - Export video natively with a shared AVFoundation pipeline
 - Add an MCP server so Claude can restore dive media
 - Suggest a preset for each photo
+- Export video on Android and Windows with a baked 3D LUT
 
 ### Fixed
 
