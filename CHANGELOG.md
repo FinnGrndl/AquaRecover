@@ -16,10 +16,11 @@ semantic versioning; the number after `+` is the platform build number.
 - Give the white balance picker the editor's glass chrome
 - Render plan v2 with effects, overlays, titles and audio tracks
 - Add an MCP server so Claude can restore dive media
+- Live preview of the layered movie
 - Render the v2 movie plan with Media3
 - Render the v2 movie plan with ffmpeg on Windows and Linux
 - Suggest a preset for each photo
-- Live preview of the layered movie
+- CapCut-style movie editor with lanes, toolbar and inspector
 
 ### Fixed
 
