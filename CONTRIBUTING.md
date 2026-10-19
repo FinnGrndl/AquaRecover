@@ -21,7 +21,7 @@ flutter test
 Run the format check before opening a pull request:
 
 ```bash
-dart format --output=none --set-exit-if-changed lib test tool
+dart format --output=none --set-exit-if-changed lib test tool bin
 ```
 
 ## Processing changes

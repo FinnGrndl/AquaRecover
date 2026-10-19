@@ -22,9 +22,17 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
   final Map<String, AssetEntity> _selectedAssets = <String, AssetEntity>{};
   List<AssetPathEntity> _albums = const [];
   List<AssetEntity> _assets = const [];
+  final Map<String, Future<Uint8List?>> _thumbnails =
+      <String, Future<Uint8List?>>{};
+  final ScrollController _scrollController = ScrollController();
   AssetPathEntity? _album;
+  int _albumAssetCount = 0;
+  int _nextPage = 0;
+  int _loadGeneration = 0;
   bool _loading = true;
+  bool _loadingMore = false;
   bool _importing = false;
+  double? _importProgress;
   String? _error;
   PhotoLibraryPermissionException? _permissionError;
 
@@ -32,14 +40,64 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scrollController.addListener(_maybeLoadMore);
     _loadAlbums();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _scrollController.dispose();
     super.dispose();
   }
+
+  bool get _hasMore => _assets.length < _albumAssetCount;
+
+  void _maybeLoadMore() {
+    if (!_scrollController.hasClients || _loading || _loadingMore) return;
+    final position = _scrollController.position;
+    if (position.extentAfter < 600 && _hasMore) _loadNextPage();
+  }
+
+  Future<void> _loadFirstPage(AssetPathEntity album, int generation) async {
+    final results = await Future.wait<Object>([
+      widget.service.loadAssets(album),
+      widget.service.assetCount(album),
+    ]);
+    if (!mounted || generation != _loadGeneration) return;
+    final assets = results[0] as List<AssetEntity>;
+    _albumAssetCount = results[1] as int;
+    _assets = assets;
+    _nextPage = 1;
+  }
+
+  Future<void> _loadNextPage() async {
+    final album = _album;
+    if (album == null) return;
+    final generation = _loadGeneration;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await widget.service.loadAssets(album, page: _nextPage);
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _assets = [..._assets, ...page];
+        _nextPage++;
+        if (page.isEmpty) _albumAssetCount = _assets.length;
+        _loadingMore = false;
+      });
+    } on Object catch (error) {
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _error = error.toString();
+        _loadingMore = false;
+      });
+    }
+  }
+
+  Future<Uint8List?> _thumbnail(AssetEntity asset) => _thumbnails.putIfAbsent(
+    asset.id,
+    () => widget.service.thumbnailFor(asset),
+  );
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -51,6 +109,7 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
   }
 
   Future<void> _loadAlbums() async {
+    final generation = ++_loadGeneration;
     setState(() {
       _loading = true;
       _error = null;
@@ -59,14 +118,16 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
     try {
       final albums = await widget.service.loadAlbums();
       final album = albums.isEmpty ? null : albums.first;
-      final assets = album == null
-          ? <AssetEntity>[]
-          : await widget.service.loadAssets(album);
-      if (!mounted) return;
+      if (album == null) {
+        _assets = const [];
+        _albumAssetCount = 0;
+      } else {
+        await _loadFirstPage(album, generation);
+      }
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _albums = albums;
         _album = album;
-        _assets = assets;
         _loading = false;
       });
     } on Object catch (error) {
@@ -82,21 +143,21 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
   }
 
   Future<void> _changeAlbum(AssetPathEntity album) async {
+    final generation = ++_loadGeneration;
     setState(() {
       _album = album;
       _assets = const [];
       _loading = true;
+      _loadingMore = false;
       _error = null;
     });
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
     try {
-      final assets = await widget.service.loadAssets(album);
-      if (!mounted) return;
-      setState(() {
-        _assets = assets;
-        _loading = false;
-      });
+      await _loadFirstPage(album, generation);
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() => _loading = false);
     } on Object catch (error) {
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _error = error.toString();
         _loading = false;
@@ -145,7 +206,9 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
               ? null
               : _importSelected,
           child: _importing
-              ? const CupertinoActivityIndicator()
+              ? _importProgress == null
+                    ? const CupertinoActivityIndicator()
+                    : Text('${(_importProgress! * 100).round()}%')
               : Text('Import ${_selectedIds.length}'),
         ),
       ],
@@ -219,14 +282,17 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
       return const Center(child: Text('No photos or videos found.'));
     }
     return GridView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 132,
         crossAxisSpacing: 6,
         mainAxisSpacing: 6,
       ),
-      itemCount: _assets.length,
-      itemBuilder: (context, index) => _assetTile(context, _assets[index]),
+      itemCount: _assets.length + (_loadingMore ? 1 : 0),
+      itemBuilder: (context, index) => index >= _assets.length
+          ? const Center(child: CupertinoActivityIndicator())
+          : _assetTile(context, _assets[index]),
     );
   }
 
@@ -240,10 +306,7 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: FutureBuilder<Uint8List?>(
-              future: asset.thumbnailDataWithSize(
-                const ThumbnailSize(240, 240),
-                quality: 80,
-              ),
+              future: _thumbnail(asset),
               builder: (context, snapshot) {
                 final data = snapshot.data;
                 return data == null
@@ -307,16 +370,32 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
   Future<void> _importSelected() async {
     setState(() {
       _importing = true;
+      _importProgress = null;
       _error = null;
     });
+    final selected = _selectedAssets.values.toList(growable: false);
+    final progress = List<double>.filled(selected.length, 0);
+    void report(int index, double value) {
+      progress[index] = value.clamp(0.0, 1.0);
+      if (!mounted) return;
+      final total = progress.fold<double>(0, (sum, item) => sum + item);
+      setState(() => _importProgress = total / progress.length);
+    }
+
     try {
-      final resolved = await mapWithConcurrencyLimit<AssetEntity, String?>(
-        _selectedAssets.values,
+      final resolved = await mapWithConcurrencyLimit<int, String?>(
+        List<int>.generate(selected.length, (index) => index),
         maxConcurrent: 3,
-        operation: (asset) async {
+        operation: (index) async {
           try {
-            return await widget.service.localFilePathFor(asset);
+            final path = await widget.service.localFilePathFor(
+              selected[index],
+              onProgress: (value) => report(index, value),
+            );
+            report(index, 1);
+            return path;
           } on Object {
+            report(index, 1);
             return null;
           }
         },
@@ -360,6 +439,7 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
       setState(() {
         _error = error.toString();
         _importing = false;
+        _importProgress = null;
       });
     }
   }
