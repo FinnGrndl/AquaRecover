@@ -1,0 +1,355 @@
+import 'package:flutter/cupertino.dart';
+
+import '../../../../core/timeline/timeline_project.dart';
+import '../../timeline_controller.dart';
+import '../../timeline_theme.dart';
+import 'tool_controls.dart';
+
+/// Edits the selected title: the text in a multi-line field (above the
+/// keyboard), a style, a colour, the alignment, and the size. Typing until
+/// the field loses focus is one undo step.
+class TextPanel extends StatefulWidget {
+  const TextPanel({
+    super.key,
+    required this.controller,
+    required this.overlayId,
+    required this.onDone,
+    this.autofocus = false,
+    this.today,
+  });
+
+  final TimelineController controller;
+  final String overlayId;
+  final VoidCallback onDone;
+  final bool autofocus;
+
+  /// The date a Dive stamp shows; today unless a test fixes it.
+  final DateTime? today;
+
+  /// Text colours: white, sand, coral, yellow, aqua, black.
+  static const swatches = <(int, String)>[
+    (0xFFFFFFFF, 'White'),
+    (0xFFE8DCC0, 'Sand'),
+    (0xFFFF7F6B, 'Coral'),
+    (0xFFFFD60A, 'Yellow'),
+    (0xFF64D2FF, 'Aqua'),
+    (0xFF000000, 'Black'),
+  ];
+
+  static String styleLabel(TitleStyle style) => switch (style) {
+    TitleStyle.classic => 'Classic',
+    TitleStyle.boldBox => 'Bold box',
+    TitleStyle.outline => 'Outline',
+    TitleStyle.caption => 'Caption',
+    TitleStyle.diveStamp => 'Dive stamp',
+  };
+
+  static String dateLabel(DateTime date) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  @override
+  State<TextPanel> createState() => _TextPanelState();
+}
+
+class _TextPanelState extends State<TextPanel> {
+  late final TextEditingController _text;
+  final _focus = FocusNode();
+  bool _editing = false;
+
+  TimelineController get _controller => widget.controller;
+  TimelineOverlay? get _overlay => _controller.overlayById(widget.overlayId);
+
+  @override
+  void initState() {
+    super.initState();
+    _text = TextEditingController(text: _overlay?.title?.text ?? '');
+    if (widget.autofocus) {
+      _text.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _text.text.length,
+      );
+    }
+    _focus.addListener(_onFocus);
+    _controller.addListener(_sync);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_sync);
+    _focus.removeListener(_onFocus);
+    if (_editing) _controller.endGesture(notify: false);
+    _focus.dispose();
+    _text.dispose();
+    super.dispose();
+  }
+
+  void _onFocus() {
+    if (_focus.hasFocus && !_editing) {
+      _editing = true;
+      _controller.beginGesture();
+    } else if (!_focus.hasFocus && _editing) {
+      _editing = false;
+      _controller.endGesture();
+    }
+  }
+
+  /// Keeps the field in step with undo and redo.
+  void _sync() {
+    final text = _overlay?.title?.text;
+    if (text != null && text != _text.text && !_focus.hasFocus) {
+      _text.text = text;
+    }
+  }
+
+  void _update(TitleSpec Function(TitleSpec title) change) {
+    final title = _overlay?.title;
+    if (title == null) return;
+    _controller.updateTitle(widget.overlayId, change(title));
+  }
+
+  void _setStyle(TitleStyle style) {
+    final title = _overlay?.title;
+    if (title == null) return;
+    var text = title.text;
+    if (style == TitleStyle.diveStamp &&
+        !text.contains('\n') &&
+        (text.trim().isEmpty || text == 'Title')) {
+      text =
+          '${_controller.project.name}\n'
+          '${TextPanel.dateLabel(widget.today ?? DateTime.now())}';
+      _text.text = text;
+    }
+    _update((t) => t.copyWith(style: style, text: text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final overlay = _overlay;
+    final title = overlay?.title;
+    final header = ToolHeader(
+      title: 'Text',
+      trailing: ToolTextButton(
+        key: const Key('timeline_text_done'),
+        label: 'Done',
+        bold: true,
+        onPressed: () {
+          _focus.unfocus();
+          widget.onDone();
+        },
+      ),
+    );
+    if (overlay == null || title == null) {
+      return ToolPanelBody(
+        header: header,
+        children: const [ToolEmptyNote('Select a title to edit it.')],
+      );
+    }
+    final size = _controller.titleSize(overlay);
+    return ToolPanelBody(
+      header: header,
+      children: [
+        CupertinoTextField(
+          key: const Key('timeline_text_field'),
+          controller: _text,
+          focusNode: _focus,
+          autofocus: widget.autofocus,
+          minLines: 1,
+          maxLines: 3,
+          keyboardAppearance: Brightness.dark,
+          textCapitalization: TextCapitalization.sentences,
+          placeholder: 'Title',
+          placeholderStyle: const TextStyle(
+            color: TimelineColors.secondaryText,
+            fontSize: 17,
+          ),
+          style: const TextStyle(color: TimelineColors.text, fontSize: 17),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: TimelineColors.fill,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: TimelineColors.stroke, width: .5),
+          ),
+          onChanged: (text) => _update((t) => t.copyWith(text: text)),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 44,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              for (final style in TitleStyle.values)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: _StyleChip(
+                    key: Key('timeline_title_style_${style.name}'),
+                    label: TextPanel.styleLabel(style),
+                    selected: title.style == style,
+                    onPressed: () => _setStyle(style),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            for (final (color, name) in TextPanel.swatches)
+              _Swatch(
+                color: Color(color),
+                name: name,
+                selected: title.color == color,
+                onPressed: () => _update((t) => t.copyWith(color: color)),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ToolSegmented<TitleAlign>(
+          value: title.align,
+          options: const {
+            TitleAlign.left: 'Left',
+            TitleAlign.center: 'Center',
+            TitleAlign.right: 'Right',
+          },
+          onChanged: (a) => _update((t) => t.copyWith(align: a)),
+        ),
+        const SizedBox(height: 8),
+        ToolSlider(
+          key: const Key('timeline_title_size'),
+          controller: _controller,
+          label: 'Size',
+          value: size.clamp(0.03, 0.2).toDouble(),
+          min: 0.03,
+          max: 0.2,
+          valueLabel: '${(size * 100).round()} % of height',
+          onChanged: (v) => _controller.setTitleSize(widget.overlayId, v),
+        ),
+      ],
+    );
+  }
+}
+
+class _StyleChip extends StatelessWidget {
+  const _StyleChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      excludeSemantics: true,
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(44, 44),
+        onPressed: onPressed,
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: ShapeDecoration(
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: selected ? CupertinoColors.white : TimelineColors.stroke,
+                width: selected ? 1.5 : .5,
+              ),
+            ),
+            color: selected ? const Color(0x33ffffff) : TimelineColors.fill,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected) ...[
+                const Icon(
+                  CupertinoIcons.checkmark_alt,
+                  size: 14,
+                  color: TimelineColors.text,
+                ),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: TimelineColors.text,
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Swatch extends StatelessWidget {
+  const _Swatch({
+    required this.color,
+    required this.name,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final Color color;
+  final String name;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = color.computeLuminance() < .2;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$name text',
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Center(
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected
+                      ? CupertinoColors.white
+                      : const Color(0x66ffffff),
+                  width: selected ? 2.5 : .5,
+                ),
+              ),
+              child: selected
+                  ? Icon(
+                      CupertinoIcons.checkmark_alt,
+                      size: 16,
+                      color: dark
+                          ? CupertinoColors.white
+                          : CupertinoColors.black,
+                    )
+                  : null,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

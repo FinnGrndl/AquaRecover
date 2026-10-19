@@ -16,6 +16,12 @@ abstract final class TimelineColors {
   static const photoClip = Color(0xff1f3f50);
   static const videoClip = Color(0xff2c3350);
 
+  /// Lane items, dark enough for white labels (≥ 5:1): indigo for photo
+  /// and video overlays, amber for titles, green for sound.
+  static const overlayItem = Color(0xff3b3f8f);
+  static const titleItem = Color(0xff8a6212);
+  static const audioItem = Color(0xff1f6b43);
+
   /// System red in dark mode.
   static const danger = Color(0xffff453a);
 }

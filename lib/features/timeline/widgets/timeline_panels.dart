@@ -6,327 +6,7 @@ import '../../../core/timeline/timeline_project.dart';
 import '../../editor/widgets/precision_wheel.dart';
 import '../timeline_controller.dart';
 import '../timeline_theme.dart';
-
-/// A large icon-and-label button sized for thumbs.
-class TimelineToolButton extends StatelessWidget {
-  const TimelineToolButton({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    this.active = false,
-    this.destructive = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-  final bool active;
-  final bool destructive;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onPressed != null;
-    final color = !enabled
-        ? TimelineColors.secondaryText.withValues(alpha: .35)
-        : destructive
-        ? TimelineColors.danger
-        : active
-        ? TimelineColors.accent
-        : TimelineColors.text;
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      selected: active,
-      label: label,
-      child: CupertinoButton(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        minimumSize: const Size(64, 58),
-        onPressed: onPressed,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 22, color: color),
-            const SizedBox(height: 5),
-            Text(
-              label,
-              maxLines: 1,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Edit page: arrange, split, trim, and time clips.
-class CutPanel extends StatelessWidget {
-  const CutPanel({
-    super.key,
-    required this.controller,
-    required this.onAdd,
-    required this.onError,
-  });
-
-  final TimelineController controller;
-  final VoidCallback onAdd;
-
-  /// Explains why an edit could not be made, with a title and a message.
-  final void Function(String title, String message) onError;
-
-  @override
-  Widget build(BuildContext context) {
-    final clip = controller.selectedClip;
-    final index = controller.selectedIndex;
-    final count = controller.project.clips.length;
-    final hasClip = clip != null;
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        SizedBox(
-          height: 66,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            children: [
-              TimelineToolButton(
-                key: const Key('timeline_add'),
-                icon: CupertinoIcons.add_circled,
-                label: 'Add',
-                active: true,
-                onPressed: onAdd,
-              ),
-              TimelineToolButton(
-                key: const Key('timeline_split'),
-                icon: CupertinoIcons.scissors,
-                label: 'Split',
-                onPressed: hasClip
-                    ? () {
-                        if (!controller.splitAtPlayhead()) {
-                          onError(
-                            'Can’t split here',
-                            'Move the playhead inside a clip, at least half a second from its edges.',
-                          );
-                        }
-                      }
-                    : null,
-              ),
-              TimelineToolButton(
-                icon: CupertinoIcons.arrow_right_to_line,
-                label: 'Set start',
-                onPressed: clip != null && clip.isVideo
-                    ? () {
-                        if (!controller.trimStartToPlayhead()) {
-                          onError(
-                            'Can’t set the start',
-                            'Put the playhead inside the selected clip to set its start.',
-                          );
-                        }
-                      }
-                    : null,
-              ),
-              TimelineToolButton(
-                icon: CupertinoIcons.arrow_left_to_line,
-                label: 'Set end',
-                onPressed: hasClip
-                    ? () {
-                        if (!controller.trimEndToPlayhead()) {
-                          onError(
-                            'Can’t set the end',
-                            'Put the playhead inside the selected clip to set its end.',
-                          );
-                        }
-                      }
-                    : null,
-              ),
-              TimelineToolButton(
-                icon: CupertinoIcons.chevron_left_2,
-                label: 'Earlier',
-                onPressed: index > 0 ? () => controller.moveSelected(-1) : null,
-              ),
-              TimelineToolButton(
-                icon: CupertinoIcons.chevron_right_2,
-                label: 'Later',
-                onPressed: index >= 0 && index < count - 1
-                    ? () => controller.moveSelected(1)
-                    : null,
-              ),
-              TimelineToolButton(
-                icon: CupertinoIcons.plus_square_on_square,
-                label: 'Duplicate',
-                onPressed: hasClip ? controller.duplicateSelected : null,
-              ),
-              if (clip != null && clip.isVideo)
-                TimelineToolButton(
-                  icon: clip.muted
-                      ? CupertinoIcons.speaker_slash
-                      : CupertinoIcons.speaker_2,
-                  label: clip.muted ? 'Muted' : 'Sound',
-                  active: !clip.muted,
-                  onPressed: controller.toggleMute,
-                ),
-              TimelineToolButton(
-                key: const Key('timeline_delete'),
-                icon: CupertinoIcons.trash,
-                label: 'Delete',
-                destructive: true,
-                onPressed: hasClip ? controller.deleteSelected : null,
-              ),
-            ],
-          ),
-        ),
-        if (clip != null) ...[
-          Container(height: 1, color: TimelineColors.stroke),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
-            child: Column(
-              children: [
-                if (index > 0)
-                  _LabeledSegment<ClipTransition>(
-                    label: 'In',
-                    value: clip.transition,
-                    options: const {
-                      ClipTransition.cut: 'Cut',
-                      ClipTransition.crossfade: 'Fade',
-                    },
-                    onChanged: controller.setTransition,
-                  ),
-                if (!clip.isVideo) ...[
-                  _LabeledSegment<ClipMotion>(
-                    label: 'Motion',
-                    value: clip.motion,
-                    options: const {
-                      ClipMotion.none: 'Still',
-                      ClipMotion.zoomIn: 'Zoom in',
-                      ClipMotion.zoomOut: 'Zoom out',
-                    },
-                    onChanged: controller.setMotion,
-                  ),
-                  _DurationStepper(
-                    seconds: clip.stillSeconds,
-                    onChanged: controller.setStillSeconds,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _LabeledSegment<T extends Object> extends StatelessWidget {
-  const _LabeledSegment({
-    required this.label,
-    required this.value,
-    required this.options,
-    required this.onChanged,
-  });
-
-  final String label;
-  final T value;
-  final Map<T, String> options;
-  final ValueChanged<T> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 64,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: TimelineColors.secondaryText,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          Expanded(
-            child: CupertinoSlidingSegmentedControl<T>(
-              groupValue: value,
-              backgroundColor: TimelineColors.fill,
-              thumbColor: CupertinoColors.activeBlue,
-              children: {
-                for (final entry in options.entries)
-                  entry.key: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Text(
-                      entry.value,
-                      style: const TextStyle(
-                        color: TimelineColors.text,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-              },
-              onValueChanged: (next) {
-                if (next != null) onChanged(next);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DurationStepper extends StatelessWidget {
-  const _DurationStepper({required this.seconds, required this.onChanged});
-
-  final double seconds;
-  final ValueChanged<double> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget step(IconData icon, double delta, String label) => Semantics(
-      button: true,
-      label: label,
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        minimumSize: const Size(
-          kMinInteractiveDimensionCupertino,
-          kMinInteractiveDimensionCupertino,
-        ),
-        onPressed: () => onChanged(seconds + delta),
-        child: Icon(icon, size: 20, color: TimelineColors.text),
-      ),
-    );
-    return Row(
-      children: [
-        const SizedBox(
-          width: 64,
-          child: Text(
-            'Duration',
-            style: TextStyle(color: TimelineColors.secondaryText, fontSize: 13),
-          ),
-        ),
-        step(CupertinoIcons.minus_circle, -0.5, 'Shorter'),
-        SizedBox(
-          width: 44,
-          child: Text(
-            '${seconds.toStringAsFixed(1)} s',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: TimelineColors.text,
-              fontSize: 13,
-              fontFeatures: [FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-        step(CupertinoIcons.plus_circle, 0.5, 'Longer'),
-      ],
-    );
-  }
-}
+import 'tools/tool_controls.dart';
 
 /// One adjustable grade parameter on the Color page.
 class GradeControl {
@@ -447,30 +127,59 @@ class _ColorPanelState extends State<ColorPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final clip = widget.controller.selectedClip;
-    if (clip == null) {
-      return const Center(
-        child: Text(
-          'Select a clip to grade it.',
-          style: TextStyle(color: TimelineColors.secondaryText),
-        ),
+    final controller = widget.controller;
+    final clip = controller.selectedClip;
+    final overlay = controller.selectedOverlay;
+    final gradeable =
+        clip != null || (overlay != null && overlay.title == null);
+    final header = ToolHeader(
+      title: 'Color',
+      subtitle: selectionName(controller),
+      // Matching every clip to this grade is the quick way to even out a
+      // whole dive.
+      trailing: clip == null
+          ? null
+          : ToolTextButton(
+              key: const Key('timeline_grade_all'),
+              label: 'Apply to All',
+              onPressed: controller.project.clips.length > 1
+                  ? controller.applyGradeToAll
+                  : null,
+            ),
+    );
+    if (!gradeable) {
+      return Column(
+        children: [
+          header,
+          const Expanded(
+            child: ToolEmptyNote('Select a clip or overlay to grade it.'),
+          ),
+        ],
       );
     }
-    final grade = clip.grade;
+    // An overlay without a grade of its own shows its original colours.
+    final RestorationSettings? own = clip?.grade ?? overlay!.grade;
+    final grade = own ?? RestorationPreset.none.settings;
+    final look = clip?.look ?? overlay!.look;
+    final id = clip?.id ?? overlay!.id;
     final control = GradeControl.all[_control];
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 8),
+    return ToolPanelBody(
+      header: header,
       children: [
         _ChipRow(
           children: [
             for (final preset in RestorationPreset.values)
               _Chip(
                 label: preset.label,
-                selected: grade.preset == preset,
-                onTap: () => widget.controller.setGrade(
-                  preset.settingsAtStrength(
-                    grade.preset == preset ? grade.presetStrength : 1,
-                  ),
+                selected: own != null
+                    ? grade.preset == preset
+                    : preset == RestorationPreset.none,
+                onTap: () => controller.setGrade(
+                  overlay != null && preset == RestorationPreset.none
+                      ? null
+                      : preset.settingsAtStrength(
+                          grade.preset == preset ? grade.presetStrength : 1,
+                        ),
                 ),
               ),
           ],
@@ -490,48 +199,33 @@ class _ColorPanelState extends State<ColorPanel> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: CupertinoTheme(
             data: const CupertinoThemeData(brightness: Brightness.dark),
-            child: PrecisionWheel(
-              key: ValueKey('wheel-${clip.id}-${control.label}'),
-              value: control.read(grade).clamp(control.min, control.max),
-              min: control.min,
-              max: control.max,
-              divisions: control.divisions,
-              semanticLabel: control.label,
-              valueFormatter: (v) => v.toStringAsFixed(2),
-              onChanged: (v) =>
-                  widget.controller.setGrade(control.write(grade, v)),
+            // One drag on the wheel is one undo step.
+            child: Listener(
+              onPointerDown: (_) => controller.beginGesture(),
+              onPointerUp: (_) => controller.endGesture(),
+              onPointerCancel: (_) => controller.endGesture(),
+              child: PrecisionWheel(
+                key: ValueKey('wheel-$id-${control.label}'),
+                value: control.read(grade).clamp(control.min, control.max),
+                min: control.min,
+                max: control.max,
+                divisions: control.divisions,
+                semanticLabel: control.label,
+                valueFormatter: (v) => v.toStringAsFixed(2),
+                onChanged: (v) => controller.setGrade(control.write(grade, v)),
+              ),
             ),
           ),
         ),
         _ChipRow(
           children: [
-            for (final look in LutProfile.builtIns)
+            for (final item in LutProfile.builtIns)
               _Chip(
-                label: look.name,
-                selected: clip.look.kind == look.kind,
-                onTap: () => widget.controller.setLook(look),
+                label: item.name,
+                selected: look.kind == item.kind,
+                onTap: () => controller.setLook(item),
               ),
           ],
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-          child: CupertinoButton(
-            key: const Key('timeline_grade_all'),
-            padding: const EdgeInsets.symmetric(vertical: 11),
-            color: TimelineColors.fill,
-            borderRadius: BorderRadius.circular(99),
-            onPressed: widget.controller.project.clips.length > 1
-                ? widget.controller.applyGradeToAll
-                : null,
-            child: const Text(
-              'Match all clips to this grade',
-              style: TextStyle(
-                color: TimelineColors.text,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
         ),
       ],
     );

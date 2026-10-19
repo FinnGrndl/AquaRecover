@@ -288,7 +288,10 @@ void main() {
         ),
       );
 
-      // The playhead sits on the clip's first frame, so it cannot split.
+      // The root toolbar's Edit selects the clip under the playhead. The
+      // playhead sits on its first frame, so it cannot split.
+      await tester.tap(find.byKey(const Key('timeline_tool_edit')));
+      await tester.pump();
       await tester.tap(find.byKey(const Key('timeline_split')));
       await tester.pump();
       expect(find.byType(CupertinoAlertDialog), findsOneWidget);
@@ -326,7 +329,7 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.byKey(const Key('timeline_page_export')));
+      await tester.tap(find.byKey(const Key('timeline_open_export')));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.byKey(const Key('timeline_render')));
       await tester.pump();
