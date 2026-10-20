@@ -37,8 +37,7 @@ class _DivePageState extends State<DivePage> {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoTheme(
-      data: timelineTheme(context),
+    return TimelineTheme(
       child: ListenableBuilder(
         listenable: widget.controller,
         builder: (context, _) {

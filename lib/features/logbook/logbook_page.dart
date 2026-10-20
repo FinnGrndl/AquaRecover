@@ -52,8 +52,7 @@ class _LogbookPageState extends State<LogbookPage> {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoTheme(
-      data: timelineTheme(context),
+    return TimelineTheme(
       child: CupertinoPageScaffold(
         backgroundColor: TimelineColors.background,
         navigationBar: CupertinoNavigationBar(

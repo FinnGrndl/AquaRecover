@@ -94,9 +94,11 @@ class DiveSiteMap extends StatelessWidget {
               label: 'Map data © OpenStreetMap contributors. Show license.',
               excludeSemantics: true,
               child: GestureDetector(
+                // The margin counts too, for a touch target near 44 pt.
+                behavior: HitTestBehavior.opaque,
                 onTap: () => _showAttribution(context),
                 child: Container(
-                  margin: const EdgeInsets.all(8),
+                  margin: const EdgeInsets.all(10),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 4,

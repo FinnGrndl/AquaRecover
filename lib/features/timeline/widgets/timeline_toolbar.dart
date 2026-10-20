@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' show Tooltip;
 
 import '../../editor/widgets/editor_glass_surface.dart';
 import '../timeline_theme.dart';
+import '../../../shared/widgets/mouse_drag_scroll.dart';
 
 /// One item of a [TimelineToolbar].
 class TimelineToolItem {
@@ -107,21 +108,23 @@ class _TimelineToolbarState extends State<TimelineToolbar> {
             final itemWidth = count == 0
                 ? 64.0
                 : (constraints.maxWidth / count).clamp(58.0, 84.0);
-            return SingleChildScrollView(
-              controller: _scroll,
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    for (final item in widget.items)
-                      _ToolButton(
-                        key: item.key ?? Key('timeline_tool_${item.id}'),
-                        item: item,
-                        width: itemWidth,
-                      ),
-                  ],
+            return MouseDragScroll(
+              child: SingleChildScrollView(
+                controller: _scroll,
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      for (final item in widget.items)
+                        _ToolButton(
+                          key: item.key ?? Key('timeline_tool_${item.id}'),
+                          item: item,
+                          width: itemWidth,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             );

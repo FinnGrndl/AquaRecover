@@ -4,6 +4,7 @@ import '../../../core/models/restoration_settings.dart';
 import '../../../core/processing/scene_analyzer.dart';
 import '../editor_tools.dart';
 import 'setting_slider.dart';
+import '../../../shared/widgets/mouse_drag_scroll.dart';
 
 /// Selects a starting profile before individual adjustments are applied.
 class PresetBrowser extends StatelessWidget {
@@ -49,35 +50,37 @@ class PresetBrowser extends StatelessWidget {
           ),
         SizedBox(
           height: kMinInteractiveDimensionCupertino,
-          child: ListView.separated(
-            key: const Key('preset_list'),
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
+          child: MouseDragScroll(
+            child: ListView.separated(
+              key: const Key('preset_list'),
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              itemCount: editorPresetChoices.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final preset = editorPresetChoices[index];
+                return _PresetButton(
+                  preset: preset,
+                  selected: settings.preset == preset,
+                  suggested: suggestion?.suggestedPreset == preset,
+                  enabled: enabled,
+                  onPressed: () {
+                    final strength = preset == RestorationPreset.none
+                        ? 0.0
+                        : settings.preset == RestorationPreset.none
+                        ? 1.0
+                        : settings.presetStrength;
+                    onChanged(
+                      preset
+                          .settingsAtStrength(strength)
+                          .copyWith(jpegQuality: settings.jpegQuality),
+                    );
+                  },
+                );
+              },
             ),
-            itemCount: editorPresetChoices.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final preset = editorPresetChoices[index];
-              return _PresetButton(
-                preset: preset,
-                selected: settings.preset == preset,
-                suggested: suggestion?.suggestedPreset == preset,
-                enabled: enabled,
-                onPressed: () {
-                  final strength = preset == RestorationPreset.none
-                      ? 0.0
-                      : settings.preset == RestorationPreset.none
-                      ? 1.0
-                      : settings.presetStrength;
-                  onChanged(
-                    preset
-                        .settingsAtStrength(strength)
-                        .copyWith(jpegQuality: settings.jpegQuality),
-                  );
-                },
-              );
-            },
           ),
         ),
         SettingSlider(

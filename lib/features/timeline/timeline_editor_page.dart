@@ -96,6 +96,9 @@ class TimelineEditorPage extends StatefulWidget {
   /// Width from which the tool panel becomes an inspector column.
   static const wideLayoutWidth = 760.0;
 
+  /// Width from which a landscape window uses the inspector column too.
+  static const landscapeLayoutWidth = 560.0;
+
   @override
   State<TimelineEditorPage> createState() => _TimelineEditorPageState();
 }
@@ -760,8 +763,10 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoTheme(
-      data: timelineTheme(context),
+    // Read here: inside the page scaffold, which resizes for the keyboard,
+    // the keyboard's inset is already removed.
+    _keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    return TimelineTheme(
       child: CupertinoPageScaffold(
         backgroundColor: TimelineColors.background,
         child: AnnotatedRegion<SystemUiOverlayStyle>(
@@ -780,10 +785,19 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     );
   }
 
+  static const _minViewerHeight = 150.0;
+
+  bool _keyboardOpen = false;
+
   Widget _layout(BuildContext context, BoxConstraints constraints) {
     final insets = MediaQuery.paddingOf(context);
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final wide = constraints.maxWidth >= TimelineEditorPage.wideLayoutWidth;
+    final keyboard = _keyboardOpen;
+    // Landscape phones use the inspector layout too: below the viewer there
+    // is no height left for a tool panel.
+    final wide =
+        constraints.maxWidth >= TimelineEditorPage.wideLayoutWidth ||
+        (constraints.maxWidth > constraints.maxHeight &&
+            constraints.maxWidth >= TimelineEditorPage.landscapeLayoutWidth);
     final gutter = wide ? 20.0 : 12.0;
     final items = _toolbarItems();
     final tool = _openTool(items);
@@ -836,6 +850,21 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     );
 
     if (wide) {
+      // Short windows (landscape phones, small Mac and Windows windows)
+      // shrink the timeline to its thin overview so the viewer keeps some
+      // room and the toolbar stays on screen; very short ones hide it.
+      final fixedWide =
+          insets.top +
+          62 + // top bar
+          52 + // transport
+          8 +
+          (empty ? 12 : TimelineToolbar.height + 12) +
+          insets.bottom;
+      final roomWide = constraints.maxHeight - fixedWide;
+      final compactWide =
+          roomWide - TimelineStrip.heightOf(project) < _minViewerHeight;
+      final hideStripWide =
+          roomWide - TimelineStrip.heightOf(project, compact: true) < 48;
       return Column(
         children: [
           topBar,
@@ -848,7 +877,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                     children: [
                       Expanded(child: _viewerArea()),
                       _transport(gutter, showZoom: true),
-                      strip(),
+                      if (!hideStripWide) strip(compact: compactWide),
                       const SizedBox(height: 8),
                       if (empty)
                         SizedBox(height: insets.bottom + 12)
@@ -866,7 +895,12 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                       insets.bottom + 12,
                     ),
                     child: SizedBox(
-                      width: math.min(400, constraints.maxWidth * .36),
+                      // Wide enough for the export settings in small
+                      // windows and landscape phones.
+                      width: math.min(
+                        400,
+                        math.max(300, constraints.maxWidth * .36),
+                      ),
                       child: panel(double.infinity),
                     ),
                   ),
@@ -906,14 +940,15 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
         insets.bottom +
         6 +
         (tool == null ? 0 : panelHeight + 7);
-    const minViewer = 150.0;
     final compact =
-        available - fixed - TimelineStrip.heightOf(project) < minViewer;
+        available - fixed - TimelineStrip.heightOf(project) < _minViewerHeight;
+    // With a panel open the strip gives way early; without one only when
+    // the window is so short (a keyboard on iPhone SE, say) that even the
+    // thin overview would push the toolbar off screen.
     final hideStrip =
         compact &&
-        tool != null &&
         available - fixed - TimelineStrip.heightOf(project, compact: true) <
-            110;
+            (tool != null ? 110 : 48);
 
     return Column(
       children: [
@@ -1000,60 +1035,63 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
         if (empty)
           Positioned.fill(
             child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Start with your best shots',
-                    style: TextStyle(
-                      color: TimelineColors.text,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
+              child: SingleChildScrollView(
+                // Scrolls in very short windows instead of overflowing.
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Start with your best shots',
+                      style: TextStyle(
+                        color: TimelineColors.text,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Photos and clips play in the order you add them.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: TimelineColors.secondaryText,
-                      fontSize: 13,
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Photos and clips play in the order you add them.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: TimelineColors.secondaryText,
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  CupertinoButton(
-                    key: const Key('timeline_empty_add'),
-                    color: CupertinoColors.activeBlue,
-                    borderRadius: BorderRadius.circular(99),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 11,
-                    ),
-                    onPressed: _addMedia,
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          CupertinoIcons.add,
-                          color: CupertinoColors.white,
-                          size: 18,
-                        ),
-                        SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Add photos and clips',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: CupertinoColors.white,
-                              fontWeight: FontWeight.w600,
+                    const SizedBox(height: 14),
+                    CupertinoButton(
+                      key: const Key('timeline_empty_add'),
+                      color: CupertinoColors.activeBlue,
+                      borderRadius: BorderRadius.circular(99),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 11,
+                      ),
+                      onPressed: _addMedia,
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            CupertinoIcons.add,
+                            color: CupertinoColors.white,
+                            size: 18,
+                          ),
+                          SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Add photos and clips',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: CupertinoColors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

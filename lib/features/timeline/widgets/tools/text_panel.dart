@@ -4,6 +4,7 @@ import '../../../../core/timeline/timeline_project.dart';
 import '../../timeline_controller.dart';
 import '../../timeline_theme.dart';
 import 'tool_controls.dart';
+import '../../../../shared/widgets/mouse_drag_scroll.dart';
 
 /// Edits the selected title: the text in a multi-line field (above the
 /// keyboard), a style, a colour, the alignment, and the size. Typing until
@@ -179,25 +180,29 @@ class _TextPanelState extends State<TextPanel> {
         const SizedBox(height: 8),
         SizedBox(
           height: 44,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              for (final style in TitleStyle.values)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: _StyleChip(
-                    key: Key('timeline_title_style_${style.name}'),
-                    label: TextPanel.styleLabel(style),
-                    selected: title.style == style,
-                    onPressed: () => _setStyle(style),
+          child: MouseDragScroll(
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final style in TitleStyle.values)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: _StyleChip(
+                      key: Key('timeline_title_style_${style.name}'),
+                      label: TextPanel.styleLabel(style),
+                      selected: title.style == style,
+                      onPressed: () => _setStyle(style),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // Wraps in the narrow side panel of iPad and Mac windows rather than
+        // pushing the last swatches out of view.
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
           children: [
             for (final (color, name) in TextPanel.swatches)
               _Swatch(

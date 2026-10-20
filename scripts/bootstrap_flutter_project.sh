@@ -90,6 +90,8 @@ perms = [
     '    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />',
     '    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />',
     '    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />',
+    # Saving to the gallery on Android 7-9 (API 24-28) writes to shared storage.
+    '    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />',
 ]
 missing = [p for p in perms if p not in text]
 if missing:

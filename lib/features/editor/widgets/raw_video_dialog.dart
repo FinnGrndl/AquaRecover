@@ -54,24 +54,37 @@ class _RawVideoDialogState extends State<RawVideoDialog> {
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
-              runSpacing: 6,
               alignment: WrapAlignment.center,
               children: [
                 for (final format in RawVideoDescriptor.commonPixelFormats)
+                  // A 44 pt touch target around the small chip.
                   CupertinoButton(
-                    minimumSize: Size.zero,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 6,
+                    minimumSize: const Size(
+                      kMinInteractiveDimensionCupertino,
+                      kMinInteractiveDimensionCupertino,
                     ),
-                    color: _pixelFormat == format
-                        ? CupertinoTheme.of(
-                            context,
-                          ).primaryColor.withValues(alpha: 0.16)
-                        : CupertinoColors.systemGrey5,
-                    borderRadius: BorderRadius.circular(99),
+                    padding: EdgeInsets.zero,
                     onPressed: () => setState(() => _pixelFormat = format),
-                    child: Text(format, style: const TextStyle(fontSize: 11)),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: _pixelFormat == format
+                            ? CupertinoTheme.of(
+                                context,
+                              ).primaryColor.withValues(alpha: 0.16)
+                            : CupertinoColors.systemGrey5.resolveFrom(context),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        child: Text(
+                          format,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ),
                   ),
               ],
             ),

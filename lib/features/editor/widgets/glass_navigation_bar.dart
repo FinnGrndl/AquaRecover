@@ -78,6 +78,19 @@ class GlassNavigationBar extends StatelessWidget {
         ),
       );
     }
+    // Like a system navigation bar, the 48 pt bar keeps its height and lets
+    // its text grow only a little with larger Dynamic Type sizes, so the title
+    // and subtitle never spill out of it.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: maxTextScale,
+      child: _bar(titleBlock),
+    );
+  }
+
+  /// The largest text scale the bar's labels follow.
+  static const maxTextScale = 1.1;
+
+  Widget _bar(Widget titleBlock) {
     return SizedBox(
       height: 48,
       child: Stack(

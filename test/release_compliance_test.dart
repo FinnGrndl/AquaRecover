@@ -28,6 +28,36 @@ void main() {
     }
   });
 
+  test('Android can save exports to the gallery on Android 7 to 9', () {
+    const write =
+        '<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />';
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+    expect(manifest, contains(write));
+    // The bootstrap script regenerates the manifest with the same list.
+    final bootstrap = File(
+      'scripts/bootstrap_flutter_project.sh',
+    ).readAsStringSync();
+    final declared = RegExp(
+      r'<uses-permission android:name="[^"]+"[^>]*/>',
+    ).allMatches(manifest).map((m) => m.group(0)!);
+    for (final permission in declared) {
+      expect(bootstrap, contains(permission));
+    }
+  });
+
+  test('desktop windows keep a minimum size', () {
+    expect(
+      File('macos/Runner/MainFlutterWindow.swift').readAsStringSync(),
+      contains('contentMinSize'),
+    );
+    expect(
+      File('windows/runner/win32_window.cpp').readAsStringSync(),
+      contains('ptMinTrackSize'),
+    );
+  });
+
   test('macOS Info.plist has the Mac App Store category and export flag', () {
     final plist = File('macos/Runner/Info.plist').readAsStringSync();
     expect(

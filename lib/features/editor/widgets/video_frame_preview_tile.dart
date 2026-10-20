@@ -22,6 +22,10 @@ class VideoFramePreviewTile extends StatefulWidget {
   final RestorationSettings? settings;
   final String caption;
   final Duration? position;
+
+  /// Reports the video's duration once it is open, or [Duration.zero] when
+  /// this device cannot open it (Windows has no `video_player`), so callers
+  /// can stop waiting for it.
   final ValueChanged<Duration>? onDurationKnown;
   final bool showCaption;
 
@@ -96,6 +100,11 @@ class _VideoFramePreviewTileState extends State<VideoFramePreviewTile> {
       await controller.pause();
       if (mounted) setState(() {});
     });
+    _initFuture!.catchError((Object _) {
+      if (mounted && identical(controller, _controller)) {
+        widget.onDurationKnown?.call(Duration.zero);
+      }
+    });
   }
 
   void _queueSeek(Duration position) {
@@ -142,7 +151,18 @@ class _VideoFramePreviewTileState extends State<VideoFramePreviewTile> {
           return const Center(child: CupertinoActivityIndicator());
         }
         if (snapshot.hasError || !controller.value.isInitialized) {
-          return const Center(child: Text('Video frame preview unavailable.'));
+          // Light text: the tile sits on black, and on Windows, which has
+          // no video_player, this is what people see.
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(12),
+              child: Text(
+                'Video frame preview unavailable.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Color(0xb8ffffff)),
+              ),
+            ),
+          );
         }
         final aspectRatio = controller.value.aspectRatio <= 0
             ? 16 / 9

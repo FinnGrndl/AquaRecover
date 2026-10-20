@@ -4,6 +4,7 @@ import '../../core/logbook/dive_log.dart';
 import '../timeline/timeline_theme.dart';
 import 'logbook_controller.dart';
 import 'logbook_widgets.dart';
+import '../../shared/widgets/sheet_width.dart';
 
 /// Adds a dive by hand or edits one.
 class DiveEditPage extends StatefulWidget {
@@ -63,8 +64,7 @@ class _DiveEditPageState extends State<DiveEditPage> {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoTheme(
-      data: timelineTheme(context),
+    return TimelineTheme(
       child: CupertinoPageScaffold(
         backgroundColor: TimelineColors.background,
         navigationBar: CupertinoNavigationBar(
@@ -199,32 +199,35 @@ class _DiveEditPageState extends State<DiveEditPage> {
   void _pickDate() {
     showCupertinoModalPopup<void>(
       context: context,
-      builder: (popup) => Container(
-        height: 300,
-        color: const Color(0xff1c1c1e),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: CupertinoButton(
-                  minimumSize: const Size(44, 44),
-                  onPressed: () => Navigator.of(popup).pop(),
-                  child: const Text('Done'),
-                ),
-              ),
-              Expanded(
-                child: CupertinoTheme(
-                  data: timelineTheme(context),
-                  child: CupertinoDatePicker(
-                    initialDateTime: _start,
-                    use24hFormat: true,
-                    onDateTimeChanged: (t) => setState(() => _start = t),
+      builder: (popup) => SheetWidth(
+        maxWidth: 520,
+        child: Container(
+          height: 300,
+          color: const Color(0xff1c1c1e),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: CupertinoButton(
+                    minimumSize: const Size(44, 44),
+                    onPressed: () => Navigator.of(popup).pop(),
+                    child: const Text('Done'),
                   ),
                 ),
-              ),
-            ],
+                Expanded(
+                  child: CupertinoTheme(
+                    data: timelineTheme(context),
+                    child: CupertinoDatePicker(
+                      initialDateTime: _start,
+                      use24hFormat: true,
+                      onDateTimeChanged: (t) => setState(() => _start = t),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

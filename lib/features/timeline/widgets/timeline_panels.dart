@@ -7,6 +7,7 @@ import '../../editor/widgets/precision_wheel.dart';
 import '../timeline_controller.dart';
 import '../timeline_theme.dart';
 import 'tools/tool_controls.dart';
+import '../../../shared/widgets/mouse_drag_scroll.dart';
 
 /// One adjustable grade parameter on the Color page.
 class GradeControl {
@@ -241,13 +242,15 @@ class _ChipRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 48,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-        children: [
-          for (final child in children)
-            Padding(padding: const EdgeInsets.only(right: 6), child: child),
-        ],
+      child: MouseDragScroll(
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+          children: [
+            for (final child in children)
+              Padding(padding: const EdgeInsets.only(right: 6), child: child),
+          ],
+        ),
       ),
     );
   }
@@ -513,13 +516,20 @@ class DeliverPanel extends StatelessWidget {
 
   /// A segment label. Its explicit color overrides the control's own
   /// disabled style, so a disabled label dims itself.
+  /// Shrinks a little in the narrow inspector of small iPad and Mac
+  /// windows instead of breaking "16:9" or "1080p" over two lines.
   static Widget _segmentText(String text, {required bool enabled}) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 4),
-    child: Text(
-      text,
-      style: TextStyle(
-        color: TimelineColors.text.withValues(alpha: enabled ? 1 : .38),
-        fontSize: 13,
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        text,
+        maxLines: 1,
+        softWrap: false,
+        style: TextStyle(
+          color: TimelineColors.text.withValues(alpha: enabled ? 1 : .38),
+          fontSize: 13,
+        ),
       ),
     ),
   );

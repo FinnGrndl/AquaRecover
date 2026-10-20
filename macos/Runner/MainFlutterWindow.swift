@@ -7,6 +7,9 @@ class MainFlutterWindow: NSWindow {
     let windowFrame = self.frame
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
+    // Below this size the editor, movie editor and logbook no longer fit
+    // their controls.
+    self.contentMinSize = NSSize(width: 480, height: 360)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     RawBridge.register(binaryMessenger: flutterViewController.engine.binaryMessenger)

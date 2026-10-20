@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import '../../../shared/reduce_motion.dart';
 import '../editor_tools.dart';
 import 'editor_glass_surface.dart';
+import '../../../shared/widgets/scrollbar_list_view.dart';
 
 class EditorCollapsedPanelButton extends StatelessWidget {
   const EditorCollapsedPanelButton({
@@ -129,9 +130,7 @@ class GlassBottomPanel extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               if (scrollable)
-                CupertinoScrollbar(
-                  child: ListView(padding: contentPadding, children: [child]),
-                )
+                ScrollbarListView(padding: contentPadding, children: [child])
               else
                 Padding(padding: contentPadding, child: child),
               Positioned(
