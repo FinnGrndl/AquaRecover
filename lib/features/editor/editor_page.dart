@@ -34,6 +34,7 @@ import '../../core/processing/image_restoration_service.dart';
 import '../../core/processing/video_restoration_service.dart';
 import '../../core/workflow/editor_workflow.dart';
 import '../library/export_library_page.dart';
+import '../logbook/logbook_page.dart';
 import '../../shared/reduce_motion.dart';
 import '../../shared/widgets/ocean_backdrop.dart';
 import 'edit_history.dart';
@@ -456,7 +457,7 @@ class _EditorPageState extends State<EditorPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Shrinks a little rather than breaking the name on narrow
-              // phones next to the three 44 pt buttons.
+              // phones next to the four 44 pt buttons.
               const FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
@@ -499,6 +500,26 @@ class _EditorPageState extends State<EditorPage> {
                 onPressed: _openMovies,
                 child: const Icon(
                   CupertinoIcons.film,
+                  color: CupertinoColors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: 'Dive logbook',
+              child: CupertinoButton(
+                key: const Key('start_logbook'),
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(
+                  kMinInteractiveDimensionCupertino,
+                  kMinInteractiveDimensionCupertino,
+                ),
+                borderRadius: BorderRadius.circular(99),
+                color: CupertinoColors.white.withValues(alpha: .11),
+                onPressed: _openLogbook,
+                child: const Icon(
+                  CupertinoIcons.book,
                   color: CupertinoColors.white,
                   size: 20,
                 ),
@@ -3512,6 +3533,12 @@ class _EditorPageState extends State<EditorPage> {
       name: TimelineProjectsPage.defaultName(DateTime.now()),
     );
     await TimelineProjectsPage.open(context, project);
+  }
+
+  void _openLogbook() {
+    Navigator.of(
+      context,
+    ).push(CupertinoPageRoute<void>(builder: (_) => const LogbookPage()));
   }
 
   void _openLocalExports() {
