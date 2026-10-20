@@ -216,24 +216,28 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
     return ColoredBox(
       color: CupertinoColors.black,
       child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _error == null
-                  ? CupertinoIcons.wand_stars
-                  : CupertinoIcons.exclamationmark_triangle,
-              color: secondary,
-              size: 34,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error == null ? 'Rendering preview' : 'Preview unavailable',
-              style: CupertinoTheme.of(
-                context,
-              ).textTheme.textStyle.copyWith(color: secondary),
-            ),
-          ],
+        // Shrinks inside the small movie viewer of short windows.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _error == null
+                    ? CupertinoIcons.wand_stars
+                    : CupertinoIcons.exclamationmark_triangle,
+                color: secondary,
+                size: 34,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error == null ? 'Rendering preview' : 'Preview unavailable',
+                style: CupertinoTheme.of(
+                  context,
+                ).textTheme.textStyle.copyWith(color: secondary),
+              ),
+            ],
+          ),
         ),
       ),
     );

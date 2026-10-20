@@ -58,7 +58,18 @@ class _VideoPreviewTileState extends State<VideoPreviewTile> {
           return const Center(child: CupertinoActivityIndicator());
         }
         if (snapshot.hasError || !controller.value.isInitialized) {
-          return const Center(child: Text('Video preview unavailable.'));
+          // Light text: the tile sits on black, and on Windows, which has
+          // no video_player, this is what people see.
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(12),
+              child: Text(
+                'Video preview unavailable.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Color(0xb8ffffff)),
+              ),
+            ),
+          );
         }
         return Stack(
           alignment: Alignment.center,

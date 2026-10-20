@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
 import '../../../shared/reduce_motion.dart';
+import '../../../shared/widgets/mouse_drag_scroll.dart';
 
 /// A horizontally scrolling, discrete value wheel inspired by Apple Photos.
 ///
@@ -275,25 +276,28 @@ class _PrecisionWheelState extends State<PrecisionWheel> {
                           final horizontalPadding =
                               (constraints.maxWidth - _tickSpacing) / 2;
                           return ExcludeSemantics(
-                            child: ListView.builder(
-                              controller: _scrollController,
-                              scrollDirection: Axis.horizontal,
-                              physics: _enabled
-                                  ? const BouncingScrollPhysics(
-                                      parent: AlwaysScrollableScrollPhysics(),
-                                    )
-                                  : const NeverScrollableScrollPhysics(),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: horizontalPadding,
-                              ),
-                              itemExtent: _tickSpacing,
-                              itemCount: _divisionCount + 1,
-                              itemBuilder: (context, index) => GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: _enabled
-                                    ? () => _selectIndex(index)
-                                    : null,
-                                child: const SizedBox.expand(),
+                            child: MouseDragScroll(
+                              child: ListView.builder(
+                                controller: _scrollController,
+                                scrollDirection: Axis.horizontal,
+                                physics: _enabled
+                                    ? const BouncingScrollPhysics(
+                                        parent: AlwaysScrollableScrollPhysics(),
+                                      )
+                                    : const NeverScrollableScrollPhysics(),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: horizontalPadding,
+                                ),
+                                itemExtent: _tickSpacing,
+                                itemCount: _divisionCount + 1,
+                                itemBuilder: (context, index) =>
+                                    GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: _enabled
+                                          ? () => _selectIndex(index)
+                                          : null,
+                                      child: const SizedBox.expand(),
+                                    ),
                               ),
                             ),
                           );

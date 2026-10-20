@@ -41,41 +41,50 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
           brightness: Brightness.dark,
           scaffoldBackgroundColor: const Color(0xff0b1115),
         ),
-        child: Stack(
-          children: [
-            CustomScrollView(
-              slivers: [
-                CupertinoSliverNavigationBar(
-                  largeTitle: const Text('Local Exports'),
-                  backgroundColor: const Color(
-                    0xff0b1115,
-                  ).withValues(alpha: .92),
-                  border: null,
-                  trailing: _items.isEmpty
-                      ? null
-                      : CupertinoButton(
-                          key: const Key('local_export_selection_mode'),
-                          padding: EdgeInsets.zero,
-                          onPressed: _deleting ? null : _toggleSelectionMode,
-                          child: Text(_selectionMode ? 'Cancel' : 'Select'),
-                        ),
+        child: Builder(
+          // The app's light text style is still the default here; without
+          // this, file names draw black on the dark tiles.
+          builder: (context) => DefaultTextStyle(
+            style: CupertinoTheme.of(context).textTheme.textStyle,
+            child: Stack(
+              children: [
+                CustomScrollView(
+                  slivers: [
+                    CupertinoSliverNavigationBar(
+                      largeTitle: const Text('Local Exports'),
+                      backgroundColor: const Color(
+                        0xff0b1115,
+                      ).withValues(alpha: .92),
+                      border: null,
+                      trailing: _items.isEmpty
+                          ? null
+                          : CupertinoButton(
+                              key: const Key('local_export_selection_mode'),
+                              padding: EdgeInsets.zero,
+                              onPressed: _deleting
+                                  ? null
+                                  : _toggleSelectionMode,
+                              child: Text(_selectionMode ? 'Cancel' : 'Select'),
+                            ),
+                    ),
+                    CupertinoSliverRefreshControl(
+                      onRefresh: () => _reload(showLoading: false),
+                    ),
+                    if (!_loading && _loadError == null && _items.isNotEmpty)
+                      SliverToBoxAdapter(child: _libraryToolbar()),
+                    _libraryContent(),
+                  ],
                 ),
-                CupertinoSliverRefreshControl(
-                  onRefresh: () => _reload(showLoading: false),
-                ),
-                if (!_loading && _loadError == null && _items.isNotEmpty)
-                  SliverToBoxAdapter(child: _libraryToolbar()),
-                _libraryContent(),
+                if (_selectionMode && _items.isNotEmpty)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _selectionActionBar(),
+                  ),
               ],
             ),
-            if (_selectionMode && _items.isNotEmpty)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: _selectionActionBar(),
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -107,8 +116,10 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
     return SliverPadding(
       padding: EdgeInsets.fromLTRB(16, 8, 16, _selectionMode ? 116 : 32),
       sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
+        // Two columns on phones, more on iPad, Mac and Windows windows,
+        // so tiles never grow to half a desktop window.
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 220,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
           childAspectRatio: .78,
@@ -128,11 +139,14 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
         padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
         child: Row(
           children: [
-            Text(
-              '${_selectedPaths.length} selected',
-              style: const TextStyle(color: CupertinoColors.systemGrey),
+            Expanded(
+              child: Text(
+                '${_selectedPaths.length} selected',
+                style: const TextStyle(color: CupertinoColors.systemGrey),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            const Spacer(),
             CupertinoButton(
               key: const Key('local_export_select_all'),
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -151,11 +165,14 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
       padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
       child: Row(
         children: [
-          Text(
-            '${_items.length} local export${_items.length == 1 ? '' : 's'}',
-            style: const TextStyle(color: CupertinoColors.systemGrey),
+          Expanded(
+            child: Text(
+              '${_items.length} local export${_items.length == 1 ? '' : 's'}',
+              style: const TextStyle(color: CupertinoColors.systemGrey),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          const Spacer(),
           CupertinoButton(
             key: const Key('delete_all_local_exports'),
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -191,6 +208,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: CupertinoButton(
             key: const Key('delete_selected_local_exports'),
+            foregroundColor: CupertinoColors.white,
             color: count == 0
                 ? CupertinoColors.systemGrey
                 : CupertinoColors.destructiveRed,

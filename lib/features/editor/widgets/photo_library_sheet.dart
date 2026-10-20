@@ -5,6 +5,8 @@ import 'package:photo_manager/photo_manager.dart';
 
 import '../../../core/photo/photo_library_service.dart';
 import '../../../core/utils/bounded_concurrency.dart';
+import '../../../shared/widgets/mouse_drag_scroll.dart';
+import '../../../shared/widgets/sheet_width.dart';
 
 class PhotoLibrarySheet extends StatefulWidget {
   const PhotoLibrarySheet({
@@ -167,18 +169,21 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPopupSurface(
-      isSurfacePainted: true,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.86,
-          child: Column(
-            children: [
-              _header(context),
-              if (_albums.length > 1) _albumStrip(context),
-              Expanded(child: _body(context)),
-            ],
+    return SheetWidth(
+      maxWidth: 960,
+      child: CupertinoPopupSurface(
+        isSurfacePainted: true,
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.86,
+            child: Column(
+              children: [
+                _header(context),
+                if (_albums.length > 1) _albumStrip(context),
+                Expanded(child: _body(context)),
+              ],
+            ),
           ),
         ),
       ),
@@ -216,24 +221,28 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
   );
   Widget _albumStrip(BuildContext context) => SizedBox(
     height: 48,
-    child: ListView.separated(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemBuilder: (context, index) {
-        final album = _albums[index];
-        final selected = album.id == _album?.id;
-        return CupertinoButton(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          color: selected
-              ? CupertinoTheme.of(context).primaryColor.withValues(alpha: 0.16)
-              : null,
-          borderRadius: BorderRadius.circular(99),
-          onPressed: selected ? null : () => _changeAlbum(album),
-          child: Text(album.name),
-        );
-      },
-      separatorBuilder: (_, _) => const SizedBox(width: 6),
-      itemCount: _albums.length,
+    child: MouseDragScroll(
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemBuilder: (context, index) {
+          final album = _albums[index];
+          final selected = album.id == _album?.id;
+          return CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            color: selected
+                ? CupertinoTheme.of(
+                    context,
+                  ).primaryColor.withValues(alpha: 0.16)
+                : null,
+            borderRadius: BorderRadius.circular(99),
+            onPressed: selected ? null : () => _changeAlbum(album),
+            child: Text(album.name),
+          );
+        },
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        itemCount: _albums.length,
+      ),
     ),
   );
   Widget _body(BuildContext context) {
@@ -242,8 +251,9 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
     }
     if (_error != null) {
       final permissionError = _permissionError;
+      // Scrolls in short landscape and desktop windows.
       return Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,

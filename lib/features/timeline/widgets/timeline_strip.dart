@@ -11,6 +11,7 @@ import '../../../core/timeline/timeline_project.dart';
 import '../timeline_controller.dart';
 import '../timeline_theme.dart';
 import 'tools/transition_panel.dart';
+import '../../../shared/widgets/mouse_drag_scroll.dart';
 
 /// Pixels per second of the timeline, shared by the strip and the zoom
 /// buttons in the transport row.
@@ -793,12 +794,14 @@ class _TimelineStripState extends State<TimelineStrip> {
                       (TimelineStrip.leadingWidth + 22) / bounds.width,
                     ],
                   ).createShader(bounds),
-                  child: SingleChildScrollView(
-                    key: const Key('timeline_strip_scroll'),
-                    controller: _scroll,
-                    scrollDirection: Axis.horizontal,
-                    physics: const ClampingScrollPhysics(),
-                    child: content,
+                  child: MouseDragScroll(
+                    child: SingleChildScrollView(
+                      key: const Key('timeline_strip_scroll'),
+                      controller: _scroll,
+                      scrollDirection: Axis.horizontal,
+                      physics: const ClampingScrollPhysics(),
+                      child: content,
+                    ),
                   ),
                 ),
               ),

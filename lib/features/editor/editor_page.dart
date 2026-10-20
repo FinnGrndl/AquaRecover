@@ -57,6 +57,7 @@ import 'widgets/setting_slider.dart';
 import 'widgets/video_frame_preview_tile.dart';
 import '../timeline/movie_from_queue.dart';
 import '../timeline/timeline_projects_page.dart';
+import '../../shared/widgets/scrollbar_list_view.dart';
 
 typedef PhotoMediaPicker = Future<List<String>> Function();
 
@@ -110,6 +111,7 @@ class _EditorPageState extends State<EditorPage> {
   final _trimEndController = TextEditingController();
   final Map<String, Duration> _videoPreviewPositions = {};
   final Map<String, Duration> _videoDurations = {};
+  final Set<String> _videoPreviewUnavailable = {};
 
   List<MediaJob> _jobs = const [];
   Map<String, MediaEditState> _editStates = {};
@@ -390,34 +392,32 @@ class _EditorPageState extends State<EditorPage> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final wide = constraints.maxWidth >= 720;
-                  return CupertinoScrollbar(
-                    child: ListView(
-                      padding: EdgeInsets.fromLTRB(
-                        wide ? 40 : 22,
-                        12,
-                        wide ? 40 : 22,
-                        32,
-                      ),
-                      children: [
-                        Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 680),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _importHeader(),
-                                SizedBox(height: wide ? 54 : 42),
-                                _importStep(),
-                                if (_shouldShowStartStatus) ...[
-                                  const SizedBox(height: 16),
-                                  _statusPanel(),
-                                ],
+                  return ScrollbarListView(
+                    padding: EdgeInsets.fromLTRB(
+                      wide ? 40 : 22,
+                      12,
+                      wide ? 40 : 22,
+                      32,
+                    ),
+                    children: [
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 680),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _importHeader(),
+                              SizedBox(height: wide ? 54 : 42),
+                              _importStep(),
+                              if (_shouldShowStartStatus) ...[
+                                const SizedBox(height: 16),
+                                _statusPanel(),
                               ],
-                            ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -429,143 +429,170 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _importHeader() {
-    return Row(
-      children: [
-        Container(
-          width: 54,
-          height: 54,
-          padding: const EdgeInsets.all(2.5),
-          decoration: BoxDecoration(
-            color: CupertinoColors.white.withValues(alpha: .16),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: CupertinoColors.white.withValues(alpha: .28),
-            ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(13.5),
-            child: Image.asset(
-              'assets/branding/aquarecover_app_icon.png',
-              key: const Key('start_brand_icon'),
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Shrinks a little rather than breaking the name on narrow
-              // phones next to the four 44 pt buttons.
-              const FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'AquaRecover',
-                  maxLines: 1,
-                  style: TextStyle(
-                    color: CupertinoColors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -.3,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Private, on-device restoration',
-                style: TextStyle(
-                  color: CupertinoColors.white.withValues(alpha: .65),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The brand needs room next to the icon and the four 44 pt
+        // buttons. On narrow phones and with large text, the buttons move to
+        // their own row instead of squeezing the name into a sliver.
+        const iconAndButtons =
+            54 + 13 + 4 * kMinInteractiveDimensionCupertino + 3 * 8;
+        final stacked =
+            constraints.maxWidth - iconAndButtons <
+            MediaQuery.textScalerOf(context).scale(72);
+        final brand = Row(
           children: [
-            Tooltip(
-              message: 'Movies',
-              child: CupertinoButton(
-                key: const Key('start_movies'),
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(
-                  kMinInteractiveDimensionCupertino,
-                  kMinInteractiveDimensionCupertino,
-                ),
-                borderRadius: BorderRadius.circular(99),
-                color: CupertinoColors.white.withValues(alpha: .11),
-                onPressed: _openMovies,
-                child: const Icon(
-                  CupertinoIcons.film,
-                  color: CupertinoColors.white,
-                  size: 20,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Tooltip(
-              message: 'Dive logbook',
-              child: CupertinoButton(
-                key: const Key('start_logbook'),
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(
-                  kMinInteractiveDimensionCupertino,
-                  kMinInteractiveDimensionCupertino,
-                ),
-                borderRadius: BorderRadius.circular(99),
-                color: CupertinoColors.white.withValues(alpha: .11),
-                onPressed: _openLogbook,
-                child: const Icon(
-                  CupertinoIcons.book,
-                  color: CupertinoColors.white,
-                  size: 20,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Tooltip(
-              message: 'Local exports',
-              child: CupertinoButton(
-                key: const Key('start_local_exports'),
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(
-                  kMinInteractiveDimensionCupertino,
-                  kMinInteractiveDimensionCupertino,
-                ),
-                borderRadius: BorderRadius.circular(99),
-                color: CupertinoColors.white.withValues(alpha: .11),
-                onPressed: _openLocalExports,
-                child: const Icon(
-                  CupertinoIcons.folder,
-                  color: CupertinoColors.white,
-                  size: 20,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Tooltip(
-              message: 'About AquaRecover',
-              child: CupertinoButton(
-                key: const Key('start_about'),
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(
-                  kMinInteractiveDimensionCupertino,
-                  kMinInteractiveDimensionCupertino,
-                ),
-                borderRadius: BorderRadius.circular(99),
-                color: CupertinoColors.white.withValues(alpha: .11),
-                onPressed: _showAbout,
-                child: const Icon(
-                  CupertinoIcons.info,
-                  color: CupertinoColors.white,
-                  size: 20,
-                ),
-              ),
-            ),
+            _brandIcon(),
+            const SizedBox(width: 13),
+            _brandName(),
+            if (!stacked) _startShortcuts(),
           ],
+        );
+        if (!stacked) return brand;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [brand, const SizedBox(height: 14), _startShortcuts()],
+        );
+      },
+    );
+  }
+
+  Widget _brandIcon() {
+    return Container(
+      width: 54,
+      height: 54,
+      padding: const EdgeInsets.all(2.5),
+      decoration: BoxDecoration(
+        color: CupertinoColors.white.withValues(alpha: .16),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: CupertinoColors.white.withValues(alpha: .28)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13.5),
+        child: Image.asset(
+          'assets/branding/aquarecover_app_icon.png',
+          key: const Key('start_brand_icon'),
+          fit: BoxFit.cover,
+        ),
+      ),
+    );
+  }
+
+  Widget _brandName() {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Shrinks a little rather than breaking the name on narrow
+          // phones next to the four 44 pt buttons.
+          const FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'AquaRecover',
+              maxLines: 1,
+              style: TextStyle(
+                color: CupertinoColors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -.3,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Private, on-device restoration',
+            style: TextStyle(
+              color: CupertinoColors.white.withValues(alpha: .65),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _startShortcuts() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Tooltip(
+          message: 'Movies',
+          child: CupertinoButton(
+            key: const Key('start_movies'),
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(
+              kMinInteractiveDimensionCupertino,
+              kMinInteractiveDimensionCupertino,
+            ),
+            borderRadius: BorderRadius.circular(99),
+            color: CupertinoColors.white.withValues(alpha: .11),
+            onPressed: _openMovies,
+            child: const Icon(
+              CupertinoIcons.film,
+              color: CupertinoColors.white,
+              size: 20,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Tooltip(
+          message: 'Dive logbook',
+          child: CupertinoButton(
+            key: const Key('start_logbook'),
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(
+              kMinInteractiveDimensionCupertino,
+              kMinInteractiveDimensionCupertino,
+            ),
+            borderRadius: BorderRadius.circular(99),
+            color: CupertinoColors.white.withValues(alpha: .11),
+            onPressed: _openLogbook,
+            child: const Icon(
+              CupertinoIcons.book,
+              color: CupertinoColors.white,
+              size: 20,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Tooltip(
+          message: 'Local exports',
+          child: CupertinoButton(
+            key: const Key('start_local_exports'),
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(
+              kMinInteractiveDimensionCupertino,
+              kMinInteractiveDimensionCupertino,
+            ),
+            borderRadius: BorderRadius.circular(99),
+            color: CupertinoColors.white.withValues(alpha: .11),
+            onPressed: _openLocalExports,
+            child: const Icon(
+              CupertinoIcons.folder,
+              color: CupertinoColors.white,
+              size: 20,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Tooltip(
+          message: 'About AquaRecover',
+          child: CupertinoButton(
+            key: const Key('start_about'),
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(
+              kMinInteractiveDimensionCupertino,
+              kMinInteractiveDimensionCupertino,
+            ),
+            borderRadius: BorderRadius.circular(99),
+            color: CupertinoColors.white.withValues(alpha: .11),
+            onPressed: _showAbout,
+            child: const Icon(
+              CupertinoIcons.info,
+              color: CupertinoColors.white,
+              size: 20,
+            ),
+          ),
         ),
       ],
     );
@@ -659,16 +686,14 @@ class _EditorPageState extends State<EditorPage> {
               primaryColor: CupertinoColors.activeBlue,
             ),
             child: Builder(
-              builder: (panelContext) => CupertinoScrollbar(
-                child: ListView(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    wide ? 16 : 20,
-                    16,
-                    wide ? 18 : bottomInset + 24,
-                  ),
-                  children: [_exportStep(panelContext, showActions: false)],
+              builder: (panelContext) => ScrollbarListView(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  wide ? 16 : 20,
+                  16,
+                  wide ? 18 : bottomInset + 24,
                 ),
+                children: [_exportStep(panelContext, showActions: false)],
               ),
             ),
           ),
@@ -694,15 +719,9 @@ class _EditorPageState extends State<EditorPage> {
         brightness: Brightness.dark,
         primaryColor: CupertinoColors.activeBlue,
       ),
-      child: CupertinoScrollbar(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-          children: [
-            _statusPanel(),
-            const SizedBox(height: 12),
-            _queueSection(),
-          ],
-        ),
+      child: ScrollbarListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+        children: [_statusPanel(), const SizedBox(height: 12), _queueSection()],
       ),
     );
   }
@@ -756,7 +775,12 @@ class _EditorPageState extends State<EditorPage> {
               children: [
                 Icon(CupertinoIcons.photo_on_rectangle, size: 20),
                 SizedBox(width: 8),
-                Text('Choose from Photos'),
+                Flexible(
+                  child: Text(
+                    'Choose from Photos',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ],
             ),
           ),
@@ -776,9 +800,12 @@ class _EditorPageState extends State<EditorPage> {
                 color: CupertinoColors.white,
               ),
               SizedBox(width: 8),
-              Text(
-                'Import Files',
-                style: TextStyle(color: CupertinoColors.white),
+              Flexible(
+                child: Text(
+                  'Import Files',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: CupertinoColors.white),
+                ),
               ),
             ],
           ),
@@ -799,11 +826,14 @@ class _EditorPageState extends State<EditorPage> {
                   color: CupertinoColors.white,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  _jobs.length == 1
-                      ? 'Make a movie'
-                      : 'Make a movie from ${_jobs.length} items',
-                  style: const TextStyle(color: CupertinoColors.white),
+                Flexible(
+                  child: Text(
+                    _jobs.length == 1
+                        ? 'Make a movie'
+                        : 'Make a movie from ${_jobs.length} items',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: CupertinoColors.white),
+                  ),
                 ),
               ],
             ),
@@ -820,9 +850,12 @@ class _EditorPageState extends State<EditorPage> {
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'Edit selected',
-                  style: TextStyle(color: CupertinoColors.white),
+                Flexible(
+                  child: Text(
+                    'Edit selected',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: CupertinoColors.white),
+                  ),
                 ),
                 SizedBox(width: 7),
                 Icon(
@@ -2068,13 +2101,22 @@ class _EditorPageState extends State<EditorPage> {
                     Duration(milliseconds: (value * 1000).round()),
                   ),
           ),
+        ] else if (job?.kind == MediaKind.video &&
+            _videoPreviewUnavailable.contains(job!.id)) ...[
+          const SizedBox(height: 10),
+          Text(
+            'Frame preview is not available for this video on this device.',
+            key: const Key('video_preview_unavailable'),
+            style: _secondaryText(panelContext),
+          ),
+          const SizedBox(height: 8),
         ] else if (job?.kind == MediaKind.video) ...[
           const SizedBox(height: 10),
           const Row(
             children: [
               CupertinoActivityIndicator(),
               SizedBox(width: 9),
-              Text('Preparing video timeline…'),
+              Flexible(child: Text('Preparing video timeline…')),
             ],
           ),
           const SizedBox(height: 8),
@@ -2133,7 +2175,12 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   void _setVideoDuration(String jobId, Duration duration) {
-    if (!mounted || duration <= Duration.zero) return;
+    if (!mounted) return;
+    if (duration <= Duration.zero) {
+      // The frame preview cannot open this video on this device.
+      if (_videoPreviewUnavailable.add(jobId)) setState(() {});
+      return;
+    }
     final existingDuration = _videoDurations[jobId];
     final existingPosition = _videoPreviewPositions[jobId];
     final nextPosition = VideoFramePreviewTile.clampPosition(
@@ -3298,6 +3345,7 @@ class _EditorPageState extends State<EditorPage> {
     _histories.remove(id);
     _videoPreviewPositions.remove(id);
     _videoDurations.remove(id);
+    _videoPreviewUnavailable.remove(id);
     _jobs = result.jobs;
     _selectedIndex = result.selectedIndex;
     if (_jobs.isNotEmpty) _loadEditStateForIndex(_selectedIndex);
