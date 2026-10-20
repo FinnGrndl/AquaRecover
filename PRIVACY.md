@@ -1,6 +1,6 @@
 # Privacy policy
 
-Last updated: 2026-08-05
+Last updated: 2026-10-20
 
 AquaRecover processes selected photos and videos on the device. The app does not
 create an account and does not send media, edit settings, identifiers, usage
@@ -19,6 +19,15 @@ Exports and `.aquarecover.json` edit sidecars are stored in the app's documents
 directory. An export can also be added to Photos when the user asks for it. The
 files remain under the user's control and can be removed through the operating
 system or by deleting the application container.
+
+## Dive logbook
+
+The dive logbook is stored only on the device and links photos and videos
+without copying them. When the user asks it to find photos taken during a
+dive, it requests photo-library access and reads capture times on the device.
+Its map loads map tiles from OpenStreetMap, so the map
+provider sees the viewed map area and the device's IP address. Logbook exports
+(GPX, UDDF, GeoJSON) are saved only where the user chooses.
 
 ## Collection and sharing
 

@@ -85,6 +85,7 @@ text = re.sub(
     count=1,
 )
 perms = [
+    '    <uses-permission android:name="android.permission.INTERNET" />',
     '    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />',
     '    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />',
     '    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />',
