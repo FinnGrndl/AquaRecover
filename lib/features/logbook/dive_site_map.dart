@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../core/legal/app_licenses.dart';
 import '../../core/logbook/dive_log.dart';
 import '../../shared/reduce_motion.dart';
 import '../timeline/timeline_theme.dart';
@@ -88,21 +89,53 @@ class DiveSiteMap extends StatelessWidget {
           right: 0,
           bottom: 0,
           child: SafeArea(
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: CupertinoColors.black.withValues(alpha: .7),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                '© OpenStreetMap contributors',
-                style: TextStyle(color: CupertinoColors.white, fontSize: 11),
+            child: Semantics(
+              button: true,
+              label: 'Map data © OpenStreetMap contributors. Show license.',
+              excludeSemantics: true,
+              child: GestureDetector(
+                onTap: () => _showAttribution(context),
+                child: Container(
+                  margin: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.black.withValues(alpha: .7),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    '© OpenStreetMap contributors',
+                    style: TextStyle(
+                      color: CupertinoColors.white,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  static void _showAttribution(BuildContext context) {
+    showCupertinoDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('OpenStreetMap'),
+        content: const Text(openStreetMapNotice),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
     );
   }
 }

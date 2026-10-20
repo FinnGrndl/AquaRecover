@@ -42,3 +42,4 @@ flutter:
   assets:
     - LICENSE
     - assets/branding/aquarecover_app_icon.png
+    - assets/licenses/APACHE-2.0.txt

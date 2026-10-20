@@ -10,6 +10,18 @@
   <key>NSPrivacyCollectedDataTypes</key>
   <array/>
   <key>NSPrivacyAccessedAPITypes</key>
-  <array/>
+  <array>
+    <!-- File dates order exports and saved timelines in the app container
+         (C617.1) and date media and LUT files the user picked (3B52.1). -->
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <string>C617.1</string>
+        <string>3B52.1</string>
+      </array>
+    </dict>
+  </array>
 </dict>
 </plist>

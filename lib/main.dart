@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 
+import 'core/legal/app_licenses.dart';
 import 'core/persistence/first_run_tutorial_store.dart';
 import 'features/editor/editor_page.dart';
 import 'features/editor/editor_tools.dart';
@@ -9,10 +8,7 @@ import 'features/onboarding/first_run_tutorial_gate.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  LicenseRegistry.addLicense(() async* {
-    final license = await rootBundle.loadString('LICENSE');
-    yield LicenseEntryWithLineBreaks(const ['AquaRecover'], license);
-  });
+  registerAppLicenses();
   runApp(const AquaRecoverApp());
 }
 

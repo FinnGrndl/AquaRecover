@@ -383,6 +383,8 @@ changed = False
 entries = {
     'NSPhotoLibraryUsageDescription': 'AquaRecover imports selected dive photos and videos for on-device restoration.',
     'NSPhotoLibraryAddUsageDescription': 'AquaRecover can save restored exports back to your photo library.',
+    'LSApplicationCategoryType': 'public.app-category.photography',
+    'ITSAppUsesNonExemptEncryption': False,
 }
 for key, value in entries.items():
     if key not in plist:
