@@ -12,6 +12,7 @@ semantic versioning; the number after `+` is the platform build number.
 ### Fixed
 
 - Full-size Photos picker and always-visible extra tracks
+- Audit fixes for small, large-text, landscape and desktop layouts
 ## 1.4.0 - 2026-10-19
 
 ### Added
