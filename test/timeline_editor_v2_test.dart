@@ -221,6 +221,34 @@ void main() {
     expect(segment.origin, PlanAudioOrigin.track);
   });
 
+  testWidgets('empty text, overlay and audio lanes show before use', (
+    tester,
+  ) async {
+    _phone(tester);
+    await _pumpEditor(
+      tester,
+      const TimelineProject(id: 'w', clips: [_photo]),
+      audioPicker: () async => ['/m/Blue Hour.m4a'],
+    );
+    for (final key in [
+      'timeline_add_text',
+      'timeline_add_overlay',
+      'timeline_add_audio',
+    ]) {
+      expect(find.byKey(Key(key)), findsOneWidget);
+    }
+
+    await _tap(tester, 'timeline_add_audio');
+    await _tap(tester, 'timeline_audio_music');
+    await tester.pump();
+    expect(_project(tester).audioClips, hasLength(1));
+    // A new empty lane stays below the one that now holds the sound.
+    expect(find.byKey(const Key('timeline_add_audio')), findsOneWidget);
+
+    await _tap(tester, 'timeline_add_text');
+    expect(_project(tester).overlays.single.title, isNotNull);
+  });
+
   testWidgets('extract audio silences the clip and adds a sound', (
     tester,
   ) async {

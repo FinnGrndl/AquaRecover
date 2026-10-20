@@ -3,6 +3,11 @@
 Changes are generated from Conventional Commit messages. AquaRecover follows
 semantic versioning; the number after `+` is the platform build number.
 
+## 1.4.1 - 2026-10-20
+
+### Fixed
+
+- Full-size Photos picker and always-visible extra tracks
 ## 1.4.0 - 2026-10-19
 
 ### Added

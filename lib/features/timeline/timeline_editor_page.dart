@@ -828,6 +828,9 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       compact: compact,
       onScrubStart: _stop,
       onAdd: empty ? null : _addMedia,
+      onAddText: empty ? null : _addTitle,
+      onAddOverlay: empty ? null : _addOverlay,
+      onAddAudio: empty ? null : () => _toggle('audio'),
       onJunction: _openJunction,
       activeJunction: tool == 'transition' ? _junction : null,
     );
