@@ -89,6 +89,15 @@ final class MacPhotoPicker: NSObject {
     picker.delegate = self
     pendingResult = result
     activePicker = picker
+    // A sheet takes the size its controller asks for, and the picker asks for
+    // almost nothing, so size it to the window like the Photos app's own sheet.
+    let bounds = host.view.bounds.size
+    let size = NSSize(
+      width: min(max(bounds.width - 80, 640), 1100),
+      height: min(max(bounds.height - 80, 480), 800)
+    )
+    picker.preferredContentSize = size
+    picker.view.setFrameSize(size)
     host.presentAsSheet(picker)
   }
 
