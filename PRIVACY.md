@@ -8,25 +8,33 @@ events, or diagnostics to an AquaRecover server.
 
 ## Media access
 
-The app receives only media the user selects through Files or the operating
-system's photo-library interface. On iOS, importing uses the system picker and
-saving requests add-only Photos access. If a selected item is stored in iCloud,
-Apple may download it before providing a local copy to the app.
+The app opens media the user selects through Files, the operating system's
+photo picker, or AquaRecover's own photo browser. The photo browser and the
+dive logbook ask for photo-library access; with it, the app can list the
+library on the device so the user can choose items. On iOS and macOS, saving
+an export asks only for add-only Photos access. On Android, saving to the
+gallery asks for photo and video access. If a selected item is stored in
+iCloud, Apple may download it before providing a local copy to the app.
 
 ## Storage
 
 Exports and `.aquarecover.json` edit sidecars are stored in the app's documents
 directory. An export can also be added to Photos when the user asks for it. The
 files remain under the user's control and can be removed through the operating
-system or by deleting the application container.
+system or by deleting the application container. Map tiles shown in the dive
+logbook are cached in the app's cache directory.
 
 ## Dive logbook
 
 The dive logbook is stored only on the device and links photos and videos
 without copying them. When the user asks it to find photos taken during a
 dive, it requests photo-library access and reads capture times on the device.
-Its map loads map tiles from OpenStreetMap, so the map
-provider sees the viewed map area and the device's IP address. Logbook exports
+Its map loads map tiles from the OpenStreetMap Foundation's tile servers
+(`tile.openstreetmap.org`). Those servers receive the device's IP address and
+the map area being viewed, which is around the dive sites in the logbook. The
+OpenStreetMap Foundation handles that data under its own privacy policy:
+<https://osmfoundation.org/wiki/Privacy_Policy>. No other logbook data is sent.
+This is the only network traffic the app makes. Logbook exports
 (GPX, UDDF, GeoJSON) are saved only where the user chooses.
 
 ## Collection and sharing

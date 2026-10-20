@@ -39,6 +39,11 @@ upload, or cloud-processing client. Dependencies may contain platform support
 for targets that AquaRecover does not ship; the release application does not
 call those network paths.
 
+The one network connection is the dive logbook map. It loads tiles from
+`tile.openstreetmap.org` with a user agent naming the app, caches them on the
+device, and shows the "© OpenStreetMap contributors" attribution. The tile
+server receives the device's IP address and the map area being viewed.
+
 ## Encryption and export compliance
 
 AquaRecover does not implement proprietary, non-standard, or other non-exempt
