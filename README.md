@@ -326,7 +326,7 @@ contains the Android APK, Windows installer, and signed macOS disk image. iOS
 builds are distributed through TestFlight while store preparation is in
 progress.
 
-Current source version: `1.4.1+17`.
+Current source version: `1.5.0+18`.
 
 To run from source with the same Flutter toolchain used by CI:
 
