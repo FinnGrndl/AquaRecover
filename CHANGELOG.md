@@ -9,6 +9,7 @@ semantic versioning; the number after `+` is the platform build number.
 
 - Local dive logbook with map, UDDF import and export
 - Tooltips everywhere, landscape and wide layouts, desktop shortcuts
+- Drag to resize the photo and movie preview
 
 ### Fixed
 
