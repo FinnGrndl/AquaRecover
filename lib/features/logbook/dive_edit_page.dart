@@ -5,6 +5,7 @@ import '../timeline/timeline_theme.dart';
 import 'logbook_controller.dart';
 import 'logbook_widgets.dart';
 import '../../shared/widgets/sheet_width.dart';
+import '../../shared/widgets/app_dialog.dart';
 
 /// Adds a dive by hand or edits one.
 class DiveEditPage extends StatefulWidget {
@@ -242,7 +243,7 @@ class _DiveEditPageState extends State<DiveEditPage> {
     final lon = _num(_lon);
     if ((lat == null) != (lon == null) ||
         (lat != null && (lat.abs() > 90 || lon!.abs() > 180))) {
-      await showCupertinoDialog<void>(
+      await showAppDialog<void>(
         context: context,
         builder: (dialog) => CupertinoAlertDialog(
           title: const Text('Check the position'),
@@ -285,7 +286,7 @@ class _DiveEditPageState extends State<DiveEditPage> {
   }
 
   Future<void> _delete() async {
-    final confirmed = await showCupertinoDialog<bool>(
+    final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (dialog) => CupertinoAlertDialog(
         title: const Text('Delete this dive?'),

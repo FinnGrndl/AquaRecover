@@ -12,6 +12,7 @@ import 'dive_edit_page.dart';
 import 'logbook_controller.dart';
 import 'logbook_media.dart';
 import 'logbook_widgets.dart';
+import '../../shared/widgets/app_dialog.dart';
 
 /// One dive: its log fields, its linked photos and videos, and a way to
 /// turn them into a movie.
@@ -21,7 +22,12 @@ class DivePage extends StatefulWidget {
     required this.controller,
     required this.diveId,
     required this.media,
+    this.embedded = false,
   });
+
+  /// Shown beside the dive list on wide screens rather than pushed: no
+  /// back button, and deleting the dive leaves the logbook open.
+  final bool embedded;
 
   final LogbookController controller;
   final String diveId;
@@ -53,7 +59,10 @@ class _DivePageState extends State<DivePage> {
             backgroundColor: TimelineColors.background,
             navigationBar: CupertinoNavigationBar(
               backgroundColor: TimelineColors.background,
-              previousPageTitle: 'Logbook',
+              automaticallyImplyLeading: !widget.embedded,
+              // Beside the list the logbook's own bar is the route's hero.
+              transitionBetweenRoutes: !widget.embedded,
+              previousPageTitle: widget.embedded ? null : 'Logbook',
               middle: Text(diveTitle(dive, site)),
               trailing: LogbookIconButton(
                 key: const Key('dive_edit'),
@@ -366,7 +375,9 @@ class _DivePageState extends State<DivePage> {
           controller: widget.controller,
           dive: dive,
           site: site,
-          onDeleted: () => Navigator.of(context).pop(),
+          onDeleted: () {
+            if (!widget.embedded) Navigator.of(context).pop();
+          },
         ),
       ),
     );
@@ -452,7 +463,7 @@ class _DivePageState extends State<DivePage> {
 
   Future<void> _alert(String title, String message) async {
     if (!mounted) return;
-    await showCupertinoDialog<void>(
+    await showAppDialog<void>(
       context: context,
       builder: (dialog) => CupertinoAlertDialog(
         title: Text(title),

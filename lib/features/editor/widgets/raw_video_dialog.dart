@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/models/raw_video_descriptor.dart';
+import '../../../shared/widgets/app_dialog.dart';
 
 class RawVideoDialog extends StatefulWidget {
   const RawVideoDialog({super.key, required this.initial});
@@ -9,7 +10,7 @@ class RawVideoDialog extends StatefulWidget {
   static Future<RawVideoDescriptor?> show(
     BuildContext context, {
     required RawVideoDescriptor initial,
-  }) => showCupertinoDialog<RawVideoDescriptor>(
+  }) => showAppDialog<RawVideoDescriptor>(
     context: context,
     builder: (_) => RawVideoDialog(initial: initial),
   );

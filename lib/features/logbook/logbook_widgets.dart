@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Tooltip;
+import '../../shared/widgets/app_tooltip.dart';
 
 import '../../core/logbook/dive_log.dart';
 import '../../core/timeline/timeline_project.dart';
@@ -19,7 +19,7 @@ class LogbookIconButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
+  Widget build(BuildContext context) => AppTooltip(
     message: label,
     child: Semantics(
       label: label,

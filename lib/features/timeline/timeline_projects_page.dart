@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Tooltip;
+import '../../shared/widgets/app_tooltip.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
@@ -14,6 +14,7 @@ import 'timeline_editor_page.dart';
 import 'timeline_media_picker.dart';
 import 'timeline_theme.dart';
 import '../../shared/widgets/scrollbar_list_view.dart';
+import '../../shared/widgets/app_dialog.dart';
 
 /// Lists saved movies and starts new ones.
 class TimelineProjectsPage extends StatefulWidget {
@@ -115,7 +116,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
   }
 
   Future<bool> _confirmDelete(TimelineProject project) async {
-    final confirmed = await showCupertinoDialog<bool>(
+    final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: Text('Delete “${project.name}”?'),
@@ -178,7 +179,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
                           ? 'Made on this device'
                           : '$count movie${count == 1 ? '' : 's'}',
                       trailingWidth: 46,
-                      trailing: Tooltip(
+                      trailing: AppTooltip(
                         message: 'New movie',
                         child: Semantics(
                           button: true,

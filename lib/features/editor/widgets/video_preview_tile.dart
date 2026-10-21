@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:video_player/video_player.dart';
+import '../../../shared/widgets/app_tooltip.dart';
 
 class VideoPreviewTile extends StatefulWidget {
   const VideoPreviewTile({super.key, required this.path});
@@ -82,21 +83,29 @@ class _VideoPreviewTileState extends State<VideoPreviewTile> {
             ),
             Positioned(
               bottom: 12,
-              child: CupertinoButton.filled(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 7,
-                ),
-                onPressed: () => setState(
-                  () => controller.value.isPlaying
-                      ? controller.pause()
-                      : controller.play(),
-                ),
-                child: Icon(
-                  controller.value.isPlaying
-                      ? CupertinoIcons.pause_fill
-                      : CupertinoIcons.play_fill,
-                  size: 18,
+              child: AppTooltip(
+                message: controller.value.isPlaying ? 'Pause' : 'Play',
+                child: Semantics(
+                  button: true,
+                  label: controller.value.isPlaying ? 'Pause' : 'Play',
+                  excludeSemantics: true,
+                  child: CupertinoButton.filled(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 7,
+                    ),
+                    onPressed: () => setState(
+                      () => controller.value.isPlaying
+                          ? controller.pause()
+                          : controller.play(),
+                    ),
+                    child: Icon(
+                      controller.value.isPlaying
+                          ? CupertinoIcons.pause_fill
+                          : CupertinoIcons.play_fill,
+                      size: 18,
+                    ),
+                  ),
                 ),
               ),
             ),

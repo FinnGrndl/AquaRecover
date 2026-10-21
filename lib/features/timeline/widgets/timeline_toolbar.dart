@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Tooltip;
+import '../../../shared/widgets/app_tooltip.dart';
 
 import '../../editor/widgets/editor_glass_surface.dart';
 import '../timeline_theme.dart';
@@ -160,7 +160,7 @@ class _TimelineToolbarState extends State<TimelineToolbar> {
             child: Row(
               children: [
                 if (widget.onBack != null) ...[
-                  Tooltip(
+                  AppTooltip(
                     message: widget.backLabel,
                     child: Semantics(
                       button: true,
@@ -206,7 +206,7 @@ class _ToolButton extends StatelessWidget {
     final enabled = item.onPressed != null;
     final base = item.destructive ? TimelineColors.danger : TimelineColors.text;
     final color = enabled ? base : base.withValues(alpha: .34);
-    return Tooltip(
+    return AppTooltip(
       message: item.label,
       child: Semantics(
         button: true,

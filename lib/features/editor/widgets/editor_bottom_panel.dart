@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 
 import '../../../shared/reduce_motion.dart';
 import '../editor_tools.dart';
+import '../../../shared/widgets/app_tooltip.dart';
 import 'editor_glass_surface.dart';
 import '../../../shared/widgets/scrollbar_list_view.dart';
 
@@ -138,18 +139,26 @@ class GlassBottomPanel extends StatelessWidget {
                 left: 0,
                 right: 0,
                 child: Center(
-                  child: CupertinoButton(
-                    key: const Key('editor_tool_panel_close'),
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    minimumSize: const Size(
-                      kMinInteractiveDimensionCupertino,
-                      kMinInteractiveDimensionCupertino,
-                    ),
-                    onPressed: onClose,
-                    child: Icon(
-                      CupertinoIcons.chevron_down,
-                      size: 17,
-                      color: CupertinoColors.white.withValues(alpha: .72),
+                  child: AppTooltip(
+                    message: 'Collapse $label',
+                    child: Semantics(
+                      button: true,
+                      label: 'Collapse $label',
+                      excludeSemantics: true,
+                      child: CupertinoButton(
+                        key: const Key('editor_tool_panel_close'),
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        minimumSize: const Size(
+                          kMinInteractiveDimensionCupertino,
+                          kMinInteractiveDimensionCupertino,
+                        ),
+                        onPressed: onClose,
+                        child: Icon(
+                          CupertinoIcons.chevron_down,
+                          size: 17,
+                          color: CupertinoColors.white.withValues(alpha: .72),
+                        ),
+                      ),
                     ),
                   ),
                 ),

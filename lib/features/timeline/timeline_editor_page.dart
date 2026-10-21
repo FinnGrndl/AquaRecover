@@ -4,7 +4,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/material.dart' show Tooltip;
+import '../../shared/widgets/app_tooltip.dart';
+import '../../shared/widgets/editor_shortcuts.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
@@ -42,6 +43,7 @@ import 'widgets/tools/tool_controls.dart';
 import 'widgets/tools/transition_panel.dart';
 import 'widgets/tools/volume_panel.dart';
 import 'widgets/viewer_selection_overlay.dart';
+import '../../shared/widgets/app_dialog.dart';
 
 /// The movie editor, laid out like CapCut and dressed like iOS: the viewer
 /// on top, transport, a multi-lane timeline with a centred playhead, one
@@ -98,6 +100,10 @@ class TimelineEditorPage extends StatefulWidget {
 
   /// Width from which a landscape window uses the inspector column too.
   static const landscapeLayoutWidth = 560.0;
+
+  /// Below this height a landscape window puts the viewer beside the
+  /// controls instead of above them.
+  static const sideBySideMaxHeight = 500.0;
 
   @override
   State<TimelineEditorPage> createState() => _TimelineEditorPageState();
@@ -199,7 +205,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
   Future<void> _showError(String title, String message) {
     _messageTimer?.cancel();
     if (_message != null) setState(() => _message = null);
-    return showCupertinoDialog<void>(
+    return showAppDialog<void>(
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: Text(title),
@@ -414,7 +420,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
 
   Future<void> _rename() async {
     final field = TextEditingController(text: _controller.project.name);
-    final name = await showCupertinoDialog<String>(
+    final name = await showAppDialog<String>(
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Movie name'),
@@ -774,9 +780,25 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
           child: OceanBackdrop(
             child: MediaQuery.withClampedTextScaling(
               maxScaleFactor: 1.3,
-              child: ListenableBuilder(
-                listenable: _controller,
-                builder: (context, _) => LayoutBuilder(builder: _layout),
+              child: EditorShortcuts(
+                canUndo: () => _controller.canUndo && !_rendering,
+                onUndo: _controller.undo,
+                canRedo: () => _controller.canRedo && !_rendering,
+                onRedo: _controller.redo,
+                onPlayPause: _togglePlay,
+                // Escape closes the open panel, then clears the selection.
+                canEscape: () => _tool != null || !_controller.selection.isNone,
+                onEscape: () {
+                  if (_tool != null) {
+                    setState(() => _tool = null);
+                  } else {
+                    _back();
+                  }
+                },
+                child: ListenableBuilder(
+                  listenable: _controller,
+                  builder: (context, _) => LayoutBuilder(builder: _layout),
+                ),
               ),
             ),
           ),
@@ -848,6 +870,18 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       onJunction: _openJunction,
       activeJunction: tool == 'transition' ? _junction : null,
     );
+
+    if (_sideBySide(constraints)) {
+      return _sideBySideLayout(
+        constraints,
+        insets: insets,
+        topBar: _topBar(),
+        toolbar: toolbar,
+        tool: tool,
+        panel: panel,
+        strip: strip,
+      );
+    }
 
     if (wide) {
       // Short windows (landscape phones, small Mac and Windows windows)
@@ -968,6 +1002,99 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     );
   }
 
+  /// Landscape phones and other short, wide windows: below a viewer there
+  /// is no height left, so the viewer takes the leading side at full height
+  /// and the controls stack in a column beside it, as in Photos.
+  static bool _sideBySide(BoxConstraints constraints) =>
+      constraints.maxWidth > constraints.maxHeight &&
+      constraints.maxHeight < TimelineEditorPage.sideBySideMaxHeight &&
+      constraints.maxWidth >= TimelineEditorPage.landscapeLayoutWidth;
+
+  Widget _sideBySideLayout(
+    BoxConstraints constraints, {
+    required EdgeInsets insets,
+    required Widget topBar,
+    required Widget toolbar,
+    required String? tool,
+    required Widget Function(double height) panel,
+    required TimelineStrip Function({bool compact}) strip,
+  }) {
+    final project = _controller.project;
+    final empty = project.clips.isEmpty;
+    final usable = constraints.maxWidth - insets.left - insets.right;
+    final sideWidth = (usable * .4).clamp(300.0, 400.0).toDouble();
+    const barHeight = 48.0 + 14;
+    const transportHeight = 52.0;
+    // The toolbar brings its own bottom padding.
+    final toolbarHeight = empty
+        ? insets.bottom + 8
+        : TimelineToolbar.height + insets.bottom + 16;
+    final typing = _keyboardOpen && tool == 'text';
+    final room =
+        constraints.maxHeight -
+        insets.top -
+        barHeight -
+        (typing ? 0 : transportHeight + toolbarHeight);
+    // An open panel gets the transport's row too when it would otherwise
+    // be too short to use; Space still plays on a keyboard.
+    final showTransport = !typing && (tool == null || room >= 200);
+    final fullStrip = TimelineStrip.heightOf(project);
+    final compactStrip = TimelineStrip.heightOf(project, compact: true);
+    final Widget middle;
+    if (tool != null) {
+      middle = Expanded(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: panel(double.infinity),
+        ),
+      );
+    } else if (room >= compactStrip + 4) {
+      middle = Expanded(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: strip(compact: room < fullStrip + 4),
+        ),
+      );
+    } else {
+      middle = const Spacer();
+    }
+    return Padding(
+      padding: EdgeInsets.only(left: insets.left, right: insets.right),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: insets.top + 8,
+                bottom: insets.bottom + 8,
+              ),
+              child: _viewerArea(),
+            ),
+          ),
+          SizedBox(
+            width: sideWidth,
+            child: Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(4, insets.top + 8, 12, 6),
+                  child: topBar,
+                ),
+                if (showTransport)
+                  _transport(4, showZoom: !empty && sideWidth >= 380),
+                middle,
+                if (!typing) ...[
+                  const SizedBox(height: 4),
+                  if (empty) SizedBox(height: insets.bottom + 4) else toolbar,
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _topBar() {
     final project = _controller.project;
     final clips = project.clips.length;
@@ -985,7 +1112,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                 '${project.aspect.label}',
       onTitlePressed: _rendering ? null : _rename,
       trailingWidth: 46,
-      trailing: Tooltip(
+      trailing: AppTooltip(
         message: 'Export movie',
         child: Semantics(
           button: true,
@@ -1202,6 +1329,9 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                   ? CupertinoIcons.pause_fill
                   : CupertinoIcons.play_fill,
               label: _playing ? 'Pause' : 'Play',
+              tooltip: showsShortcutHints
+                  ? '${_playing ? 'Pause' : 'Play'} (Space)'
+                  : null,
               size: 48,
               iconSize: 22,
               onPressed: empty ? null : _togglePlay,
@@ -1215,6 +1345,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                     key: const Key('timeline_undo'),
                     icon: CupertinoIcons.arrow_uturn_left,
                     label: 'Undo',
+                    tooltip: withShortcut('Undo', 'Z'),
                     iconSize: 17,
                     onPressed: _controller.canUndo && !_rendering
                         ? _controller.undo
@@ -1225,6 +1356,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                     key: const Key('timeline_redo'),
                     icon: CupertinoIcons.arrow_uturn_right,
                     label: 'Redo',
+                    tooltip: withShortcut('Redo', 'Z', shift: true),
                     iconSize: 17,
                     onPressed: _controller.canRedo && !_rendering
                         ? _controller.redo
@@ -1255,19 +1387,23 @@ class _ZoomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      excludeSemantics: true,
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        minimumSize: const Size(44, 44),
-        onPressed: onPressed,
-        child: Icon(
-          icon,
-          size: 20,
-          color: TimelineColors.text.withValues(
-            alpha: onPressed == null ? .3 : .85,
+    return AppTooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        enabled: onPressed != null,
+        label: label,
+        excludeSemantics: true,
+        child: CupertinoButton(
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(44, 44),
+          onPressed: onPressed,
+          child: Icon(
+            icon,
+            size: 20,
+            color: TimelineColors.text.withValues(
+              alpha: onPressed == null ? .3 : .85,
+            ),
           ),
         ),
       ),

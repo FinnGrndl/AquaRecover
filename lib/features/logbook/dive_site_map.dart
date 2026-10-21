@@ -6,6 +6,8 @@ import '../../core/legal/app_licenses.dart';
 import '../../core/logbook/dive_log.dart';
 import '../../shared/reduce_motion.dart';
 import '../timeline/timeline_theme.dart';
+import '../../shared/widgets/app_tooltip.dart';
+import '../../shared/widgets/app_dialog.dart';
 
 /// Builds the site map; widget tests pass a stand-in since they have no
 /// network for tiles.
@@ -67,16 +69,20 @@ class DiveSiteMap extends StatelessWidget {
                     point: LatLng(site.latitude!, site.longitude!),
                     width: 44,
                     height: 44,
-                    child: Semantics(
-                      button: true,
-                      label: 'Dive site ${site.name}',
-                      excludeSemantics: true,
-                      child: GestureDetector(
-                        onTap: () => onSiteTap(site),
-                        child: const Icon(
-                          CupertinoIcons.location_solid,
-                          color: TimelineColors.accent,
-                          size: 34,
+                    child: AppTooltip(
+                      message: site.name,
+                      child: Semantics(
+                        button: true,
+                        label: 'Dive site ${site.name}',
+                        excludeSemantics: true,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => onSiteTap(site),
+                          child: const Icon(
+                            CupertinoIcons.location_solid,
+                            color: TimelineColors.accent,
+                            size: 34,
+                          ),
                         ),
                       ),
                     ),
@@ -124,7 +130,7 @@ class DiveSiteMap extends StatelessWidget {
   }
 
   static void _showAttribution(BuildContext context) {
-    showCupertinoDialog<void>(
+    showAppDialog<void>(
       context: context,
       barrierDismissible: true,
       builder: (context) => CupertinoAlertDialog(

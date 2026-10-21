@@ -5,6 +5,8 @@ import 'package:flutter/cupertino.dart';
 import '../../core/models/media_kind.dart';
 import '../../core/persistence/export_library_service.dart';
 import '../editor/widgets/video_preview_tile.dart';
+import '../../shared/widgets/app_tooltip.dart';
+import '../../shared/widgets/app_dialog.dart';
 
 class ExportLibraryPage extends StatefulWidget {
   const ExportLibraryPage({
@@ -251,83 +253,90 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
 
   Widget _exportTile(BuildContext context, LocalExportItem item) {
     final selected = _selectedPaths.contains(item.path);
-    return GestureDetector(
-      key: Key('local_export_${item.fileName}'),
-      onLongPress: _deleting ? null : () => _selectItem(item),
-      onTap: _deleting
-          ? null
-          : () =>
-                _selectionMode ? _toggleItem(item) : _openDetail(context, item),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xff1b2024),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: selected
-                      ? CupertinoColors.activeBlue
-                      : CupertinoColors.white.withValues(alpha: .10),
-                  width: selected ? 2 : 1,
-                ),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _thumbnail(item)),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.fileName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          item.sizeLabel,
-                          style: const TextStyle(
-                            color: CupertinoColors.systemGrey,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_selectionMode)
-            Positioned(
-              top: 10,
-              right: 10,
+    // Hover only: touch and hold selects the export. The tag shows the full
+    // name the tile cuts short.
+    return AppTooltip(
+      trigger: AppTooltipTrigger.hoverOnly,
+      message: item.fileName,
+      child: GestureDetector(
+        key: Key('local_export_${item.fileName}'),
+        onLongPress: _deleting ? null : () => _selectItem(item),
+        onTap: _deleting
+            ? null
+            : () => _selectionMode
+                  ? _toggleItem(item)
+                  : _openDetail(context, item),
+        child: Stack(
+          children: [
+            Positioned.fill(
               child: Container(
-                key: Key('local_export_selected_${item.fileName}'),
-                width: 28,
-                height: 28,
                 decoration: BoxDecoration(
-                  color: selected
-                      ? CupertinoColors.activeBlue
-                      : CupertinoColors.black.withValues(alpha: .55),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: CupertinoColors.white, width: 2),
+                  color: const Color(0xff1b2024),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: selected
+                        ? CupertinoColors.activeBlue
+                        : CupertinoColors.white.withValues(alpha: .10),
+                    width: selected ? 2 : 1,
+                  ),
                 ),
-                child: selected
-                    ? const Icon(
-                        CupertinoIcons.check_mark,
-                        color: CupertinoColors.white,
-                        size: 17,
-                      )
-                    : null,
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _thumbnail(item)),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.fileName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            item.sizeLabel,
+                            style: const TextStyle(
+                              color: CupertinoColors.systemGrey,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-        ],
+            if (_selectionMode)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  key: Key('local_export_selected_${item.fileName}'),
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? CupertinoColors.activeBlue
+                        : CupertinoColors.black.withValues(alpha: .55),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: CupertinoColors.white, width: 2),
+                  ),
+                  child: selected
+                      ? const Icon(
+                          CupertinoIcons.check_mark,
+                          color: CupertinoColors.white,
+                          size: 17,
+                        )
+                      : null,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -411,7 +420,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
   }) async {
     if (items.isEmpty || _deleting) return;
     final count = items.length;
-    final confirmed = await showCupertinoDialog<bool>(
+    final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (dialogContext) => CupertinoAlertDialog(
         title: Text(
@@ -453,7 +462,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
     });
     await _reload(showLoading: false);
     if (failures > 0 && mounted) {
-      await showCupertinoDialog<void>(
+      await showAppDialog<void>(
         context: context,
         builder: (dialogContext) => CupertinoAlertDialog(
           title: const Text('Some exports could not be deleted'),
@@ -520,13 +529,21 @@ class ExportDetailPage extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: CupertinoButton(
-          key: const Key('delete_local_export'),
-          padding: EdgeInsets.zero,
-          onPressed: () => _confirmDelete(context),
-          child: const Icon(
-            CupertinoIcons.trash,
-            color: CupertinoColors.destructiveRed,
+        trailing: AppTooltip(
+          message: 'Delete export',
+          child: Semantics(
+            button: true,
+            label: 'Delete export',
+            excludeSemantics: true,
+            child: CupertinoButton(
+              key: const Key('delete_local_export'),
+              padding: EdgeInsets.zero,
+              onPressed: () => _confirmDelete(context),
+              child: const Icon(
+                CupertinoIcons.trash,
+                color: CupertinoColors.destructiveRed,
+              ),
+            ),
           ),
         ),
       ),
@@ -581,7 +598,7 @@ class ExportDetailPage extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await showCupertinoDialog<bool>(
+    final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (dialogContext) => CupertinoAlertDialog(
         title: const Text('Delete local export?'),
@@ -607,7 +624,7 @@ class ExportDetailPage extends StatelessWidget {
       if (context.mounted) Navigator.of(context).pop(true);
     } on Object {
       if (!context.mounted) return;
-      await showCupertinoDialog<void>(
+      await showAppDialog<void>(
         context: context,
         builder: (dialogContext) => CupertinoAlertDialog(
           title: const Text('Export could not be deleted'),
