@@ -3,11 +3,12 @@
 Changes are generated from Conventional Commit messages. AquaRecover follows
 semantic versioning; the number after `+` is the platform build number.
 
-## 1.5.0 - 2026-10-20
+## 1.5.0 - 2026-10-21
 
 ### Added
 
 - Local dive logbook with map, UDDF import and export
+- Tooltips everywhere, landscape and wide layouts, desktop shortcuts
 
 ### Fixed
 
