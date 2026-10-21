@@ -35,13 +35,15 @@ class GlassToolRail extends StatelessWidget {
   final ValueChanged<int> onSelected;
   final String semanticLabel;
 
+  static const height = 60.0;
+
   @override
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
       label: semanticLabel,
       child: SizedBox(
-        height: 60,
+        height: height,
         child: EditorGlassSurface(
           style: EditorGlassStyle.clear,
           borderRadius: 30,

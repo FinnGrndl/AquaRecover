@@ -67,6 +67,7 @@ class EditorBottomPanel extends StatelessWidget {
     required this.height,
     required this.onClose,
     required this.child,
+    this.animate = true,
   });
 
   final EditorToolGroup group;
@@ -75,6 +76,9 @@ class EditorBottomPanel extends StatelessWidget {
   final VoidCallback onClose;
   final Widget child;
 
+  /// False follows [height] at once, as while a divider is dragged.
+  final bool animate;
+
   @override
   Widget build(BuildContext context) {
     return GlassBottomPanel(
@@ -82,6 +86,7 @@ class EditorBottomPanel extends StatelessWidget {
       open: open,
       height: height,
       onClose: onClose,
+      animate: animate,
       contentPadding: group == EditorToolGroup.crop
           ? const EdgeInsets.fromLTRB(14, 44, 14, 10)
           : const EdgeInsets.fromLTRB(14, 48, 14, 18),
@@ -102,6 +107,7 @@ class GlassBottomPanel extends StatelessWidget {
     required this.child,
     this.contentPadding = const EdgeInsets.fromLTRB(14, 48, 14, 18),
     this.scrollable = true,
+    this.animate = true,
   });
 
   final String label;
@@ -114,11 +120,16 @@ class GlassBottomPanel extends StatelessWidget {
   /// When false, [child] gets the panel's height and handles overflow itself.
   final bool scrollable;
 
+  /// False follows [height] at once, as while a divider is dragged.
+  final bool animate;
+
   @override
   Widget build(BuildContext context) {
     if (!open) return const SizedBox.shrink();
     return AnimatedContainer(
-      duration: motionDuration(context, const Duration(milliseconds: 180)),
+      duration: animate
+          ? motionDuration(context, const Duration(milliseconds: 180))
+          : Duration.zero,
       curve: Curves.easeOut,
       height: height,
       margin: const EdgeInsets.fromLTRB(6, 0, 6, 7),
