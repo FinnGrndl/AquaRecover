@@ -5,6 +5,7 @@ import '../../timeline_controller.dart';
 import '../../timeline_theme.dart';
 import 'tool_controls.dart';
 import '../../../../shared/widgets/mouse_drag_scroll.dart';
+import '../../../../shared/widgets/app_tooltip.dart';
 
 /// Edits the selected title: the text in a multi-line field (above the
 /// keyboard), a style, a colour, the alignment, and the size. Typing until
@@ -317,40 +318,43 @@ class _Swatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = color.computeLuminance() < .2;
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: '$name text',
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onPressed,
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Center(
-            child: Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selected
-                      ? CupertinoColors.white
-                      : const Color(0x66ffffff),
-                  width: selected ? 2.5 : .5,
+    return AppTooltip(
+      message: name,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: '$name text',
+        excludeSemantics: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onPressed,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Center(
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected
+                        ? CupertinoColors.white
+                        : const Color(0x66ffffff),
+                    width: selected ? 2.5 : .5,
+                  ),
                 ),
+                child: selected
+                    ? Icon(
+                        CupertinoIcons.checkmark_alt,
+                        size: 16,
+                        color: dark
+                            ? CupertinoColors.white
+                            : CupertinoColors.black,
+                      )
+                    : null,
               ),
-              child: selected
-                  ? Icon(
-                      CupertinoIcons.checkmark_alt,
-                      size: 16,
-                      color: dark
-                          ? CupertinoColors.white
-                          : CupertinoColors.black,
-                    )
-                  : null,
             ),
           ),
         ),

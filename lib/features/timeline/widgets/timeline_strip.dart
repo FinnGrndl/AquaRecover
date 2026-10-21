@@ -11,6 +11,7 @@ import '../../../core/timeline/timeline_project.dart';
 import '../timeline_controller.dart';
 import '../timeline_theme.dart';
 import 'tools/transition_panel.dart';
+import '../../../shared/widgets/app_tooltip.dart';
 import '../../../shared/widgets/mouse_drag_scroll.dart';
 
 /// Pixels per second of the timeline, shared by the strip and the zoom
@@ -698,26 +699,29 @@ class _TimelineStripState extends State<TimelineStrip> {
           top: _mainTop + TimelineStrip.mainHeight / 2 - 22,
           width: 44,
           height: 44,
-          child: Semantics(
-            button: true,
-            label: 'Add photos and clips',
-            excludeSemantics: true,
-            child: CupertinoButton(
-              key: const Key('timeline_add'),
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(44, 44),
-              onPressed: widget.onAdd,
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: CupertinoColors.white,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: const Icon(
-                  CupertinoIcons.add,
-                  size: 20,
-                  color: CupertinoColors.black,
+          child: AppTooltip(
+            message: 'Add photos and clips',
+            child: Semantics(
+              button: true,
+              label: 'Add photos and clips',
+              excludeSemantics: true,
+              child: CupertinoButton(
+                key: const Key('timeline_add'),
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(44, 44),
+                onPressed: widget.onAdd,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.white,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.add,
+                    size: 20,
+                    color: CupertinoColors.black,
+                  ),
                 ),
               ),
             ),
@@ -947,33 +951,36 @@ class _TimelineStripState extends State<TimelineStrip> {
           top: _mainTop + TimelineStrip.mainHeight / 2 - 22,
           height: 44,
           child: hasVideo
-              ? Semantics(
-                  button: true,
-                  toggled: muted,
-                  label: 'Mute clip audio',
-                  excludeSemantics: true,
-                  child: CupertinoButton(
-                    key: const Key('timeline_mute_clips'),
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(44, 44),
-                    onPressed: _controller.toggleClipAudio,
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: muted
-                            ? CupertinoColors.white
-                            : TimelineColors.fill,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        muted
-                            ? CupertinoIcons.speaker_slash_fill
-                            : CupertinoIcons.speaker_2_fill,
-                        size: 14,
-                        color: muted
-                            ? CupertinoColors.black
-                            : TimelineColors.text,
+              ? AppTooltip(
+                  message: muted ? 'Unmute clip audio' : 'Mute clip audio',
+                  child: Semantics(
+                    button: true,
+                    toggled: muted,
+                    label: 'Mute clip audio',
+                    excludeSemantics: true,
+                    child: CupertinoButton(
+                      key: const Key('timeline_mute_clips'),
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(44, 44),
+                      onPressed: _controller.toggleClipAudio,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: muted
+                              ? CupertinoColors.white
+                              : TimelineColors.fill,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          muted
+                              ? CupertinoIcons.speaker_slash_fill
+                              : CupertinoIcons.speaker_2_fill,
+                          size: 14,
+                          color: muted
+                              ? CupertinoColors.black
+                              : TimelineColors.text,
+                        ),
                       ),
                     ),
                   ),
@@ -1066,33 +1073,38 @@ class _JunctionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final set = transition != ClipTransition.cut;
     final filled = set || active;
-    return Semantics(
-      button: true,
-      selected: active,
-      label: 'Transition before clip ${index + 1}',
-      value: TransitionPanel.labelOf(transition),
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onPressed,
-        child: Center(
-          child: Container(
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              color: filled ? CupertinoColors.white : const Color(0xe61c1c1e),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: filled
-                    ? const Color(0x99000000)
-                    : const Color(0x99ffffff),
-                width: active ? 2 : .7,
+    return AppTooltip(
+      message: set
+          ? '${TransitionPanel.labelOf(transition)} transition'
+          : 'Add a transition',
+      child: Semantics(
+        button: true,
+        selected: active,
+        label: 'Transition before clip ${index + 1}',
+        value: TransitionPanel.labelOf(transition),
+        excludeSemantics: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onPressed,
+          child: Center(
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: filled ? CupertinoColors.white : const Color(0xe61c1c1e),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: filled
+                      ? const Color(0x99000000)
+                      : const Color(0x99ffffff),
+                  width: active ? 2 : .7,
+                ),
               ),
-            ),
-            child: Icon(
-              set ? TransitionPanel.iconOf(transition) : CupertinoIcons.minus,
-              size: 12,
-              color: filled ? CupertinoColors.black : CupertinoColors.white,
+              child: Icon(
+                set ? TransitionPanel.iconOf(transition) : CupertinoIcons.minus,
+                size: 12,
+                color: filled ? CupertinoColors.black : CupertinoColors.white,
+              ),
             ),
           ),
         ),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 
@@ -13,6 +14,7 @@ import 'dive_site_map.dart';
 import 'logbook_controller.dart';
 import 'logbook_media.dart';
 import 'logbook_widgets.dart';
+import '../../shared/widgets/app_dialog.dart';
 
 /// The dive logbook: every dive as a list or its sites on a map. It lives
 /// only on the device.
@@ -37,6 +39,16 @@ class _LogbookPageState extends State<LogbookPage> {
   );
   late final LogbookMedia _media = widget.media ?? const LogbookMedia();
   var _view = _View.list;
+
+  /// The dive shown beside the list on wide screens.
+  String? _selectedDiveId;
+
+  /// Whether the list has a detail column beside it.
+  bool _split = false;
+
+  /// From this width the list shows the selected dive beside it, as in
+  /// Mail and Notes on iPad and Mac.
+  static const splitWidth = 900.0;
 
   @override
   void initState() {
@@ -109,7 +121,9 @@ class _LogbookPageState extends State<LogbookPage> {
                     ),
                   ),
                   Expanded(
-                    child: _view == _View.list ? _list() : _map(context),
+                    child: _view == _View.list
+                        ? LayoutBuilder(builder: _listOrSplit)
+                        : _map(context),
                   ),
                 ],
               );
@@ -181,7 +195,39 @@ class _LogbookPageState extends State<LogbookPage> {
     ),
   );
 
-  Widget _list() {
+  Widget _listOrSplit(BuildContext context, BoxConstraints constraints) {
+    _split = constraints.maxWidth >= splitWidth;
+    if (!_split) return _list();
+    final dives = _controller.log.dives;
+    final selected = dives.any((d) => d.id == _selectedDiveId)
+        ? _selectedDiveId!
+        : dives.first.id;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: math.min(420, constraints.maxWidth * .36),
+          child: _list(selectedId: selected),
+        ),
+        Container(width: .5, color: TimelineColors.stroke),
+        Expanded(
+          child: MediaQuery.removePadding(
+            context: context,
+            removeTop: true,
+            child: DivePage(
+              key: ValueKey('dive_detail_$selected'),
+              controller: _controller,
+              diveId: selected,
+              media: _media,
+              embedded: true,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _list({String? selectedId}) {
     final log = _controller.log;
     return ListView.separated(
       key: const Key('logbook_list'),
@@ -199,7 +245,9 @@ class _LogbookPageState extends State<LogbookPage> {
               key: Key('dive_${dive.id}'),
               padding: const EdgeInsets.all(14),
               minimumSize: const Size(44, 44),
-              color: TimelineColors.fill,
+              color: dive.id == selectedId
+                  ? TimelineColors.accent.withValues(alpha: .28)
+                  : TimelineColors.fill,
               borderRadius: BorderRadius.circular(14),
               onPressed: () => _openDive(dive),
               child: Row(
@@ -307,6 +355,10 @@ class _LogbookPageState extends State<LogbookPage> {
   }
 
   void _openDive(Dive dive) {
+    if (_split && _view == _View.list) {
+      setState(() => _selectedDiveId = dive.id);
+      return;
+    }
     Navigator.of(context).push(
       CupertinoPageRoute<void>(
         builder: (_) =>
@@ -445,7 +497,7 @@ class _LogbookPageState extends State<LogbookPage> {
 
   Future<void> _alert(String title, String message) async {
     if (!mounted) return;
-    await showCupertinoDialog<void>(
+    await showAppDialog<void>(
       context: context,
       builder: (dialog) => CupertinoAlertDialog(
         title: Text(title),

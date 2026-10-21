@@ -4,6 +4,7 @@ import '../../../../core/timeline/timeline_project.dart';
 import '../../timeline_controller.dart';
 import '../../timeline_theme.dart';
 import 'tool_controls.dart';
+import '../../../../shared/widgets/app_tooltip.dart';
 
 /// Speed of the selected video clip or video overlay: 0.25×–4× with detents
 /// at the common speeds, evenly spaced so slow motion is as easy to set as
@@ -201,19 +202,22 @@ class DurationPanel extends StatelessWidget {
         : overlay != null && !overlay.isVideo
         ? overlay.stillSeconds
         : null;
-    Widget step(IconData icon, double delta, String label) => Semantics(
-      button: true,
-      label: label,
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        minimumSize: const Size(
-          kMinInteractiveDimensionCupertino,
-          kMinInteractiveDimensionCupertino,
+    Widget step(IconData icon, double delta, String label) => AppTooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: CupertinoButton(
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(
+            kMinInteractiveDimensionCupertino,
+            kMinInteractiveDimensionCupertino,
+          ),
+          onPressed: seconds == null
+              ? null
+              : () => controller.setStillSeconds(seconds + delta),
+          child: Icon(icon, size: 20, color: TimelineColors.text),
         ),
-        onPressed: seconds == null
-            ? null
-            : () => controller.setStillSeconds(seconds + delta),
-        child: Icon(icon, size: 20, color: TimelineColors.text),
       ),
     );
     return ToolPanelBody(

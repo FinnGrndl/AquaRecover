@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Tooltip;
+import '../../../shared/widgets/app_tooltip.dart';
 
 import '../../../core/models/image_transform_settings.dart';
 import 'precision_wheel.dart';
@@ -166,7 +166,7 @@ class _CropIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = CupertinoTheme.of(context).primaryColor;
-    return Tooltip(
+    return AppTooltip(
       message: label,
       child: Semantics(
         button: true,

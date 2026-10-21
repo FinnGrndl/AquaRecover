@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Tooltip;
+import '../../../shared/widgets/app_tooltip.dart';
 
 import '../editor_tools.dart';
 import 'editor_glass_surface.dart';
@@ -131,7 +131,7 @@ class _ToolButton extends StatelessWidget {
     final action = selected && panelOpen
         ? 'Collapse ${item.label} tools'
         : 'Open ${item.label} tools';
-    return Tooltip(
+    return AppTooltip(
       message: action,
       child: Semantics(
         button: true,

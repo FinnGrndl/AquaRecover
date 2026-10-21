@@ -7,6 +7,7 @@ import '../../../core/models/media_job.dart';
 import '../../../core/models/media_kind.dart';
 import '../../../shared/reduce_motion.dart';
 import '../../../shared/widgets/sheet_width.dart';
+import '../../../shared/widgets/app_tooltip.dart';
 
 class QueueOverviewSheet extends StatefulWidget {
   const QueueOverviewSheet({
@@ -205,22 +206,25 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
               ),
               const SizedBox(width: 8),
               _statusIcon(job),
-              CupertinoButton(
-                key: Key('queue_remove_${job.id}'),
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(
-                  kMinInteractiveDimensionCupertino,
-                  kMinInteractiveDimensionCupertino,
-                ),
-                onPressed: canRemove ? () => _remove(job, index) : null,
-                child: Icon(
-                  CupertinoIcons.trash,
-                  semanticLabel:
-                      'Remove ${job.displayName ?? p.basename(job.inputPath)} from queue',
-                  size: 19,
-                  color: canRemove
-                      ? CupertinoColors.destructiveRed
-                      : CupertinoColors.systemGrey3.resolveFrom(context),
+              AppTooltip(
+                message: 'Remove from queue',
+                child: CupertinoButton(
+                  key: Key('queue_remove_${job.id}'),
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(
+                    kMinInteractiveDimensionCupertino,
+                    kMinInteractiveDimensionCupertino,
+                  ),
+                  onPressed: canRemove ? () => _remove(job, index) : null,
+                  child: Icon(
+                    CupertinoIcons.trash,
+                    semanticLabel:
+                        'Remove ${job.displayName ?? p.basename(job.inputPath)} from queue',
+                    size: 19,
+                    color: canRemove
+                        ? CupertinoColors.destructiveRed
+                        : CupertinoColors.systemGrey3.resolveFrom(context),
+                  ),
                 ),
               ),
             ],

@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' show Tooltip;
+import '../../shared/widgets/app_tooltip.dart';
+import '../../shared/widgets/editor_shortcuts.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_picker_android/image_picker_android.dart';
@@ -58,6 +60,7 @@ import 'widgets/video_frame_preview_tile.dart';
 import '../timeline/movie_from_queue.dart';
 import '../timeline/timeline_projects_page.dart';
 import '../../shared/widgets/scrollbar_list_view.dart';
+import '../../shared/widgets/app_dialog.dart';
 
 typedef PhotoMediaPicker = Future<List<String>> Function();
 
@@ -304,7 +307,13 @@ class _EditorPageState extends State<EditorPage> {
             LayoutBuilder(
               builder: (context, constraints) {
                 final safeInsets = MediaQuery.paddingOf(context);
-                final wide = constraints.maxWidth >= 1040;
+                // Landscape phones have no height for a panel under the
+                // photo, so they use the side pane too, a little narrower.
+                final shortLandscape =
+                    constraints.maxWidth > constraints.maxHeight &&
+                    constraints.maxHeight < 500 &&
+                    constraints.maxWidth >= 560;
+                final wide = constraints.maxWidth >= 1040 || shortLandscape;
                 if (wide) {
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -317,7 +326,11 @@ class _EditorPageState extends State<EditorPage> {
                         ),
                       ),
                       SizedBox(
-                        width: 390,
+                        width: constraints.maxWidth >= 1040
+                            ? 390
+                            : constraints.maxWidth < 700
+                            ? 290
+                            : 330,
                         // The pane's cards were made for the start screen's
                         // ocean gradient, not the scaffold's plain black.
                         child: OceanBackdrop(
@@ -345,34 +358,15 @@ class _EditorPageState extends State<EditorPage> {
   /// editor's undo history. The editor's own focus scope keeps them working
   /// after a text field gives up focus.
   Widget _editShortcuts(Widget child) {
-    final apple = switch (defaultTargetPlatform) {
-      TargetPlatform.iOS || TargetPlatform.macOS => true,
-      _ => false,
-    };
-    return Shortcuts(
-      shortcuts: {
-        SingleActivator(LogicalKeyboardKey.keyZ, meta: apple, control: !apple):
-            const _UndoEditIntent(),
-        SingleActivator(
-          LogicalKeyboardKey.keyZ,
-          meta: apple,
-          control: !apple,
-          shift: true,
-        ): const _RedoEditIntent(),
-      },
-      child: Actions(
-        actions: {
-          _UndoEditIntent: _EditHistoryAction<_UndoEditIntent>(
-            () => _canUndo,
-            _undo,
-          ),
-          _RedoEditIntent: _EditHistoryAction<_RedoEditIntent>(
-            () => _canRedo,
-            _redo,
-          ),
-        },
-        child: FocusScope(autofocus: true, child: child),
-      ),
+    return EditorShortcuts(
+      canUndo: () => _canUndo,
+      onUndo: _undo,
+      canRedo: () => _canRedo,
+      onRedo: _redo,
+      // Escape collapses the tool panel, as it closes a sheet.
+      canEscape: () => _toolPanelOpen,
+      onEscape: () => setState(() => _toolPanelOpen = false),
+      child: child,
     );
   }
 
@@ -512,87 +506,51 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _startShortcuts() {
+    Widget shortcut(String key, String label, IconData icon, VoidCallback go) =>
+        AppTooltip(
+          message: label,
+          child: Semantics(
+            button: true,
+            label: label,
+            excludeSemantics: true,
+            child: CupertinoButton(
+              key: Key(key),
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(
+                kMinInteractiveDimensionCupertino,
+                kMinInteractiveDimensionCupertino,
+              ),
+              borderRadius: BorderRadius.circular(99),
+              color: CupertinoColors.white.withValues(alpha: .11),
+              onPressed: go,
+              child: Icon(icon, color: CupertinoColors.white, size: 20),
+            ),
+          ),
+        );
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Tooltip(
-          message: 'Movies',
-          child: CupertinoButton(
-            key: const Key('start_movies'),
-            padding: EdgeInsets.zero,
-            minimumSize: const Size(
-              kMinInteractiveDimensionCupertino,
-              kMinInteractiveDimensionCupertino,
-            ),
-            borderRadius: BorderRadius.circular(99),
-            color: CupertinoColors.white.withValues(alpha: .11),
-            onPressed: _openMovies,
-            child: const Icon(
-              CupertinoIcons.film,
-              color: CupertinoColors.white,
-              size: 20,
-            ),
-          ),
+        shortcut('start_movies', 'Movies', CupertinoIcons.film, _openMovies),
+        const SizedBox(width: 8),
+        shortcut(
+          'start_logbook',
+          'Dive logbook',
+          CupertinoIcons.book,
+          _openLogbook,
         ),
         const SizedBox(width: 8),
-        Tooltip(
-          message: 'Dive logbook',
-          child: CupertinoButton(
-            key: const Key('start_logbook'),
-            padding: EdgeInsets.zero,
-            minimumSize: const Size(
-              kMinInteractiveDimensionCupertino,
-              kMinInteractiveDimensionCupertino,
-            ),
-            borderRadius: BorderRadius.circular(99),
-            color: CupertinoColors.white.withValues(alpha: .11),
-            onPressed: _openLogbook,
-            child: const Icon(
-              CupertinoIcons.book,
-              color: CupertinoColors.white,
-              size: 20,
-            ),
-          ),
+        shortcut(
+          'start_local_exports',
+          'Local exports',
+          CupertinoIcons.folder,
+          _openLocalExports,
         ),
         const SizedBox(width: 8),
-        Tooltip(
-          message: 'Local exports',
-          child: CupertinoButton(
-            key: const Key('start_local_exports'),
-            padding: EdgeInsets.zero,
-            minimumSize: const Size(
-              kMinInteractiveDimensionCupertino,
-              kMinInteractiveDimensionCupertino,
-            ),
-            borderRadius: BorderRadius.circular(99),
-            color: CupertinoColors.white.withValues(alpha: .11),
-            onPressed: _openLocalExports,
-            child: const Icon(
-              CupertinoIcons.folder,
-              color: CupertinoColors.white,
-              size: 20,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Tooltip(
-          message: 'About AquaRecover',
-          child: CupertinoButton(
-            key: const Key('start_about'),
-            padding: EdgeInsets.zero,
-            minimumSize: const Size(
-              kMinInteractiveDimensionCupertino,
-              kMinInteractiveDimensionCupertino,
-            ),
-            borderRadius: BorderRadius.circular(99),
-            color: CupertinoColors.white.withValues(alpha: .11),
-            onPressed: _showAbout,
-            child: const Icon(
-              CupertinoIcons.info,
-              color: CupertinoColors.white,
-              size: 20,
-            ),
-          ),
+        shortcut(
+          'start_about',
+          'About AquaRecover',
+          CupertinoIcons.info,
+          _showAbout,
         ),
       ],
     );
@@ -713,18 +671,79 @@ class _EditorPageState extends State<EditorPage> {
 
   /// The trailing pane at iPad widths. It reuses the start screen's dark
   /// cards and theme, so no light panel sits inside the dark editor.
+  /// The wide editor's right column. The tool panel lives here instead of
+  /// over the photo, so the preview keeps the window's full height.
   Widget _sidePane() {
+    final job = _selectedJob;
+    final groups = job == null
+        ? const <EditorToolGroup>[]
+        : activeEditorToolGroupsFor(job.kind);
+    final activeGroup = groups.isEmpty
+        ? null
+        : groups.contains(_selectedToolGroup)
+        ? _selectedToolGroup
+        : groups.first;
     return CupertinoTheme(
       data: CupertinoTheme.of(context).copyWith(
         brightness: Brightness.dark,
         primaryColor: CupertinoColors.activeBlue,
       ),
-      child: ScrollbarListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-        children: [_statusPanel(), const SizedBox(height: 12), _queueSection()],
+      child: LayoutBuilder(
+        builder: (context, constraints) => ScrollbarListView(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
+          children: [
+            if (activeGroup != null)
+              BackdropGroup(
+                child: _toolPanelOpen
+                    ? EditorBottomPanel(
+                        group: activeGroup,
+                        open: true,
+                        height: math.min(
+                          _sidePanelHeight(activeGroup),
+                          math.max(200, constraints.maxHeight - 28),
+                        ),
+                        onClose: () => setState(() => _toolPanelOpen = false),
+                        child: _toolPanelContent(activeGroup),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Center(
+                          child: EditorCollapsedPanelButton(
+                            group: activeGroup,
+                            onPressed: () =>
+                                setState(() => _toolPanelOpen = true),
+                          ),
+                        ),
+                      ),
+              ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _statusPanel(),
+                  const SizedBox(height: 12),
+                  _queueSection(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  static const _minPanelHeight = 200.0;
+
+  static double _sidePanelHeight(EditorToolGroup group) => switch (group) {
+    EditorToolGroup.light => 380.0,
+    EditorToolGroup.presets => 420.0,
+    EditorToolGroup.crop => 240.0,
+    EditorToolGroup.effects => 280.0,
+    EditorToolGroup.video => 330.0,
+    _ => 300.0,
+  };
 
   Widget _importStep() {
     final job = _selectedJob;
@@ -892,14 +911,23 @@ class _EditorPageState extends State<EditorPage> {
         final compact = constraints.maxWidth < 720;
         final horizontalPadding = wide ? 24.0 : 12.0;
         final bottomPadding = bottomInset + (compact ? 10.0 : 18.0);
-        final reservedPreview = compact ? 250.0 : 320.0;
         final reservedChrome = compact ? 164.0 : 172.0;
-        final availablePanelHeight =
+        var reservedPreview = compact ? 250.0 : 320.0;
+        double panelRoom() =>
             constraints.maxHeight -
             reservedPreview -
             reservedChrome -
             topInset -
             bottomInset;
+        // Short desktop windows (800 × 600, say) give the preview less so
+        // the tool panel can still open; without this Open did nothing.
+        if (!compact && panelRoom() < _minPanelHeight) {
+          reservedPreview = math.max(
+            150,
+            reservedPreview - (_minPanelHeight - panelRoom()),
+          );
+        }
+        final availablePanelHeight = panelRoom();
         final preferredPanelHeight = compact
             ? switch (activeGroup) {
                 EditorToolGroup.light => 332.0,
@@ -920,7 +948,8 @@ class _EditorPageState extends State<EditorPage> {
         final panelHeight = availablePanelHeight <= 120
             ? 0.0
             : availablePanelHeight.clamp(0.0, preferredPanelHeight).toDouble();
-        final panelOpen = _toolPanelOpen && panelHeight > 0;
+        // Wide windows show the panel in the side pane instead.
+        final panelOpen = !wide && _toolPanelOpen && panelHeight > 0;
         final previewTopInset =
             topInset +
             (_jobs.length > 1
@@ -1016,40 +1045,50 @@ class _EditorPageState extends State<EditorPage> {
               left: horizontalPadding,
               right: horizontalPadding,
               bottom: bottomPadding,
-              child: CupertinoTheme(
-                data: CupertinoTheme.of(context).copyWith(
-                  brightness: Brightness.dark,
-                  primaryColor: CupertinoColors.activeBlue,
-                ),
-                child: BackdropGroup(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      EditorBottomPanel(
-                        group: activeGroup,
-                        open: panelOpen,
-                        height: panelHeight,
-                        onClose: () => setState(() => _toolPanelOpen = false),
-                        child: _toolPanelContent(activeGroup),
-                      ),
-                      if (panelOpen) const SizedBox(height: 2),
-                      if (!panelOpen)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: EditorCollapsedPanelButton(
+              child: Center(
+                heightFactor: 1,
+                child: ConstrainedBox(
+                  // The rail alone does not need the whole wide window.
+                  constraints: BoxConstraints(
+                    maxWidth: wide ? 640 : double.infinity,
+                  ),
+                  child: CupertinoTheme(
+                    data: CupertinoTheme.of(context).copyWith(
+                      brightness: Brightness.dark,
+                      primaryColor: CupertinoColors.activeBlue,
+                    ),
+                    child: BackdropGroup(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          EditorBottomPanel(
                             group: activeGroup,
-                            onPressed: () =>
-                                setState(() => _toolPanelOpen = true),
+                            open: panelOpen,
+                            height: panelHeight,
+                            onClose: () =>
+                                setState(() => _toolPanelOpen = false),
+                            child: _toolPanelContent(activeGroup),
                           ),
-                        ),
-                      if (!panelOpen) const SizedBox(height: 2),
-                      EditorToolRail(
-                        groups: groups,
-                        selectedGroup: activeGroup,
-                        panelOpen: panelOpen,
-                        onSelected: _selectToolGroup,
+                          if (panelOpen) const SizedBox(height: 2),
+                          if (!panelOpen && !wide)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: EditorCollapsedPanelButton(
+                                group: activeGroup,
+                                onPressed: () =>
+                                    setState(() => _toolPanelOpen = true),
+                              ),
+                            ),
+                          if (!panelOpen) const SizedBox(height: 2),
+                          EditorToolRail(
+                            groups: groups,
+                            selectedGroup: activeGroup,
+                            panelOpen: wide ? _toolPanelOpen : panelOpen,
+                            onSelected: _selectToolGroup,
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -1069,6 +1108,7 @@ class _EditorPageState extends State<EditorPage> {
           key: const Key('editor_undo'),
           icon: CupertinoIcons.arrow_uturn_left,
           label: 'Undo',
+          tooltip: withShortcut('Undo', 'Z'),
           iconSize: 17,
           onPressed: _canUndo ? _undo : null,
         ),
@@ -1077,6 +1117,7 @@ class _EditorPageState extends State<EditorPage> {
           key: const Key('editor_redo'),
           icon: CupertinoIcons.arrow_uturn_right,
           label: 'Redo',
+          tooltip: withShortcut('Redo', 'Z', shift: true),
           iconSize: 17,
           onPressed: _canRedo ? _redo : null,
         ),
@@ -1096,7 +1137,7 @@ class _EditorPageState extends State<EditorPage> {
     final tint = showingSplit
         ? CupertinoColors.activeBlue.withValues(alpha: .94)
         : const Color(0xff171a20);
-    return Tooltip(
+    return AppTooltip(
       message: actionLabel,
       child: Semantics(
         button: true,
@@ -1155,7 +1196,7 @@ class _EditorPageState extends State<EditorPage> {
   Widget _previewFitButton({required EditorPreviewFit fit}) {
     final actionLabel =
         '${fit.actionLabel}. Pinch with two fingers to inspect details; double-tap to reset zoom.';
-    return Tooltip(
+    return AppTooltip(
       message: actionLabel,
       child: Semantics(
         button: true,
@@ -1207,7 +1248,7 @@ class _EditorPageState extends State<EditorPage> {
       title: title,
       subtitle: '${_settings.preset.label} - ${job.kind.label}',
       trailingWidth: 46,
-      trailing: Tooltip(
+      trailing: AppTooltip(
         message: 'Review export',
         child: Semantics(
           button: true,
@@ -1431,7 +1472,7 @@ class _EditorPageState extends State<EditorPage> {
     Key? key,
     required IconData icon,
     required VoidCallback? onPressed,
-    String? tooltip,
+    required String tooltip,
   }) {
     final button = CupertinoButton(
       key: key,
@@ -1450,8 +1491,16 @@ class _EditorPageState extends State<EditorPage> {
         size: 17,
       ),
     );
-    if (tooltip == null) return button;
-    return Tooltip(message: tooltip, child: button);
+    return AppTooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        enabled: onPressed != null,
+        label: tooltip,
+        excludeSemantics: true,
+        child: button,
+      ),
+    );
   }
 
   bool _canCopyEditsFrom(MediaJob source) {
@@ -1513,7 +1562,7 @@ class _EditorPageState extends State<EditorPage> {
     required String sourceId,
     required Set<String> targetIds,
   }) async {
-    final confirmed = await showCupertinoDialog<bool>(
+    final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (dialogContext) => CupertinoAlertDialog(
         title: const Text('Apply edits to all photos?'),
@@ -2665,22 +2714,25 @@ class _EditorPageState extends State<EditorPage> {
                   CupertinoIcons.exclamationmark_triangle_fill,
                   color: CupertinoColors.destructiveRed,
                 ),
-              CupertinoButton(
-                key: Key('queue_inline_remove_${job.id}'),
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(
-                  kMinInteractiveDimensionCupertino,
-                  kMinInteractiveDimensionCupertino,
-                ),
-                onPressed: canRemove ? () => _removeJob(job.id) : null,
-                child: Icon(
-                  CupertinoIcons.trash,
-                  semanticLabel:
-                      'Remove ${job.displayName ?? p.basename(job.inputPath)} from queue',
-                  size: 18,
-                  color: canRemove
-                      ? CupertinoColors.destructiveRed
-                      : CupertinoColors.white.withValues(alpha: .34),
+              AppTooltip(
+                message: 'Remove from queue',
+                child: CupertinoButton(
+                  key: Key('queue_inline_remove_${job.id}'),
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(
+                    kMinInteractiveDimensionCupertino,
+                    kMinInteractiveDimensionCupertino,
+                  ),
+                  onPressed: canRemove ? () => _removeJob(job.id) : null,
+                  child: Icon(
+                    CupertinoIcons.trash,
+                    semanticLabel:
+                        'Remove ${job.displayName ?? p.basename(job.inputPath)} from queue',
+                    size: 18,
+                    color: canRemove
+                        ? CupertinoColors.destructiveRed
+                        : CupertinoColors.white.withValues(alpha: .34),
+                  ),
                 ),
               ),
             ],
@@ -3544,7 +3596,7 @@ class _EditorPageState extends State<EditorPage> {
       VideoRestorationService.backendUnavailableReason;
 
   Future<void> _showAlert(String title, String message) {
-    return showCupertinoDialog<void>(
+    return showAppDialog<void>(
       context: context,
       builder: (_) => CupertinoAlertDialog(
         title: Text(title),
@@ -3596,7 +3648,7 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   void _showAbout() {
-    showCupertinoDialog<void>(
+    showAppDialog<void>(
       context: context,
       builder: (_) => CupertinoAlertDialog(
         title: const Text('AquaRecover'),
@@ -3817,37 +3869,6 @@ class _EditorPageState extends State<EditorPage> {
         : job.kind.isRaw
         ? CupertinoIcons.doc_richtext
         : CupertinoIcons.photo;
-  }
-}
-
-class _UndoEditIntent extends Intent {
-  const _UndoEditIntent();
-}
-
-class _RedoEditIntent extends Intent {
-  const _RedoEditIntent();
-}
-
-/// Runs undo or redo from a keyboard shortcut. It stands aside while a text
-/// field has focus, so Cmd-Z there still undoes typing.
-class _EditHistoryAction<T extends Intent> extends Action<T> {
-  _EditHistoryAction(this._canRun, this._run);
-
-  final bool Function() _canRun;
-  final VoidCallback _run;
-
-  @override
-  bool isEnabled(T intent) {
-    final focused = FocusManager.instance.primaryFocus?.context;
-    final editingText =
-        focused?.findAncestorStateOfType<EditableTextState>() != null;
-    return !editingText && _canRun();
-  }
-
-  @override
-  Object? invoke(T intent) {
-    _run();
-    return null;
   }
 }
 

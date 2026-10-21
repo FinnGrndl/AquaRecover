@@ -7,6 +7,7 @@ import '../../../core/photo/photo_library_service.dart';
 import '../../../core/utils/bounded_concurrency.dart';
 import '../../../shared/widgets/mouse_drag_scroll.dart';
 import '../../../shared/widgets/sheet_width.dart';
+import '../../../shared/widgets/app_dialog.dart';
 
 class PhotoLibrarySheet extends StatefulWidget {
   const PhotoLibrarySheet({
@@ -426,7 +427,7 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
         );
       }
       if (failures > 0) {
-        await showCupertinoDialog<void>(
+        await showAppDialog<void>(
           context: context,
           builder: (dialogContext) => CupertinoAlertDialog(
             title: const Text('Some items were skipped'),

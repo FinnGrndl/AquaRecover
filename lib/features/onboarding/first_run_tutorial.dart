@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
 import '../../shared/reduce_motion.dart';
+import '../../shared/widgets/app_tooltip.dart';
 
 Future<void> showFirstRunTutorial(BuildContext context) {
   return showCupertinoModalPopup<void>(
@@ -226,14 +227,22 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
           Row(
             children: [
               if (_page > 0) ...[
-                CupertinoButton(
-                  key: const Key('tutorial_back'),
-                  minimumSize: const Size(48, 48),
-                  padding: EdgeInsets.zero,
-                  color: CupertinoColors.white.withValues(alpha: .10),
-                  borderRadius: BorderRadius.circular(15),
-                  onPressed: () => _goToPage(_page - 1),
-                  child: const Icon(CupertinoIcons.chevron_back),
+                AppTooltip(
+                  message: 'Previous page',
+                  child: Semantics(
+                    button: true,
+                    label: 'Previous page',
+                    excludeSemantics: true,
+                    child: CupertinoButton(
+                      key: const Key('tutorial_back'),
+                      minimumSize: const Size(48, 48),
+                      padding: EdgeInsets.zero,
+                      color: CupertinoColors.white.withValues(alpha: .10),
+                      borderRadius: BorderRadius.circular(15),
+                      onPressed: () => _goToPage(_page - 1),
+                      child: const Icon(CupertinoIcons.chevron_back),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 10),
               ],
@@ -629,24 +638,32 @@ class _EditorDemo extends StatelessWidget {
                   Positioned(
                     top: 8,
                     right: 8,
-                    child: Semantics(
-                      button: true,
-                      selected: split,
-                      label: split
+                    // Hover only: touch and hold here is the demo's
+                    // hold-to-compare gesture.
+                    child: AppTooltip(
+                      trigger: AppTooltipTrigger.hoverOnly,
+                      message: split
                           ? 'Show edited preview'
                           : 'Show split preview',
-                      child: CupertinoButton(
-                        key: const Key('tutorial_compare_toggle'),
-                        minimumSize: const Size(44, 44),
-                        padding: EdgeInsets.zero,
-                        color: const Color(0xff161a20).withValues(alpha: .82),
-                        borderRadius: BorderRadius.circular(22),
-                        onPressed: onToggleSplit,
-                        child: Icon(
-                          split
-                              ? CupertinoIcons.photo
-                              : CupertinoIcons.square_split_2x1,
-                          size: 19,
+                      child: Semantics(
+                        button: true,
+                        selected: split,
+                        label: split
+                            ? 'Show edited preview'
+                            : 'Show split preview',
+                        child: CupertinoButton(
+                          key: const Key('tutorial_compare_toggle'),
+                          minimumSize: const Size(44, 44),
+                          padding: EdgeInsets.zero,
+                          color: const Color(0xff161a20).withValues(alpha: .82),
+                          borderRadius: BorderRadius.circular(22),
+                          onPressed: onToggleSplit,
+                          child: Icon(
+                            split
+                                ? CupertinoIcons.photo
+                                : CupertinoIcons.square_split_2x1,
+                            size: 19,
+                          ),
                         ),
                       ),
                     ),
