@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Tooltip;
+import '../../../shared/widgets/app_tooltip.dart';
 
 import '../editor_tools.dart';
 import 'editor_glass_surface.dart';
@@ -35,13 +35,15 @@ class GlassToolRail extends StatelessWidget {
   final ValueChanged<int> onSelected;
   final String semanticLabel;
 
+  static const height = 60.0;
+
   @override
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
       label: semanticLabel,
       child: SizedBox(
-        height: 60,
+        height: height,
         child: EditorGlassSurface(
           style: EditorGlassStyle.clear,
           borderRadius: 30,
@@ -131,7 +133,7 @@ class _ToolButton extends StatelessWidget {
     final action = selected && panelOpen
         ? 'Collapse ${item.label} tools'
         : 'Open ${item.label} tools';
-    return Tooltip(
+    return AppTooltip(
       message: action,
       child: Semantics(
         button: true,

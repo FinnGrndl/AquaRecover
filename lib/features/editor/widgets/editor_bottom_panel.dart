@@ -2,7 +2,9 @@ import 'package:flutter/cupertino.dart';
 
 import '../../../shared/reduce_motion.dart';
 import '../editor_tools.dart';
+import '../../../shared/widgets/app_tooltip.dart';
 import 'editor_glass_surface.dart';
+import '../../../shared/widgets/scrollbar_list_view.dart';
 
 class EditorCollapsedPanelButton extends StatelessWidget {
   const EditorCollapsedPanelButton({
@@ -65,6 +67,7 @@ class EditorBottomPanel extends StatelessWidget {
     required this.height,
     required this.onClose,
     required this.child,
+    this.animate = true,
   });
 
   final EditorToolGroup group;
@@ -73,6 +76,9 @@ class EditorBottomPanel extends StatelessWidget {
   final VoidCallback onClose;
   final Widget child;
 
+  /// False follows [height] at once, as while a divider is dragged.
+  final bool animate;
+
   @override
   Widget build(BuildContext context) {
     return GlassBottomPanel(
@@ -80,6 +86,7 @@ class EditorBottomPanel extends StatelessWidget {
       open: open,
       height: height,
       onClose: onClose,
+      animate: animate,
       contentPadding: group == EditorToolGroup.crop
           ? const EdgeInsets.fromLTRB(14, 44, 14, 10)
           : const EdgeInsets.fromLTRB(14, 48, 14, 18),
@@ -100,6 +107,7 @@ class GlassBottomPanel extends StatelessWidget {
     required this.child,
     this.contentPadding = const EdgeInsets.fromLTRB(14, 48, 14, 18),
     this.scrollable = true,
+    this.animate = true,
   });
 
   final String label;
@@ -112,11 +120,16 @@ class GlassBottomPanel extends StatelessWidget {
   /// When false, [child] gets the panel's height and handles overflow itself.
   final bool scrollable;
 
+  /// False follows [height] at once, as while a divider is dragged.
+  final bool animate;
+
   @override
   Widget build(BuildContext context) {
     if (!open) return const SizedBox.shrink();
     return AnimatedContainer(
-      duration: motionDuration(context, const Duration(milliseconds: 180)),
+      duration: animate
+          ? motionDuration(context, const Duration(milliseconds: 180))
+          : Duration.zero,
       curve: Curves.easeOut,
       height: height,
       margin: const EdgeInsets.fromLTRB(6, 0, 6, 7),
@@ -129,9 +142,7 @@ class GlassBottomPanel extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               if (scrollable)
-                CupertinoScrollbar(
-                  child: ListView(padding: contentPadding, children: [child]),
-                )
+                ScrollbarListView(padding: contentPadding, children: [child])
               else
                 Padding(padding: contentPadding, child: child),
               Positioned(
@@ -139,18 +150,26 @@ class GlassBottomPanel extends StatelessWidget {
                 left: 0,
                 right: 0,
                 child: Center(
-                  child: CupertinoButton(
-                    key: const Key('editor_tool_panel_close'),
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    minimumSize: const Size(
-                      kMinInteractiveDimensionCupertino,
-                      kMinInteractiveDimensionCupertino,
-                    ),
-                    onPressed: onClose,
-                    child: Icon(
-                      CupertinoIcons.chevron_down,
-                      size: 17,
-                      color: CupertinoColors.white.withValues(alpha: .72),
+                  child: AppTooltip(
+                    message: 'Collapse $label',
+                    child: Semantics(
+                      button: true,
+                      label: 'Collapse $label',
+                      excludeSemantics: true,
+                      child: CupertinoButton(
+                        key: const Key('editor_tool_panel_close'),
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        minimumSize: const Size(
+                          kMinInteractiveDimensionCupertino,
+                          kMinInteractiveDimensionCupertino,
+                        ),
+                        onPressed: onClose,
+                        child: Icon(
+                          CupertinoIcons.chevron_down,
+                          size: 17,
+                          color: CupertinoColors.white.withValues(alpha: .72),
+                        ),
+                      ),
                     ),
                   ),
                 ),

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Tooltip;
+import '../../shared/widgets/app_tooltip.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
@@ -13,6 +13,8 @@ import '../editor/widgets/glass_navigation_bar.dart';
 import 'timeline_editor_page.dart';
 import 'timeline_media_picker.dart';
 import 'timeline_theme.dart';
+import '../../shared/widgets/scrollbar_list_view.dart';
+import '../../shared/widgets/app_dialog.dart';
 
 /// Lists saved movies and starts new ones.
 class TimelineProjectsPage extends StatefulWidget {
@@ -114,7 +116,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
   }
 
   Future<bool> _confirmDelete(TimelineProject project) async {
-    final confirmed = await showCupertinoDialog<bool>(
+    final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: Text('Delete “${project.name}”?'),
@@ -157,8 +159,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
   Widget build(BuildContext context) {
     final projects = _projects;
     final count = projects?.length ?? 0;
-    return CupertinoTheme(
-      data: timelineTheme(context),
+    return TimelineTheme(
       child: CupertinoPageScaffold(
         backgroundColor: OceanBackdrop.base,
         child: AnnotatedRegion<SystemUiOverlayStyle>(
@@ -178,7 +179,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
                           ? 'Made on this device'
                           : '$count movie${count == 1 ? '' : 's'}',
                       trailingWidth: 46,
-                      trailing: Tooltip(
+                      trailing: AppTooltip(
                         message: 'New movie',
                         child: Semantics(
                           button: true,
@@ -297,61 +298,56 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
         ),
       );
     }
-    return CupertinoScrollbar(
-      child: ListView(
-        padding: EdgeInsets.fromLTRB(16, 22, 16, bottom),
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 10),
-            child: Text(
-              'Recent',
-              style: TextStyle(
-                color: TimelineColors.text,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -.2,
+    return ScrollbarListView(
+      padding: EdgeInsets.fromLTRB(16, 22, 16, bottom),
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 10),
+          child: Text(
+            'Recent',
+            style: TextStyle(
+              color: TimelineColors.text,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -.2,
+            ),
+          ),
+        ),
+        for (final project in projects)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Dismissible(
+              key: ValueKey('movie-${project.id}'),
+              direction: DismissDirection.endToStart,
+              confirmDismiss: (_) => _confirmDelete(project),
+              onDismissed: (_) => unawaited(_remove(project)),
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 22),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemRed,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  CupertinoIcons.trash,
+                  color: CupertinoColors.white,
+                ),
+              ),
+              child: _ProjectContextMenu(
+                project: project,
+                onOpen: () => _openProject(project),
+                onDelete: () => _delete(project),
               ),
             ),
           ),
-          for (final project in projects)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Dismissible(
-                key: ValueKey('movie-${project.id}'),
-                direction: DismissDirection.endToStart,
-                confirmDismiss: (_) => _confirmDelete(project),
-                onDismissed: (_) => unawaited(_remove(project)),
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 22),
-                  decoration: BoxDecoration(
-                    color: CupertinoColors.systemRed,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.trash,
-                    color: CupertinoColors.white,
-                  ),
-                ),
-                child: _ProjectContextMenu(
-                  project: project,
-                  onOpen: () => _openProject(project),
-                  onDelete: () => _delete(project),
-                ),
-              ),
-            ),
-          const Padding(
-            padding: EdgeInsets.only(top: 4, left: 4),
-            child: Text(
-              'Swipe left or touch and hold a movie to delete it.',
-              style: TextStyle(
-                color: TimelineColors.secondaryText,
-                fontSize: 12,
-              ),
-            ),
+        const Padding(
+          padding: EdgeInsets.only(top: 4, left: 4),
+          child: Text(
+            'Swipe left or touch and hold a movie to delete it.',
+            style: TextStyle(color: TimelineColors.secondaryText, fontSize: 12),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

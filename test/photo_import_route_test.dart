@@ -59,6 +59,46 @@ void main() {
     });
   });
 
+  group('PhotoLibraryService.saveNeedsPermission', () {
+    test('asks for storage access only before Android 10', () {
+      for (final sdk in [24, 26, 28]) {
+        expect(
+          PhotoLibraryService.saveNeedsPermission(
+            operatingSystem: 'android',
+            androidSdk: sdk,
+          ),
+          isTrue,
+          reason: 'API $sdk writes to shared storage',
+        );
+      }
+      for (final sdk in [29, 33, 34, 35]) {
+        expect(
+          PhotoLibraryService.saveNeedsPermission(
+            operatingSystem: 'android',
+            androidSdk: sdk,
+          ),
+          isFalse,
+          reason: 'API $sdk adds media through MediaStore without a prompt',
+        );
+      }
+      expect(
+        PhotoLibraryService.saveNeedsPermission(operatingSystem: 'android'),
+        isTrue,
+      );
+    });
+
+    test('keeps add-only Photos access on Apple platforms', () {
+      expect(
+        PhotoLibraryService.saveNeedsPermission(operatingSystem: 'ios'),
+        isTrue,
+      );
+      expect(
+        PhotoLibraryService.saveNeedsPermission(operatingSystem: 'macos'),
+        isTrue,
+      );
+    });
+  });
+
   testWidgets('library sheet pages through large albums', (tester) async {
     final service = _PagedPhotoLibraryService(total: 300);
     tester.view.physicalSize = const Size(800, 1200);

@@ -6,6 +6,7 @@ import '../../../core/models/restoration_settings.dart';
 import '../../../shared/reduce_motion.dart';
 import '../editor_tools.dart';
 import 'setting_slider.dart';
+import '../../../shared/widgets/mouse_drag_scroll.dart';
 
 /// Apple Photos-inspired adjustment browser: every current value stays visible
 /// in one horizontal strip while the selected value gets a precise slider.
@@ -97,23 +98,25 @@ class AdjustmentBrowser extends StatelessWidget {
           height: _AdjustmentValueButton.stripHeight(
             MediaQuery.textScalerOf(context),
           ),
-          child: ListView.separated(
-            key: const Key('all_adjustment_values'),
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            itemCount: controls.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 7),
-            itemBuilder: (context, index) {
-              final control = controls[index];
-              final selected = control.id == active.id;
-              return _AdjustmentValueButton(
-                control: control,
-                value: control.value(settings),
-                selected: selected,
-                enabled: enabled,
-                onPressed: () => onSelected(control.id),
-              );
-            },
+          child: MouseDragScroll(
+            child: ListView.separated(
+              key: const Key('all_adjustment_values'),
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              itemCount: controls.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 7),
+              itemBuilder: (context, index) {
+                final control = controls[index];
+                final selected = control.id == active.id;
+                return _AdjustmentValueButton(
+                  control: control,
+                  value: control.value(settings),
+                  selected: selected,
+                  enabled: enabled,
+                  onPressed: () => onSelected(control.id),
+                );
+              },
+            ),
           ),
         ),
         const SizedBox(height: 12),

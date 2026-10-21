@@ -35,7 +35,8 @@ rebuilds tone before applying the familiar editing controls. The automatic
 result is a starting point, not a locked decision.
 
 Everything happens locally. There is no account, upload queue, analytics SDK,
-subscription, or remote processing service.
+subscription, or remote processing service. The only network access is the
+dive logbook's map, which loads OpenStreetMap tiles.
 
 <p align="center">
   <img src="docs/assets/editor-split.webp" width="31%" alt="AquaRecover editor showing the original and restored underwater image side by side">
@@ -309,7 +310,8 @@ Claude Code.
 
 The repository contains no login, advertising framework, telemetry client,
 upload endpoint, or cloud backend. Selected media is decoded and rendered on
-the device. If an item exists only in iCloud, the operating system may download
+the device. The dive logbook map loads tiles from OpenStreetMap, which sees the
+device's IP address and the map area being viewed. If an item exists only in iCloud, the operating system may download
 it before providing AquaRecover with a local file.
 
 Still exports are freshly encoded. Video exports remove metadata by default.
@@ -324,7 +326,7 @@ contains the Android APK, Windows installer, and signed macOS disk image. iOS
 builds are distributed through TestFlight while store preparation is in
 progress.
 
-Current source version: `1.4.0+16`.
+Current source version: `1.5.0+18`.
 
 To run from source with the same Flutter toolchain used by CI:
 

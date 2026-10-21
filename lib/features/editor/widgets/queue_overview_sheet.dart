@@ -6,6 +6,8 @@ import 'package:path/path.dart' as p;
 import '../../../core/models/media_job.dart';
 import '../../../core/models/media_kind.dart';
 import '../../../shared/reduce_motion.dart';
+import '../../../shared/widgets/sheet_width.dart';
+import '../../../shared/widgets/app_tooltip.dart';
 
 class QueueOverviewSheet extends StatefulWidget {
   const QueueOverviewSheet({
@@ -41,49 +43,51 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.sizeOf(context).height;
-    return CupertinoPopupSurface(
-      isSurfacePainted: true,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: screenHeight * .82,
-          child: Column(
-            children: [
-              _header(context),
-              if (widget.busy)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemOrange.withValues(
-                        alpha: .12,
+    return SheetWidth(
+      child: CupertinoPopupSurface(
+        isSurfacePainted: true,
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: screenHeight * .82,
+            child: Column(
+              children: [
+                _header(context),
+                if (widget.busy)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Queue changes are locked until the current export finishes.',
-                      style: TextStyle(fontSize: 13),
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.systemOrange.withValues(
+                          alpha: .12,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'Queue changes are locked until the current export finishes.',
+                        style: TextStyle(fontSize: 13),
+                      ),
                     ),
                   ),
+                Expanded(
+                  child: _jobs.isEmpty
+                      ? const Center(child: Text('No selected media.'))
+                      : ListView.separated(
+                          key: const Key('queue_overview_list'),
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                          itemCount: _jobs.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) =>
+                              _jobTile(context, _jobs[index], index),
+                        ),
                 ),
-              Expanded(
-                child: _jobs.isEmpty
-                    ? const Center(child: Text('No selected media.'))
-                    : ListView.separated(
-                        key: const Key('queue_overview_list'),
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                        itemCount: _jobs.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) =>
-                            _jobTile(context, _jobs[index], index),
-                      ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -202,22 +206,25 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
               ),
               const SizedBox(width: 8),
               _statusIcon(job),
-              CupertinoButton(
-                key: Key('queue_remove_${job.id}'),
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(
-                  kMinInteractiveDimensionCupertino,
-                  kMinInteractiveDimensionCupertino,
-                ),
-                onPressed: canRemove ? () => _remove(job, index) : null,
-                child: Icon(
-                  CupertinoIcons.trash,
-                  semanticLabel:
-                      'Remove ${job.displayName ?? p.basename(job.inputPath)} from queue',
-                  size: 19,
-                  color: canRemove
-                      ? CupertinoColors.destructiveRed
-                      : CupertinoColors.systemGrey3.resolveFrom(context),
+              AppTooltip(
+                message: 'Remove from queue',
+                child: CupertinoButton(
+                  key: Key('queue_remove_${job.id}'),
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(
+                    kMinInteractiveDimensionCupertino,
+                    kMinInteractiveDimensionCupertino,
+                  ),
+                  onPressed: canRemove ? () => _remove(job, index) : null,
+                  child: Icon(
+                    CupertinoIcons.trash,
+                    semanticLabel:
+                        'Remove ${job.displayName ?? p.basename(job.inputPath)} from queue',
+                    size: 19,
+                    color: canRemove
+                        ? CupertinoColors.destructiveRed
+                        : CupertinoColors.systemGrey3.resolveFrom(context),
+                  ),
                 ),
               ),
             ],

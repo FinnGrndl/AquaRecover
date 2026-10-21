@@ -4,6 +4,7 @@ import '../../../../core/timeline/timeline_project.dart';
 import '../../timeline_controller.dart';
 import '../../timeline_theme.dart';
 import 'tool_controls.dart';
+import '../../../../shared/widgets/mouse_drag_scroll.dart';
 
 /// The built-in effects for the selected clip or overlay (or the clip under
 /// the playhead from the root toolbar): a category switcher, a row of tiles
@@ -96,13 +97,15 @@ class _EffectsPanelState extends State<EffectsPanel> {
           const SizedBox(height: 12),
           SizedBox(
             height: 92,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.only(top: 4),
-              children: [
-                for (final type in types)
-                  _tile(type, effects.any((e) => e.type == type)),
-              ],
+            child: MouseDragScroll(
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(top: 4),
+                children: [
+                  for (final type in types)
+                    _tile(type, effects.any((e) => e.type == type)),
+                ],
+              ),
             ),
           ),
           if (focused != null) ...[

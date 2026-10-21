@@ -5,6 +5,8 @@ import 'package:flutter/cupertino.dart';
 import '../../core/models/media_kind.dart';
 import '../../core/persistence/export_library_service.dart';
 import '../editor/widgets/video_preview_tile.dart';
+import '../../shared/widgets/app_tooltip.dart';
+import '../../shared/widgets/app_dialog.dart';
 
 class ExportLibraryPage extends StatefulWidget {
   const ExportLibraryPage({
@@ -41,41 +43,50 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
           brightness: Brightness.dark,
           scaffoldBackgroundColor: const Color(0xff0b1115),
         ),
-        child: Stack(
-          children: [
-            CustomScrollView(
-              slivers: [
-                CupertinoSliverNavigationBar(
-                  largeTitle: const Text('Local Exports'),
-                  backgroundColor: const Color(
-                    0xff0b1115,
-                  ).withValues(alpha: .92),
-                  border: null,
-                  trailing: _items.isEmpty
-                      ? null
-                      : CupertinoButton(
-                          key: const Key('local_export_selection_mode'),
-                          padding: EdgeInsets.zero,
-                          onPressed: _deleting ? null : _toggleSelectionMode,
-                          child: Text(_selectionMode ? 'Cancel' : 'Select'),
-                        ),
+        child: Builder(
+          // The app's light text style is still the default here; without
+          // this, file names draw black on the dark tiles.
+          builder: (context) => DefaultTextStyle(
+            style: CupertinoTheme.of(context).textTheme.textStyle,
+            child: Stack(
+              children: [
+                CustomScrollView(
+                  slivers: [
+                    CupertinoSliverNavigationBar(
+                      largeTitle: const Text('Local Exports'),
+                      backgroundColor: const Color(
+                        0xff0b1115,
+                      ).withValues(alpha: .92),
+                      border: null,
+                      trailing: _items.isEmpty
+                          ? null
+                          : CupertinoButton(
+                              key: const Key('local_export_selection_mode'),
+                              padding: EdgeInsets.zero,
+                              onPressed: _deleting
+                                  ? null
+                                  : _toggleSelectionMode,
+                              child: Text(_selectionMode ? 'Cancel' : 'Select'),
+                            ),
+                    ),
+                    CupertinoSliverRefreshControl(
+                      onRefresh: () => _reload(showLoading: false),
+                    ),
+                    if (!_loading && _loadError == null && _items.isNotEmpty)
+                      SliverToBoxAdapter(child: _libraryToolbar()),
+                    _libraryContent(),
+                  ],
                 ),
-                CupertinoSliverRefreshControl(
-                  onRefresh: () => _reload(showLoading: false),
-                ),
-                if (!_loading && _loadError == null && _items.isNotEmpty)
-                  SliverToBoxAdapter(child: _libraryToolbar()),
-                _libraryContent(),
+                if (_selectionMode && _items.isNotEmpty)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _selectionActionBar(),
+                  ),
               ],
             ),
-            if (_selectionMode && _items.isNotEmpty)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: _selectionActionBar(),
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -107,8 +118,10 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
     return SliverPadding(
       padding: EdgeInsets.fromLTRB(16, 8, 16, _selectionMode ? 116 : 32),
       sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
+        // Two columns on phones, more on iPad, Mac and Windows windows,
+        // so tiles never grow to half a desktop window.
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 220,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
           childAspectRatio: .78,
@@ -128,11 +141,14 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
         padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
         child: Row(
           children: [
-            Text(
-              '${_selectedPaths.length} selected',
-              style: const TextStyle(color: CupertinoColors.systemGrey),
+            Expanded(
+              child: Text(
+                '${_selectedPaths.length} selected',
+                style: const TextStyle(color: CupertinoColors.systemGrey),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            const Spacer(),
             CupertinoButton(
               key: const Key('local_export_select_all'),
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -151,11 +167,14 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
       padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
       child: Row(
         children: [
-          Text(
-            '${_items.length} local export${_items.length == 1 ? '' : 's'}',
-            style: const TextStyle(color: CupertinoColors.systemGrey),
+          Expanded(
+            child: Text(
+              '${_items.length} local export${_items.length == 1 ? '' : 's'}',
+              style: const TextStyle(color: CupertinoColors.systemGrey),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          const Spacer(),
           CupertinoButton(
             key: const Key('delete_all_local_exports'),
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -191,6 +210,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: CupertinoButton(
             key: const Key('delete_selected_local_exports'),
+            foregroundColor: CupertinoColors.white,
             color: count == 0
                 ? CupertinoColors.systemGrey
                 : CupertinoColors.destructiveRed,
@@ -233,83 +253,90 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
 
   Widget _exportTile(BuildContext context, LocalExportItem item) {
     final selected = _selectedPaths.contains(item.path);
-    return GestureDetector(
-      key: Key('local_export_${item.fileName}'),
-      onLongPress: _deleting ? null : () => _selectItem(item),
-      onTap: _deleting
-          ? null
-          : () =>
-                _selectionMode ? _toggleItem(item) : _openDetail(context, item),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xff1b2024),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: selected
-                      ? CupertinoColors.activeBlue
-                      : CupertinoColors.white.withValues(alpha: .10),
-                  width: selected ? 2 : 1,
-                ),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _thumbnail(item)),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.fileName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          item.sizeLabel,
-                          style: const TextStyle(
-                            color: CupertinoColors.systemGrey,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_selectionMode)
-            Positioned(
-              top: 10,
-              right: 10,
+    // Hover only: touch and hold selects the export. The tag shows the full
+    // name the tile cuts short.
+    return AppTooltip(
+      trigger: AppTooltipTrigger.hoverOnly,
+      message: item.fileName,
+      child: GestureDetector(
+        key: Key('local_export_${item.fileName}'),
+        onLongPress: _deleting ? null : () => _selectItem(item),
+        onTap: _deleting
+            ? null
+            : () => _selectionMode
+                  ? _toggleItem(item)
+                  : _openDetail(context, item),
+        child: Stack(
+          children: [
+            Positioned.fill(
               child: Container(
-                key: Key('local_export_selected_${item.fileName}'),
-                width: 28,
-                height: 28,
                 decoration: BoxDecoration(
-                  color: selected
-                      ? CupertinoColors.activeBlue
-                      : CupertinoColors.black.withValues(alpha: .55),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: CupertinoColors.white, width: 2),
+                  color: const Color(0xff1b2024),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: selected
+                        ? CupertinoColors.activeBlue
+                        : CupertinoColors.white.withValues(alpha: .10),
+                    width: selected ? 2 : 1,
+                  ),
                 ),
-                child: selected
-                    ? const Icon(
-                        CupertinoIcons.check_mark,
-                        color: CupertinoColors.white,
-                        size: 17,
-                      )
-                    : null,
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _thumbnail(item)),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.fileName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            item.sizeLabel,
+                            style: const TextStyle(
+                              color: CupertinoColors.systemGrey,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-        ],
+            if (_selectionMode)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  key: Key('local_export_selected_${item.fileName}'),
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? CupertinoColors.activeBlue
+                        : CupertinoColors.black.withValues(alpha: .55),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: CupertinoColors.white, width: 2),
+                  ),
+                  child: selected
+                      ? const Icon(
+                          CupertinoIcons.check_mark,
+                          color: CupertinoColors.white,
+                          size: 17,
+                        )
+                      : null,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -393,7 +420,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
   }) async {
     if (items.isEmpty || _deleting) return;
     final count = items.length;
-    final confirmed = await showCupertinoDialog<bool>(
+    final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (dialogContext) => CupertinoAlertDialog(
         title: Text(
@@ -435,7 +462,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
     });
     await _reload(showLoading: false);
     if (failures > 0 && mounted) {
-      await showCupertinoDialog<void>(
+      await showAppDialog<void>(
         context: context,
         builder: (dialogContext) => CupertinoAlertDialog(
           title: const Text('Some exports could not be deleted'),
@@ -502,13 +529,21 @@ class ExportDetailPage extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: CupertinoButton(
-          key: const Key('delete_local_export'),
-          padding: EdgeInsets.zero,
-          onPressed: () => _confirmDelete(context),
-          child: const Icon(
-            CupertinoIcons.trash,
-            color: CupertinoColors.destructiveRed,
+        trailing: AppTooltip(
+          message: 'Delete export',
+          child: Semantics(
+            button: true,
+            label: 'Delete export',
+            excludeSemantics: true,
+            child: CupertinoButton(
+              key: const Key('delete_local_export'),
+              padding: EdgeInsets.zero,
+              onPressed: () => _confirmDelete(context),
+              child: const Icon(
+                CupertinoIcons.trash,
+                color: CupertinoColors.destructiveRed,
+              ),
+            ),
           ),
         ),
       ),
@@ -563,7 +598,7 @@ class ExportDetailPage extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await showCupertinoDialog<bool>(
+    final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (dialogContext) => CupertinoAlertDialog(
         title: const Text('Delete local export?'),
@@ -589,7 +624,7 @@ class ExportDetailPage extends StatelessWidget {
       if (context.mounted) Navigator.of(context).pop(true);
     } on Object {
       if (!context.mounted) return;
-      await showCupertinoDialog<void>(
+      await showAppDialog<void>(
         context: context,
         builder: (dialogContext) => CupertinoAlertDialog(
           title: const Text('Export could not be deleted'),

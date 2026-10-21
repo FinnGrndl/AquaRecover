@@ -1,9 +1,10 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Tooltip;
+import '../../../shared/widgets/app_tooltip.dart';
 
 import '../../../core/models/image_transform_settings.dart';
 import 'precision_wheel.dart';
 import 'setting_slider.dart';
+import '../../../shared/widgets/mouse_drag_scroll.dart';
 
 class CropBrowser extends StatelessWidget {
   const CropBrowser({
@@ -24,36 +25,38 @@ class CropBrowser extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SingleChildScrollView(
-          key: const Key('crop_aspect_ratio_scroll'),
-          scrollDirection: Axis.horizontal,
-          child: CupertinoSlidingSegmentedControl<CropAspectRatio>(
-            key: const Key('crop_aspect_ratio'),
-            groupValue: settings.aspectRatio,
-            backgroundColor: CupertinoColors.white.withValues(alpha: .10),
-            thumbColor: CupertinoColors.activeBlue,
-            children: {
-              for (final aspect in CropAspectRatio.values)
-                aspect: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    aspect.label,
-                    style: const TextStyle(color: CupertinoColors.white),
+        MouseDragScroll(
+          child: SingleChildScrollView(
+            key: const Key('crop_aspect_ratio_scroll'),
+            scrollDirection: Axis.horizontal,
+            child: CupertinoSlidingSegmentedControl<CropAspectRatio>(
+              key: const Key('crop_aspect_ratio'),
+              groupValue: settings.aspectRatio,
+              backgroundColor: CupertinoColors.white.withValues(alpha: .10),
+              thumbColor: CupertinoColors.activeBlue,
+              children: {
+                for (final aspect in CropAspectRatio.values)
+                  aspect: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      aspect.label,
+                      style: const TextStyle(color: CupertinoColors.white),
+                    ),
                   ),
-                ),
-            },
-            onValueChanged: (value) {
-              if (enabled && value != null) {
-                onChanged(
-                  settings.copyWith(
-                    aspectRatio: value,
-                    customAspectRatio: value == CropAspectRatio.freeform
-                        ? settings.outputAspectRatio(sourceAspectRatio)
-                        : null,
-                  ),
-                );
-              }
-            },
+              },
+              onValueChanged: (value) {
+                if (enabled && value != null) {
+                  onChanged(
+                    settings.copyWith(
+                      aspectRatio: value,
+                      customAspectRatio: value == CropAspectRatio.freeform
+                          ? settings.outputAspectRatio(sourceAspectRatio)
+                          : null,
+                    ),
+                  );
+                }
+              },
+            ),
           ),
         ),
         if (settings.aspectRatio == CropAspectRatio.freeform)
@@ -163,7 +166,7 @@ class _CropIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = CupertinoTheme.of(context).primaryColor;
-    return Tooltip(
+    return AppTooltip(
       message: label,
       child: Semantics(
         button: true,

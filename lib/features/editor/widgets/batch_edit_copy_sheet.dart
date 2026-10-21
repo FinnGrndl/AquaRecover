@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/models/media_job.dart';
 import '../../../core/models/media_kind.dart';
 import '../../../shared/reduce_motion.dart';
+import '../../../shared/widgets/sheet_width.dart';
 
 class BatchEditCopySheet extends StatefulWidget {
   const BatchEditCopySheet({
@@ -32,41 +33,43 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
   @override
   Widget build(BuildContext context) {
     final height = MediaQuery.sizeOf(context).height * .78;
-    return CupertinoPopupSurface(
-      isSurfacePainted: true,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: height,
-          child: Column(
-            children: [
-              _header(context),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                child: _sourceCard(context),
-              ),
-              Expanded(
-                child: widget.targets.isEmpty
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text(
-                            'There are no other photos in this batch.',
-                            textAlign: TextAlign.center,
+    return SheetWidth(
+      child: CupertinoPopupSurface(
+        isSurfacePainted: true,
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: height,
+            child: Column(
+              children: [
+                _header(context),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: _sourceCard(context),
+                ),
+                Expanded(
+                  child: widget.targets.isEmpty
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Text(
+                              'There are no other photos in this batch.',
+                              textAlign: TextAlign.center,
+                            ),
                           ),
+                        )
+                      : ListView.separated(
+                          key: const Key('batch_edit_target_list'),
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                          itemCount: widget.targets.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) =>
+                              _targetTile(context, widget.targets[index]),
                         ),
-                      )
-                    : ListView.separated(
-                        key: const Key('batch_edit_target_list'),
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                        itemCount: widget.targets.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) =>
-                            _targetTile(context, widget.targets[index]),
-                      ),
-              ),
-              _actions(context),
-            ],
+                ),
+                _actions(context),
+              ],
+            ),
           ),
         ),
       ),

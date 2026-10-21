@@ -1,8 +1,9 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Tooltip;
+import '../../../shared/widgets/app_tooltip.dart';
 
 import '../../editor/widgets/editor_glass_surface.dart';
 import '../timeline_theme.dart';
+import '../../../shared/widgets/mouse_drag_scroll.dart';
 
 /// One item of a [TimelineToolbar].
 class TimelineToolItem {
@@ -107,21 +108,23 @@ class _TimelineToolbarState extends State<TimelineToolbar> {
             final itemWidth = count == 0
                 ? 64.0
                 : (constraints.maxWidth / count).clamp(58.0, 84.0);
-            return SingleChildScrollView(
-              controller: _scroll,
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    for (final item in widget.items)
-                      _ToolButton(
-                        key: item.key ?? Key('timeline_tool_${item.id}'),
-                        item: item,
-                        width: itemWidth,
-                      ),
-                  ],
+            return MouseDragScroll(
+              child: SingleChildScrollView(
+                controller: _scroll,
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      for (final item in widget.items)
+                        _ToolButton(
+                          key: item.key ?? Key('timeline_tool_${item.id}'),
+                          item: item,
+                          width: itemWidth,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -157,7 +160,7 @@ class _TimelineToolbarState extends State<TimelineToolbar> {
             child: Row(
               children: [
                 if (widget.onBack != null) ...[
-                  Tooltip(
+                  AppTooltip(
                     message: widget.backLabel,
                     child: Semantics(
                       button: true,
@@ -203,7 +206,7 @@ class _ToolButton extends StatelessWidget {
     final enabled = item.onPressed != null;
     final base = item.destructive ? TimelineColors.danger : TimelineColors.text;
     final color = enabled ? base : base.withValues(alpha: .34);
-    return Tooltip(
+    return AppTooltip(
       message: item.label,
       child: Semantics(
         button: true,

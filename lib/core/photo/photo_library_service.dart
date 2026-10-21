@@ -232,18 +232,42 @@ class PhotoLibraryService {
     return const PickedPhotoFiles([]);
   }
 
+  /// Whether saving an export to the gallery needs a permission prompt.
+  ///
+  /// Android 10 (API 29) and later add media through MediaStore without any
+  /// permission, so asking there would only request read access to the whole
+  /// library. Older Android versions need write access to shared storage,
+  /// and Apple platforms need add-only Photos access.
+  static bool saveNeedsPermission({
+    required String operatingSystem,
+    int? androidSdk,
+  }) => switch (operatingSystem) {
+    'android' => androidSdk == null || androidSdk < 29,
+    _ => true,
+  };
+
   Future<void> saveExport(String outputPath, MediaKind kind) async {
-    final permission = await PhotoManager.requestPermissionExtend(
-      // Saving only needs add-only access on Apple platforms; this avoids
-      // asking for full library read access just to export a file.
-      requestOption: Platform.isIOS || Platform.isMacOS
-          ? const PermissionRequestOption(
-              iosAccessLevel: IosAccessLevel.addOnly,
-            )
-          : const PermissionRequestOption(),
+    final os = Platform.operatingSystem;
+    final needsPermission = saveNeedsPermission(
+      operatingSystem: os,
+      androidSdk: os == 'android'
+          ? int.tryParse(await PhotoManager.systemVersion())
+          : null,
     );
-    if (!permission.hasAccess) {
-      throw StateError('Photos permission was not granted.');
+    if (needsPermission) {
+      final permission = await PhotoManager.requestPermissionExtend(
+        // Saving only needs add-only access on Apple platforms; this avoids
+        // asking for full library read access just to export a file. On
+        // Android 7-9 this asks for storage read and write access.
+        requestOption: Platform.isIOS || Platform.isMacOS
+            ? const PermissionRequestOption(
+                iosAccessLevel: IosAccessLevel.addOnly,
+              )
+            : const PermissionRequestOption(),
+      );
+      if (!permission.hasAccess) {
+        throw StateError('Photos permission was not granted.');
+      }
     }
     if (kind.isVideo) {
       await PhotoManager.editor.saveVideo(

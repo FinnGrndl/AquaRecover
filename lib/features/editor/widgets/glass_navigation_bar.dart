@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 
+import '../../../shared/widgets/app_tooltip.dart';
 import 'editor_glass_surface.dart';
 
 /// The floating top bar used over photos, videos, and the movie viewer: a
@@ -78,6 +79,19 @@ class GlassNavigationBar extends StatelessWidget {
         ),
       );
     }
+    // Like a system navigation bar, the 48 pt bar keeps its height and lets
+    // its text grow only a little with larger Dynamic Type sizes, so the title
+    // and subtitle never spill out of it.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: maxTextScale,
+      child: _bar(titleBlock),
+    );
+  }
+
+  /// The largest text scale the bar's labels follow.
+  static const maxTextScale = 1.1;
+
+  Widget _bar(Widget titleBlock) {
     return SizedBox(
       height: 48,
       child: Stack(
@@ -158,10 +172,14 @@ class GlassIconButton extends StatelessWidget {
     this.size = kMinInteractiveDimensionCupertino,
     this.iconSize = 19,
     this.tint,
+    this.tooltip,
   });
 
   final IconData icon;
   final String label;
+
+  /// The help tag, when it should say more than [label] (a shortcut, say).
+  final String? tooltip;
   final VoidCallback? onPressed;
   final double size;
   final double iconSize;
@@ -169,7 +187,7 @@ class GlassIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
+    final button = Semantics(
       button: true,
       enabled: onPressed != null,
       label: label,
@@ -195,5 +213,6 @@ class GlassIconButton extends StatelessWidget {
         ),
       ),
     );
+    return AppTooltip(message: tooltip ?? label, child: button);
   }
 }

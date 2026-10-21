@@ -34,6 +34,27 @@ CupertinoThemeData timelineTheme(BuildContext context) =>
       scaffoldBackgroundColor: TimelineColors.background,
     );
 
+/// Applies [timelineTheme] to a whole screen, including the default text
+/// style. The app's light text style otherwise stays in effect, and plain
+/// labels, such as those of a segmented control, draw black on the dark
+/// background.
+class TimelineTheme extends StatelessWidget {
+  const TimelineTheme({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => CupertinoTheme(
+    data: timelineTheme(context),
+    child: Builder(
+      builder: (context) => DefaultTextStyle(
+        style: CupertinoTheme.of(context).textTheme.textStyle,
+        child: child,
+      ),
+    ),
+  );
+}
+
 String formatTimecode(double seconds, {bool tenths = true}) {
   final safe = seconds.isFinite && seconds > 0 ? seconds : 0.0;
   final minutes = safe ~/ 60;

@@ -11,6 +11,8 @@ import '../../../core/timeline/timeline_project.dart';
 import '../timeline_controller.dart';
 import '../timeline_theme.dart';
 import 'tools/transition_panel.dart';
+import '../../../shared/widgets/app_tooltip.dart';
+import '../../../shared/widgets/mouse_drag_scroll.dart';
 
 /// Pixels per second of the timeline, shared by the strip and the zoom
 /// buttons in the transport row.
@@ -45,6 +47,9 @@ class TimelineStrip extends StatefulWidget {
     this.compact = false,
     this.onScrubStart,
     this.onAdd,
+    this.onAddText,
+    this.onAddOverlay,
+    this.onAddAudio,
     this.onJunction,
     this.activeJunction,
   });
@@ -56,6 +61,12 @@ class TimelineStrip extends StatefulWidget {
 
   /// The "+" at the end of the main track.
   final VoidCallback? onAdd;
+
+  /// The buttons in the empty lane above the overlays and below the sounds,
+  /// which keep the extra tracks visible before anything is on them.
+  final VoidCallback? onAddText;
+  final VoidCallback? onAddOverlay;
+  final VoidCallback? onAddAudio;
 
   /// A tap on the transition button before clip `index`.
   final ValueChanged<int>? onJunction;
@@ -78,6 +89,11 @@ class TimelineStrip extends StatefulWidget {
     required int audioLanes,
     bool compact = false,
   }) {
+    // A full strip keeps one empty lane on each side for adding to.
+    if (!compact) {
+      overlayLanes++;
+      audioLanes++;
+    }
     final gap = _gap(compact);
     final o = compact ? compactHeight : overlayHeight;
     final a = compact ? compactHeight : audioHeight;
@@ -236,12 +252,15 @@ class _TimelineStripState extends State<TimelineStrip> {
   int get _audioLanes =>
       _controller.project.audioClips.map((a) => a.lane).toSet().length;
 
+  /// Overlay rows, counting the empty lane a full strip keeps on top.
+  int get _overlaySlots => _overlayLanes + (_compact ? 0 : 1);
+
   double _overlayTop(int lane) =>
       TimelineStrip.rulerHeight +
-      (_overlayLanes - 1 - lane) * (_overlayH + _gap);
+      (_overlaySlots - 1 - lane) * (_overlayH + _gap);
 
   double get _mainTop =>
-      TimelineStrip.rulerHeight + _overlayLanes * (_overlayH + _gap);
+      TimelineStrip.rulerHeight + _overlaySlots * (_overlayH + _gap);
 
   double _audioTop(int lane) =>
       _mainTop + TimelineStrip.mainHeight + 6 + lane * (_audioH + _gap);
@@ -284,11 +303,12 @@ class _TimelineStripState extends State<TimelineStrip> {
       final n = _overlayLanes;
       final row = ((y - TimelineStrip.rulerHeight) / (_overlayH + _gap))
           .floor();
-      if (row < 0) {
+      final slot = _overlaySlots - 1 - row;
+      if (row < 0 || slot >= n) {
         lane = n;
         newLane = true;
       } else {
-        lane = (n - 1 - row).clamp(0, n - 1);
+        lane = slot.clamp(0, n - 1);
       }
     } else {
       final m = _audioLanes;
@@ -631,6 +651,47 @@ class _TimelineStripState extends State<TimelineStrip> {
       }
     }
 
+    if (!_compact) {
+      Widget addRow(double top, double height, List<Widget> buttons) =>
+          Positioned(
+            left: half,
+            top: top + height / 2 - 22,
+            height: 44,
+            child: Row(children: buttons),
+          );
+      children
+        ..add(
+          addRow(_overlayTop(_overlayLanes), _overlayH, [
+            _AddLaneButton(
+              key: const Key('timeline_add_text'),
+              icon: CupertinoIcons.textformat,
+              label: 'Text',
+              semanticLabel: 'Add text',
+              onPressed: widget.onAddText,
+            ),
+            const SizedBox(width: 8),
+            _AddLaneButton(
+              key: const Key('timeline_add_overlay'),
+              icon: CupertinoIcons.square_on_square,
+              label: 'Overlay',
+              semanticLabel: 'Add a photo or video overlay',
+              onPressed: widget.onAddOverlay,
+            ),
+          ]),
+        )
+        ..add(
+          addRow(_audioTop(_audioLanes), _audioH, [
+            _AddLaneButton(
+              key: const Key('timeline_add_audio'),
+              icon: CupertinoIcons.music_note,
+              label: 'Audio',
+              semanticLabel: 'Add music or sound',
+              onPressed: widget.onAddAudio,
+            ),
+          ]),
+        );
+    }
+
     if (widget.onAdd != null && project.clips.isNotEmpty) {
       children.add(
         Positioned(
@@ -638,26 +699,29 @@ class _TimelineStripState extends State<TimelineStrip> {
           top: _mainTop + TimelineStrip.mainHeight / 2 - 22,
           width: 44,
           height: 44,
-          child: Semantics(
-            button: true,
-            label: 'Add photos and clips',
-            excludeSemantics: true,
-            child: CupertinoButton(
-              key: const Key('timeline_add'),
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(44, 44),
-              onPressed: widget.onAdd,
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: CupertinoColors.white,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: const Icon(
-                  CupertinoIcons.add,
-                  size: 20,
-                  color: CupertinoColors.black,
+          child: AppTooltip(
+            message: 'Add photos and clips',
+            child: Semantics(
+              button: true,
+              label: 'Add photos and clips',
+              excludeSemantics: true,
+              child: CupertinoButton(
+                key: const Key('timeline_add'),
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(44, 44),
+                onPressed: widget.onAdd,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.white,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.add,
+                    size: 20,
+                    color: CupertinoColors.black,
+                  ),
                 ),
               ),
             ),
@@ -734,12 +798,14 @@ class _TimelineStripState extends State<TimelineStrip> {
                       (TimelineStrip.leadingWidth + 22) / bounds.width,
                     ],
                   ).createShader(bounds),
-                  child: SingleChildScrollView(
-                    key: const Key('timeline_strip_scroll'),
-                    controller: _scroll,
-                    scrollDirection: Axis.horizontal,
-                    physics: const ClampingScrollPhysics(),
-                    child: content,
+                  child: MouseDragScroll(
+                    child: SingleChildScrollView(
+                      key: const Key('timeline_strip_scroll'),
+                      controller: _scroll,
+                      scrollDirection: Axis.horizontal,
+                      physics: const ClampingScrollPhysics(),
+                      child: content,
+                    ),
                   ),
                 ),
               ),
@@ -885,33 +951,36 @@ class _TimelineStripState extends State<TimelineStrip> {
           top: _mainTop + TimelineStrip.mainHeight / 2 - 22,
           height: 44,
           child: hasVideo
-              ? Semantics(
-                  button: true,
-                  toggled: muted,
-                  label: 'Mute clip audio',
-                  excludeSemantics: true,
-                  child: CupertinoButton(
-                    key: const Key('timeline_mute_clips'),
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(44, 44),
-                    onPressed: _controller.toggleClipAudio,
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: muted
-                            ? CupertinoColors.white
-                            : TimelineColors.fill,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        muted
-                            ? CupertinoIcons.speaker_slash_fill
-                            : CupertinoIcons.speaker_2_fill,
-                        size: 14,
-                        color: muted
-                            ? CupertinoColors.black
-                            : TimelineColors.text,
+              ? AppTooltip(
+                  message: muted ? 'Unmute clip audio' : 'Mute clip audio',
+                  child: Semantics(
+                    button: true,
+                    toggled: muted,
+                    label: 'Mute clip audio',
+                    excludeSemantics: true,
+                    child: CupertinoButton(
+                      key: const Key('timeline_mute_clips'),
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(44, 44),
+                      onPressed: _controller.toggleClipAudio,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: muted
+                              ? CupertinoColors.white
+                              : TimelineColors.fill,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          muted
+                              ? CupertinoIcons.speaker_slash_fill
+                              : CupertinoIcons.speaker_2_fill,
+                          size: 14,
+                          color: muted
+                              ? CupertinoColors.black
+                              : TimelineColors.text,
+                        ),
                       ),
                     ),
                   ),
@@ -1004,33 +1073,38 @@ class _JunctionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final set = transition != ClipTransition.cut;
     final filled = set || active;
-    return Semantics(
-      button: true,
-      selected: active,
-      label: 'Transition before clip ${index + 1}',
-      value: TransitionPanel.labelOf(transition),
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onPressed,
-        child: Center(
-          child: Container(
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              color: filled ? CupertinoColors.white : const Color(0xe61c1c1e),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: filled
-                    ? const Color(0x99000000)
-                    : const Color(0x99ffffff),
-                width: active ? 2 : .7,
+    return AppTooltip(
+      message: set
+          ? '${TransitionPanel.labelOf(transition)} transition'
+          : 'Add a transition',
+      child: Semantics(
+        button: true,
+        selected: active,
+        label: 'Transition before clip ${index + 1}',
+        value: TransitionPanel.labelOf(transition),
+        excludeSemantics: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onPressed,
+          child: Center(
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: filled ? CupertinoColors.white : const Color(0xe61c1c1e),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: filled
+                      ? const Color(0x99000000)
+                      : const Color(0x99ffffff),
+                  width: active ? 2 : .7,
+                ),
               ),
-            ),
-            child: Icon(
-              set ? TransitionPanel.iconOf(transition) : CupertinoIcons.minus,
-              size: 12,
-              color: filled ? CupertinoColors.black : CupertinoColors.white,
+              child: Icon(
+                set ? TransitionPanel.iconOf(transition) : CupertinoIcons.minus,
+                size: 12,
+                color: filled ? CupertinoColors.black : CupertinoColors.white,
+              ),
             ),
           ),
         ),
@@ -1372,4 +1446,62 @@ class _RulerPainter extends CustomPainter {
       old.pixelsPerSecond != pixelsPerSecond ||
       old.duration != duration ||
       old.labelStyle != labelStyle;
+}
+
+/// A "+ Text" style button in one of the empty lanes.
+class _AddLaneButton extends StatelessWidget {
+  const _AddLaneButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.semanticLabel,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final String semanticLabel;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    enabled: onPressed != null,
+    label: semanticLabel,
+    excludeSemantics: true,
+    child: CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: const Size(44, 44),
+      onPressed: onPressed,
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: TimelineColors.fill,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: TimelineColors.stroke),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              CupertinoIcons.add,
+              size: 14,
+              color: TimelineColors.secondaryText,
+            ),
+            const SizedBox(width: 4),
+            Icon(icon, size: 15, color: TimelineColors.secondaryText),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: TimelineColors.secondaryText,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
