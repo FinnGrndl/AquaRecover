@@ -6,6 +6,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/scheduler.dart';
 import '../../shared/widgets/app_tooltip.dart';
 import '../../shared/widgets/editor_shortcuts.dart';
+import '../../shared/widgets/resizable_split.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
@@ -848,10 +849,11 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
         backLabel: 'Done',
       ),
     );
-    Widget panel(double height) => GlassBottomPanel(
+    Widget panel(double height, {bool animate = true}) => GlassBottomPanel(
       label: '${_toolLabel(tool!, items)} tools',
       open: true,
       height: height,
+      animate: animate,
       scrollable: false,
       contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       onClose: () => setState(() => _tool = null),
@@ -899,6 +901,11 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
           roomWide - TimelineStrip.heightOf(project) < _minViewerHeight;
       final hideStripWide =
           roomWide - TimelineStrip.heightOf(project, compact: true) < 48;
+      // Below the viewer: transport, gap and toolbar, then the strip.
+      final restWide = fixedWide - insets.top - 62;
+      final stripWide = hideStripWide
+          ? 0.0
+          : TimelineStrip.heightOf(project, compact: compactWide);
       return Column(
         children: [
           topBar,
@@ -907,17 +914,30 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  child: Column(
-                    children: [
-                      Expanded(child: _viewerArea()),
-                      _transport(gutter, showZoom: true),
-                      if (!hideStripWide) strip(compact: compactWide),
-                      const SizedBox(height: 8),
-                      if (empty)
-                        SizedBox(height: insets.bottom + 12)
-                      else
-                        toolbar,
-                    ],
+                  child: ResizableSplit(
+                    axis: Axis.vertical,
+                    memoryKey: 'movie.stacked',
+                    defaultExtent: (total) => total - restWide - stripWide,
+                    minRest: restWide,
+                    settle: (extent, total, {required growing}) =>
+                        _settleStrip(extent, total - restWide, growing),
+                    handleBias: -1,
+                    gripOffset: -3,
+                    builder: (context, extent, rest, resizing) {
+                      return Column(
+                        children: [
+                          SizedBox(height: extent, child: _viewerArea()),
+                          _transport(gutter, showZoom: true),
+                          ?_stripFor(rest - restWide, strip).strip,
+                          const Spacer(),
+                          const SizedBox(height: 8),
+                          if (empty)
+                            SizedBox(height: insets.bottom + 12)
+                          else
+                            toolbar,
+                        ],
+                      );
+                    },
                   ),
                 ),
                 if (tool != null)
@@ -984,22 +1004,95 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
         available - fixed - TimelineStrip.heightOf(project, compact: true) <
             (tool != null ? 110 : 48);
 
+    // Below the viewer: transport, gaps, the panel's margin and the
+    // toolbar; then the strip and the panel.
+    final rest = fixed - insets.top - 60 - (tool == null ? 0 : panelHeight);
+    final defaultStrip = hideStrip
+        ? 0.0
+        : TimelineStrip.heightOf(project, compact: compact);
     return Column(
       children: [
         topBar,
-        Expanded(child: _viewerArea()),
-        _transport(gutter, showZoom: constraints.maxWidth >= 370),
-        if (!hideStrip) strip(compact: compact),
-        const SizedBox(height: 6),
-        if (tool != null)
-          Padding(
-            key: const ValueKey('panel'),
-            padding: EdgeInsets.symmetric(horizontal: gutter - 6),
-            child: panel(panelHeight),
+        Expanded(
+          child: ResizableSplit(
+            axis: Axis.vertical,
+            memoryKey: 'movie.stacked',
+            defaultExtent: (total) => total - rest - panelHeight - defaultStrip,
+            minRest: rest + math.min(panelHeight, 150),
+            // An open panel takes up any slack itself.
+            settle: tool != null
+                ? null
+                : (extent, total, {required growing}) =>
+                      _settleStrip(extent, total - rest, growing),
+            handleBias: -1,
+            gripOffset: -3,
+            builder: (context, extent, room, resizing) {
+              // The strip gives way before the panel shrinks; a smaller
+              // viewer leaves the panel more.
+              final shown = _stripFor(room - rest - panelHeight, strip);
+              return Column(
+                children: [
+                  SizedBox(height: extent, child: _viewerArea()),
+                  _transport(gutter, showZoom: constraints.maxWidth >= 370),
+                  ?shown.strip,
+                  const SizedBox(height: 6),
+                  if (tool != null)
+                    Padding(
+                      key: const ValueKey('panel'),
+                      padding: EdgeInsets.symmetric(horizontal: gutter - 6),
+                      child: panel(
+                        math.max(0, room - rest - shown.height),
+                        animate: !resizing,
+                      ),
+                    )
+                  else
+                    const Spacer(),
+                  if (empty) SizedBox(height: insets.bottom + 6) else toolbar,
+                ],
+              );
+            },
           ),
-        if (empty) SizedBox(height: insets.bottom + 6) else toolbar,
+        ),
       ],
     );
+  }
+
+  /// Where a viewer of [extent] settles when [room] is what the viewer and
+  /// the strip share: between two strip heights it goes on to the next fit
+  /// rather than leave a gap above the toolbar.
+  double _settleStrip(double extent, double room, bool growing) {
+    final project = _controller.project;
+    final fits = [
+      room - TimelineStrip.heightOf(project),
+      room - TimelineStrip.heightOf(project, compact: true),
+      room,
+    ];
+    if (extent <= fits.first) return extent;
+    for (final fit in fits) {
+      if ((fit - extent).abs() <= .5) return fit;
+    }
+    for (var i = 0; i < fits.length - 1; i++) {
+      if (extent < fits[i + 1]) return growing ? fits[i + 1] : fits[i];
+    }
+    return extent;
+  }
+
+  /// The timeline strip at full height when [room] fits it, else its thin
+  /// overview, else none.
+  ({TimelineStrip? strip, double height}) _stripFor(
+    double room,
+    TimelineStrip Function({bool compact}) strip,
+  ) {
+    final project = _controller.project;
+    final full = TimelineStrip.heightOf(project);
+    final thin = TimelineStrip.heightOf(project, compact: true);
+    // A hair of slack keeps rounding from dropping a strip that fits.
+    const slack = 1e-9;
+    if (room + slack >= full) return (strip: strip(), height: full);
+    if (room + slack >= thin) {
+      return (strip: strip(compact: true), height: thin);
+    }
+    return (strip: null, height: 0);
   }
 
   /// Landscape phones and other short, wide windows: below a viewer there
@@ -1022,7 +1115,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     final project = _controller.project;
     final empty = project.clips.isEmpty;
     final usable = constraints.maxWidth - insets.left - insets.right;
-    final sideWidth = (usable * .4).clamp(300.0, 400.0).toDouble();
+    final defaultSideWidth = (usable * .4).clamp(300.0, 400.0).toDouble();
     const barHeight = 48.0 + 14;
     const transportHeight = 52.0;
     // The toolbar brings its own bottom padding.
@@ -1060,40 +1153,51 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     }
     return Padding(
       padding: EdgeInsets.only(left: insets.left, right: insets.right),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(
-                top: insets.top + 8,
-                bottom: insets.bottom + 8,
-              ),
-              child: _viewerArea(),
-            ),
-          ),
-          SizedBox(
-            width: sideWidth,
-            child: Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(4, insets.top + 8, 12, 6),
-                  child: topBar,
+      child: ResizableSplit(
+        axis: Axis.horizontal,
+        memoryKey: 'movie.sideBySide',
+        defaultExtent: (total) => total - defaultSideWidth,
+        minRest: _minSideWidth,
+        // Mostly over the viewer, clear of the column's controls.
+        handleBias: -.5,
+        builder: (context, extent, sideWidth, resizing) => Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: extent,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  top: insets.top + 8,
+                  bottom: insets.bottom + 8,
                 ),
-                if (showTransport)
-                  _transport(4, showZoom: !empty && sideWidth >= 380),
-                middle,
-                if (!typing) ...[
-                  const SizedBox(height: 4),
-                  if (empty) SizedBox(height: insets.bottom + 4) else toolbar,
-                ],
-              ],
+                child: _viewerArea(),
+              ),
             ),
-          ),
-        ],
+            Expanded(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(4, insets.top + 8, 12, 6),
+                    child: topBar,
+                  ),
+                  if (showTransport)
+                    _transport(4, showZoom: !empty && sideWidth >= 380),
+                  middle,
+                  if (!typing) ...[
+                    const SizedBox(height: 4),
+                    if (empty) SizedBox(height: insets.bottom + 4) else toolbar,
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  /// The least the controls beside a landscape viewer keep.
+  static const _minSideWidth = 300.0;
 
   Widget _topBar() {
     final project = _controller.project;

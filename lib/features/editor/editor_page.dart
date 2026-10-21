@@ -8,6 +8,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import '../../shared/widgets/app_tooltip.dart';
 import '../../shared/widgets/editor_shortcuts.dart';
+import '../../shared/widgets/resizable_split.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_picker_android/image_picker_android.dart';
@@ -315,29 +316,41 @@ class _EditorPageState extends State<EditorPage> {
                     constraints.maxWidth >= 560;
                 final wide = constraints.maxWidth >= 1040 || shortLandscape;
                 if (wide) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: _editStep(
-                          wide: true,
-                          topInset: safeInsets.top,
-                          bottomInset: safeInsets.bottom,
+                  final paneWidth = constraints.maxWidth >= 1040
+                      ? 390.0
+                      : constraints.maxWidth < 700
+                      ? 290.0
+                      : 330.0;
+                  return ResizableSplit(
+                    axis: Axis.horizontal,
+                    memoryKey: 'photo.sideBySide',
+                    defaultExtent: (total) => total - paneWidth,
+                    minPreview: _minSidePreviewWidth,
+                    minRest: _minSidePaneWidth,
+                    // Mostly over the photo: the pane's cards start close
+                    // to its edge.
+                    handleBias: -.5,
+                    builder: (context, extent, rest, resizing) => Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          width: extent,
+                          child: _editStep(
+                            wide: true,
+                            topInset: safeInsets.top,
+                            bottomInset: safeInsets.bottom,
+                          ),
                         ),
-                      ),
-                      SizedBox(
-                        width: constraints.maxWidth >= 1040
-                            ? 390
-                            : constraints.maxWidth < 700
-                            ? 290
-                            : 330,
-                        // The pane's cards were made for the start screen's
-                        // ocean gradient, not the scaffold's plain black.
-                        child: OceanBackdrop(
-                          child: SafeArea(left: false, child: _sidePane()),
+                        Expanded(
+                          // The pane's cards were made for the start
+                          // screen's ocean gradient, not the scaffold's
+                          // plain black.
+                          child: OceanBackdrop(
+                            child: SafeArea(left: false, child: _sidePane()),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   );
                 }
                 return _editStep(
@@ -736,6 +749,11 @@ class _EditorPageState extends State<EditorPage> {
 
   static const _minPanelHeight = 200.0;
 
+  /// The least the photo keeps beside or above a dragged divider.
+  static const _minSidePreviewWidth = 300.0;
+  static const _minStackedPreviewHeight = 150.0;
+  static const _minSidePaneWidth = 280.0;
+
   static double _sidePanelHeight(EditorToolGroup group) => switch (group) {
     EditorToolGroup.light => 380.0,
     EditorToolGroup.presets => 420.0,
@@ -945,155 +963,176 @@ class _EditorPageState extends State<EditorPage> {
                 EditorToolGroup.video => 315.0,
                 _ => 275.0,
               };
-        final panelHeight = availablePanelHeight <= 120
+        final defaultPanelHeight = availablePanelHeight <= 120
             ? 0.0
             : availablePanelHeight.clamp(0.0, preferredPanelHeight).toDouble();
         // Wide windows show the panel in the side pane instead.
-        final panelOpen = !wide && _toolPanelOpen && panelHeight > 0;
+        final panelOpen = !wide && _toolPanelOpen && defaultPanelHeight > 0;
+        // Under the panel: its margin, the gap above the rail, the rail.
+        final belowPanel = bottomPadding + 7 + 2 + GlassToolRail.height;
         final previewTopInset =
             topInset +
             (_jobs.length > 1
                 ? (compact ? 128.0 : 132.0)
                 : (compact ? 76.0 : 80.0));
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            EditorHoldPreview(
-              compareMode: _compareMode,
-              previewBuilder: (mode) => EditorPreviewZoom(
-                resetKey: '${job.id}:${_previewFit.name}',
-                enabled: activeGroup != EditorToolGroup.crop,
-                child: EditorPreviewStage(
-                  job: job,
-                  settings: _settings,
-                  compareMode: mode,
-                  lutProfile: _lutProfile,
-                  immersive: true,
-                  showHeader: false,
-                  borderRadius: 0,
-                  // While cropping, the frame starts below the floating
-                  // buttons so they never cover a corner handle.
-                  immersiveTopInset: activeGroup == EditorToolGroup.crop
-                      ? previewTopInset + kMinInteractiveDimensionCupertino + 12
-                      : previewTopInset,
-                  immersiveBottomInset:
-                      (panelOpen ? panelHeight + 70 : 108) + bottomInset,
-                  transform: _transformSettings,
-                  showCropGrid: activeGroup == EditorToolGroup.crop,
-                  onTransformChanged: activeGroup == EditorToolGroup.crop
-                      ? _setTransformSettings
-                      : null,
-                  previewFit: activeGroup == EditorToolGroup.crop
-                      ? EditorPreviewFit.fit
-                      : _previewFit,
-                  videoPreviewPosition: _videoPreviewPositions[job.id],
-                  onVideoDurationKnown: (duration) =>
-                      _setVideoDuration(job.id, duration),
-                ),
-              ),
-              // Centred between Undo and Redo on the left and the preview
-              // buttons on the right.
-              heldIndicator: Positioned(
-                top: previewTopInset + 8,
-                left: 0,
-                right: 0,
-                height: kMinInteractiveDimensionCupertino,
-                child: Center(child: _darkPill('Original')),
-              ),
-            ),
-            Positioned.fill(
-              child: _PhotoScrim(topInset: topInset, bottom: .42),
-            ),
-            Positioned(
-              top: topInset + 8,
-              left: horizontalPadding,
-              right: horizontalPadding,
-              child: _editorTopBar(job),
-            ),
-            if (_jobs.length > 1)
-              Positioned(
-                top: topInset + (compact ? 66 : 70),
-                left: horizontalPadding,
-                right: horizontalPadding,
-                child: _editorBatchStrip(job, compact: compact),
-              ),
-            Positioned(
-              top: previewTopInset + 8,
-              left: horizontalPadding,
-              child: _undoRedoButtons(),
-            ),
-            Positioned(
-              top: previewTopInset + 8,
-              right: horizontalPadding,
-              child: Column(
-                children: [
-                  _previewCompareButton(
-                    mode: _compareMode,
-                    onPressed: _toggleComparePreview,
-                  ),
-                  // Cropping always fits the photo, so the button would
-                  // only sit disabled over the crop frame's corner.
-                  if (job.kind == MediaKind.photo &&
-                      activeGroup != EditorToolGroup.crop) ...[
-                    const SizedBox(height: 8),
-                    _previewFitButton(fit: _previewFit),
-                  ],
-                ],
-              ),
-            ),
-            Positioned(
-              left: horizontalPadding,
-              right: horizontalPadding,
-              bottom: bottomPadding,
-              child: Center(
-                heightFactor: 1,
-                child: ConstrainedBox(
-                  // The rail alone does not need the whole wide window.
-                  constraints: BoxConstraints(
-                    maxWidth: wide ? 640 : double.infinity,
-                  ),
-                  child: CupertinoTheme(
-                    data: CupertinoTheme.of(context).copyWith(
-                      brightness: Brightness.dark,
-                      primaryColor: CupertinoColors.activeBlue,
+        // An open panel trades height with the photo above it.
+        return ResizableSplit(
+          axis: Axis.vertical,
+          memoryKey: 'photo.stacked',
+          enabled: panelOpen,
+          defaultExtent: (total) => total - belowPanel - defaultPanelHeight,
+          minPreview: previewTopInset + _minStackedPreviewHeight,
+          minRest: belowPanel + math.min(defaultPanelHeight, _minPanelHeight),
+          // Above the panel, clear of its collapse button.
+          handleBias: -1,
+          gripOffset: -8,
+          builder: (context, extent, rest, resizing) {
+            final panelHeight = panelOpen
+                ? rest - belowPanel
+                : defaultPanelHeight;
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                EditorHoldPreview(
+                  compareMode: _compareMode,
+                  previewBuilder: (mode) => EditorPreviewZoom(
+                    resetKey: '${job.id}:${_previewFit.name}',
+                    enabled: activeGroup != EditorToolGroup.crop,
+                    child: EditorPreviewStage(
+                      job: job,
+                      settings: _settings,
+                      compareMode: mode,
+                      lutProfile: _lutProfile,
+                      immersive: true,
+                      showHeader: false,
+                      borderRadius: 0,
+                      // While cropping, the frame starts below the floating
+                      // buttons so they never cover a corner handle.
+                      immersiveTopInset: activeGroup == EditorToolGroup.crop
+                          ? previewTopInset +
+                                kMinInteractiveDimensionCupertino +
+                                12
+                          : previewTopInset,
+                      immersiveBottomInset:
+                          (panelOpen ? panelHeight + 70 : 108) + bottomInset,
+                      transform: _transformSettings,
+                      showCropGrid: activeGroup == EditorToolGroup.crop,
+                      onTransformChanged: activeGroup == EditorToolGroup.crop
+                          ? _setTransformSettings
+                          : null,
+                      previewFit: activeGroup == EditorToolGroup.crop
+                          ? EditorPreviewFit.fit
+                          : _previewFit,
+                      videoPreviewPosition: _videoPreviewPositions[job.id],
+                      onVideoDurationKnown: (duration) =>
+                          _setVideoDuration(job.id, duration),
                     ),
-                    child: BackdropGroup(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          EditorBottomPanel(
-                            group: activeGroup,
-                            open: panelOpen,
-                            height: panelHeight,
-                            onClose: () =>
-                                setState(() => _toolPanelOpen = false),
-                            child: _toolPanelContent(activeGroup),
-                          ),
-                          if (panelOpen) const SizedBox(height: 2),
-                          if (!panelOpen && !wide)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: EditorCollapsedPanelButton(
+                  ),
+                  // Centred between Undo and Redo on the left and the preview
+                  // buttons on the right.
+                  heldIndicator: Positioned(
+                    top: previewTopInset + 8,
+                    left: 0,
+                    right: 0,
+                    height: kMinInteractiveDimensionCupertino,
+                    child: Center(child: _darkPill('Original')),
+                  ),
+                ),
+                Positioned.fill(
+                  child: _PhotoScrim(topInset: topInset, bottom: .42),
+                ),
+                Positioned(
+                  top: topInset + 8,
+                  left: horizontalPadding,
+                  right: horizontalPadding,
+                  child: _editorTopBar(job),
+                ),
+                if (_jobs.length > 1)
+                  Positioned(
+                    top: topInset + (compact ? 66 : 70),
+                    left: horizontalPadding,
+                    right: horizontalPadding,
+                    child: _editorBatchStrip(job, compact: compact),
+                  ),
+                Positioned(
+                  top: previewTopInset + 8,
+                  left: horizontalPadding,
+                  child: _undoRedoButtons(),
+                ),
+                Positioned(
+                  top: previewTopInset + 8,
+                  right: horizontalPadding,
+                  child: Column(
+                    children: [
+                      _previewCompareButton(
+                        mode: _compareMode,
+                        onPressed: _toggleComparePreview,
+                      ),
+                      // Cropping always fits the photo, so the button would
+                      // only sit disabled over the crop frame's corner.
+                      if (job.kind == MediaKind.photo &&
+                          activeGroup != EditorToolGroup.crop) ...[
+                        const SizedBox(height: 8),
+                        _previewFitButton(fit: _previewFit),
+                      ],
+                    ],
+                  ),
+                ),
+                Positioned(
+                  left: horizontalPadding,
+                  right: horizontalPadding,
+                  bottom: bottomPadding,
+                  child: Center(
+                    heightFactor: 1,
+                    child: ConstrainedBox(
+                      // The rail alone does not need the whole wide window.
+                      constraints: BoxConstraints(
+                        maxWidth: wide ? 640 : double.infinity,
+                      ),
+                      child: CupertinoTheme(
+                        data: CupertinoTheme.of(context).copyWith(
+                          brightness: Brightness.dark,
+                          primaryColor: CupertinoColors.activeBlue,
+                        ),
+                        child: BackdropGroup(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              EditorBottomPanel(
                                 group: activeGroup,
-                                onPressed: () =>
-                                    setState(() => _toolPanelOpen = true),
+                                open: panelOpen,
+                                height: panelHeight,
+                                onClose: () =>
+                                    setState(() => _toolPanelOpen = false),
+                                child: _toolPanelContent(activeGroup),
                               ),
-                            ),
-                          if (!panelOpen) const SizedBox(height: 2),
-                          EditorToolRail(
-                            groups: groups,
-                            selectedGroup: activeGroup,
-                            panelOpen: wide ? _toolPanelOpen : panelOpen,
-                            onSelected: _selectToolGroup,
+                              if (panelOpen) const SizedBox(height: 2),
+                              if (!panelOpen && !wide)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: EditorCollapsedPanelButton(
+                                    group: activeGroup,
+                                    onPressed: () =>
+                                        setState(() => _toolPanelOpen = true),
+                                  ),
+                                ),
+                              if (!panelOpen) const SizedBox(height: 2),
+                              EditorToolRail(
+                                groups: groups,
+                                selectedGroup: activeGroup,
+                                panelOpen: wide ? _toolPanelOpen : panelOpen,
+                                onSelected: _selectToolGroup,
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );
@@ -2655,39 +2694,44 @@ class _EditorPageState extends State<EditorPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _friendlyMediaName(job),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: CupertinoColors.white,
-                              fontWeight: FontWeight.w600,
+                    // A pane dragged narrow keeps the checkmark only.
+                    LayoutBuilder(
+                      builder: (context, constraints) => Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _friendlyMediaName(job),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: CupertinoColors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                        // White text and a checkmark: system blue text
-                        // would disappear on the selected blue row.
-                        if (selected) ...[
-                          const SizedBox(width: 6),
-                          const Icon(
-                            CupertinoIcons.checkmark_alt,
-                            color: CupertinoColors.white,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 2),
-                          const Text(
-                            'Selected',
-                            style: TextStyle(
+                          // White text and a checkmark: system blue text
+                          // would disappear on the selected blue row.
+                          if (selected) ...[
+                            const SizedBox(width: 6),
+                            const Icon(
+                              CupertinoIcons.checkmark_alt,
                               color: CupertinoColors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                              size: 14,
                             ),
-                          ),
+                            if (constraints.maxWidth >= 140) ...[
+                              const SizedBox(width: 2),
+                              const Text(
+                                'Selected',
+                                style: TextStyle(
+                                  color: CupertinoColors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(
