@@ -246,7 +246,17 @@ class PhotoLibraryService {
     _ => true,
   };
 
-  Future<void> saveExport(String outputPath, MediaKind kind) async {
+  /// Adds the export at [outputPath] to the photo library.
+  ///
+  /// [creationDate] is the original capture date. Passing it files the asset
+  /// under the dive date instead of the export date: it becomes the PhotoKit
+  /// creation date on Apple platforms and `DATE_TAKEN` on Android 10+.
+  /// Location is not passed separately; it travels in the file's own EXIF.
+  Future<void> saveExport(
+    String outputPath,
+    MediaKind kind, {
+    DateTime? creationDate,
+  }) async {
     final os = Platform.operatingSystem;
     final needsPermission = saveNeedsPermission(
       operatingSystem: os,
@@ -273,11 +283,13 @@ class PhotoLibraryService {
       await PhotoManager.editor.saveVideo(
         File(outputPath),
         title: p.basename(outputPath),
+        creationDate: creationDate,
       );
     } else {
       await PhotoManager.editor.saveImageWithPath(
         outputPath,
         title: p.basename(outputPath),
+        creationDate: creationDate,
       );
     }
   }
