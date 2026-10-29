@@ -2205,6 +2205,7 @@ class _BlockingImageRestorationService extends ImageRestorationService {
     ExportOptions exportOptions = const ExportOptions(),
     LutProfile lutProfile = LutProfile.none,
     ImageTransformSettings transform = const ImageTransformSettings(),
+    String? metadataSourcePath,
   }) {
     calls++;
     return _result.future;

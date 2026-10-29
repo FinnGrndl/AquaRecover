@@ -16,6 +16,7 @@ import 'package:image_picker_platform_interface/image_picker_platform_interface.
 import 'package:path/path.dart' as p;
 
 import '../../core/app_version.dart';
+import '../../core/media/capture_metadata.dart';
 import '../../core/media/media_classifier.dart';
 import '../../core/media/media_inspection_service.dart';
 import '../../core/models/export_options.dart';
@@ -3338,7 +3339,11 @@ class _EditorPageState extends State<EditorPage> {
         );
       }
       if (_exportOptions.saveToPhotoLibrary) {
-        await _photoLibraryService.saveExport(output, job.kind);
+        await _photoLibraryService.saveExport(
+          output,
+          job.kind,
+          creationDate: await CaptureMetadata.captureDateForFile(job.inputPath),
+        );
       }
       if (_exportOptions.saveToFiles) {
         final directoryPath = _exportDirectoryPath;

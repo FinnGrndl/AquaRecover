@@ -314,7 +314,9 @@ the device. The dive logbook map loads tiles from OpenStreetMap, which sees the
 device's IP address and the map area being viewed. If an item exists only in iCloud, the operating system may download
 it before providing AquaRecover with a local file.
 
-Still exports are freshly encoded. Video exports remove metadata by default.
+Exports remove metadata by default. Turning off Strip metadata keeps the
+capture date, camera and location in exported photos; saving to Photos always
+files an export under its original capture date.
 The iOS and macOS privacy manifests declare no tracking and no collected data.
 The complete data flow is documented in the [privacy policy](PRIVACY.md) and
 [on-device privacy model](docs/ON_DEVICE_PRIVACY.md).
@@ -326,7 +328,7 @@ contains the Android APK, Windows installer, and signed macOS disk image. iOS
 builds are distributed through TestFlight while store preparation is in
 progress.
 
-Current source version: `1.5.0+18`.
+Current source version: `1.6.0+19`.
 
 To run from source with the same Flutter toolchain used by CI:
 
