@@ -10,6 +10,9 @@
    process.
 5. The export is written to the app documents directory.
 6. If requested, the operating system adds that export to Photos.
+7. Only when the user taps Share, the system share sheet passes the export to
+   the app the user picks there. AquaRecover does not choose a recipient or
+   upload anything itself.
 
 No app code sends the media or its settings to a server.
 

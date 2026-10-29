@@ -3,6 +3,8 @@ import 'package:flutter/cupertino.dart';
 import '../../../core/models/lut_profile.dart';
 import '../../../core/models/restoration_settings.dart';
 import '../../../core/timeline/timeline_project.dart';
+import '../../../core/platform/share_service.dart';
+import '../../../shared/widgets/app_tooltip.dart';
 import '../../editor/widgets/precision_wheel.dart';
 import '../timeline_controller.dart';
 import '../timeline_theme.dart';
@@ -326,6 +328,7 @@ class DeliverPanel extends StatelessWidget {
     required this.onCancel,
     required this.onSaveToPhotos,
     required this.onOpenLibrary,
+    this.onShare,
     this.backendNote,
   });
 
@@ -337,10 +340,99 @@ class DeliverPanel extends StatelessWidget {
   final VoidCallback onCancel;
   final VoidCallback? onSaveToPhotos;
   final VoidCallback onOpenLibrary;
+
+  /// Opens the system share sheet for the rendered movie, anchored to the
+  /// given rectangle. Null where the device has no file share sheet.
+  final ValueChanged<Rect?>? onShare;
   final String? backendNote;
 
   static const _frameRates = [24, 30, 60];
   static const _fadeSeconds = [0.3, 0.6, 1.0, 1.5];
+
+  static Widget _pill({
+    Key? key,
+    required VoidCallback onPressed,
+    required Widget child,
+  }) => CupertinoButton(
+    key: key,
+    color: TimelineColors.fill,
+    borderRadius: BorderRadius.circular(99),
+    padding: const EdgeInsets.symmetric(vertical: 12),
+    onPressed: onPressed,
+    child: child,
+  );
+
+  /// Save to Photos, Share and Open exports for a finished movie. Three
+  /// pills do not fit a phone's width side by side, so Open exports moves
+  /// to its own row when both delivery actions are offered.
+  List<Widget> _finishedActions() {
+    final save = onSaveToPhotos;
+    final share = onShare;
+    final deliver = <Widget>[
+      if (save != null)
+        _pill(
+          onPressed: save,
+          child: const Text(
+            'Save to Photos',
+            style: TextStyle(color: TimelineColors.text),
+          ),
+        ),
+      if (share != null)
+        AppTooltip(
+          message: 'Share the movie',
+          child: Builder(
+            builder: (buttonContext) => _pill(
+              key: const Key('timeline_share_movie'),
+              onPressed: () => share(shareOriginOf(buttonContext)),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    CupertinoIcons.share,
+                    size: 18,
+                    color: TimelineColors.text,
+                  ),
+                  SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      'Share',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: TimelineColors.text),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+    ];
+    final library = _pill(
+      onPressed: onOpenLibrary,
+      child: const Text(
+        'Open exports',
+        style: TextStyle(color: TimelineColors.text),
+      ),
+    );
+    Widget row(List<Widget> buttons) => Row(
+      children: [
+        for (final (index, button) in buttons.indexed) ...[
+          if (index > 0) const SizedBox(width: 8),
+          Expanded(child: button),
+        ],
+      ],
+    );
+    if (deliver.length < 2) {
+      return [
+        row([...deliver, library]),
+      ];
+    }
+    return [
+      row(deliver),
+      const SizedBox(height: 8),
+      row([library]),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -396,37 +488,7 @@ class DeliverPanel extends StatelessWidget {
           ),
         if (outputPath != null && !rendering) ...[
           const SizedBox(height: 10),
-          Row(
-            children: [
-              if (onSaveToPhotos != null) ...[
-                Expanded(
-                  child: CupertinoButton(
-                    color: TimelineColors.fill,
-                    borderRadius: BorderRadius.circular(99),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    onPressed: onSaveToPhotos,
-                    child: const Text(
-                      'Save to Photos',
-                      style: TextStyle(color: TimelineColors.text),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: CupertinoButton(
-                  color: TimelineColors.fill,
-                  borderRadius: BorderRadius.circular(99),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  onPressed: onOpenLibrary,
-                  child: const Text(
-                    'Open exports',
-                    style: TextStyle(color: TimelineColors.text),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          ..._finishedActions(),
         ],
         const SizedBox(height: 16),
         _SettingRow(
