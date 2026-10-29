@@ -16,6 +16,25 @@ extension VideoOutputFormatX on VideoOutputFormat {
   String get extension => name;
 }
 
+/// How a before/after comparison export arranges the original and the
+/// restored photo.
+enum BeforeAfterLayout {
+  /// Two full panes. Landscape photos are stacked and portrait photos sit
+  /// next to each other, so the result stays close to square for feeds.
+  sideBySide,
+
+  /// One frame: the original on the left half, the restored photo on the
+  /// right, divided at 50 %.
+  split,
+}
+
+extension BeforeAfterLayoutX on BeforeAfterLayout {
+  String get label => switch (this) {
+    BeforeAfterLayout.sideBySide => 'Side by side',
+    BeforeAfterLayout.split => 'Split',
+  };
+}
+
 enum ExportPreset { social, archive, proEdit }
 
 extension ExportPresetX on ExportPreset {
@@ -63,6 +82,9 @@ class ExportOptions {
     this.saveToPhotoLibrary = false,
     this.saveToFiles = false,
     this.keepAudio = true,
+    this.beforeAfter = false,
+    this.beforeAfterLayout = BeforeAfterLayout.sideBySide,
+    this.beforeAfterLabels = true,
   });
 
   final ImageOutputFormat imageFormat;
@@ -72,6 +94,14 @@ class ExportOptions {
   final bool saveToPhotoLibrary;
   final bool saveToFiles;
   final bool keepAudio;
+
+  /// Photo exports become one comparison image of the original and the
+  /// restored photo. Videos ignore it.
+  final bool beforeAfter;
+  final BeforeAfterLayout beforeAfterLayout;
+
+  /// Draws small "Before" and "After" labels on the comparison image.
+  final bool beforeAfterLabels;
 
   bool get outputPng => imageFormat == ImageOutputFormat.png;
 
@@ -83,6 +113,9 @@ class ExportOptions {
     bool? saveToPhotoLibrary,
     bool? saveToFiles,
     bool? keepAudio,
+    bool? beforeAfter,
+    BeforeAfterLayout? beforeAfterLayout,
+    bool? beforeAfterLabels,
   }) {
     return ExportOptions(
       imageFormat: imageFormat ?? this.imageFormat,
@@ -92,6 +125,9 @@ class ExportOptions {
       saveToPhotoLibrary: saveToPhotoLibrary ?? this.saveToPhotoLibrary,
       saveToFiles: saveToFiles ?? this.saveToFiles,
       keepAudio: keepAudio ?? this.keepAudio,
+      beforeAfter: beforeAfter ?? this.beforeAfter,
+      beforeAfterLayout: beforeAfterLayout ?? this.beforeAfterLayout,
+      beforeAfterLabels: beforeAfterLabels ?? this.beforeAfterLabels,
     );
   }
 
@@ -134,6 +170,12 @@ class ExportOptions {
       ),
       saveToFiles: flag('saveToFiles', defaults.saveToFiles),
       keepAudio: flag('keepAudio', defaults.keepAudio),
+      beforeAfter: flag('beforeAfter', defaults.beforeAfter),
+      beforeAfterLayout: BeforeAfterLayout.values.firstWhere(
+        (value) => value.name == map['beforeAfterLayout'],
+        orElse: () => defaults.beforeAfterLayout,
+      ),
+      beforeAfterLabels: flag('beforeAfterLabels', defaults.beforeAfterLabels),
     );
   }
 
@@ -145,5 +187,8 @@ class ExportOptions {
     'saveToPhotoLibrary': saveToPhotoLibrary,
     'saveToFiles': saveToFiles,
     'keepAudio': keepAudio,
+    'beforeAfter': beforeAfter,
+    'beforeAfterLayout': beforeAfterLayout.name,
+    'beforeAfterLabels': beforeAfterLabels,
   };
 }

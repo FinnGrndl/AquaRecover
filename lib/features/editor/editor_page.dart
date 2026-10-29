@@ -2577,6 +2577,8 @@ class _EditorPageState extends State<EditorPage> {
                   ? null
                   : (v) => _setJpegQuality(v.round()),
             ),
+          if (_jobs.any((job) => !job.kind.isVideo))
+            ..._beforeAfterOptions(segmentLabel, segmentThumb, panelContext),
           _switchRow(
             title: 'Strip metadata',
             value: _exportOptions.stripMetadata,
@@ -2597,6 +2599,72 @@ class _EditorPageState extends State<EditorPage> {
         ],
       ),
     );
+  }
+
+  /// The before/after comparison controls. They apply to every photo in
+  /// the export, including each photo of a batch; videos ignore them.
+  List<Widget> _beforeAfterOptions(
+    TextStyle segmentLabel,
+    Color segmentThumb,
+    BuildContext panelContext,
+  ) {
+    final options = _exportOptions;
+    return [
+      _switchRow(
+        title: 'Before/After image',
+        controlKey: const Key('export_before_after'),
+        tooltip:
+            'Export each photo as one image showing the original and the restored version',
+        value: options.beforeAfter,
+        styleContext: panelContext,
+        onChanged: (v) => setState(
+          () => _exportOptions = _exportOptions.copyWith(beforeAfter: v),
+        ),
+      ),
+      if (options.beforeAfter) ...[
+        AppTooltip(
+          message: options.beforeAfterLayout == BeforeAfterLayout.split
+              ? 'Split: original on the left half, restored on the right'
+              : 'Side by side: landscape photos are stacked, portrait photos sit next to each other',
+          child: CupertinoSlidingSegmentedControl<BeforeAfterLayout>(
+            key: const Key('export_before_after_layout'),
+            groupValue: options.beforeAfterLayout,
+            backgroundColor: CupertinoColors.white.withValues(alpha: .10),
+            thumbColor: segmentThumb,
+            disabledChildren: _exportOperationActive
+                ? BeforeAfterLayout.values.toSet()
+                : const {},
+            children: {
+              for (final layout in BeforeAfterLayout.values)
+                layout: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(layout.label, style: segmentLabel),
+                ),
+            },
+            onValueChanged: (value) {
+              if (value != null && !_exportOperationActive) {
+                setState(
+                  () => _exportOptions = _exportOptions.copyWith(
+                    beforeAfterLayout: value,
+                  ),
+                );
+              }
+            },
+          ),
+        ),
+        _switchRow(
+          title: 'Before and After labels',
+          controlKey: const Key('export_before_after_labels'),
+          tooltip: 'Show small Before and After labels on the image',
+          value: options.beforeAfterLabels,
+          styleContext: panelContext,
+          onChanged: (v) => setState(
+            () =>
+                _exportOptions = _exportOptions.copyWith(beforeAfterLabels: v),
+          ),
+        ),
+      ],
+    ];
   }
 
   /// The queue card on the start screen and in the editor's iPad side pane.
@@ -3597,6 +3665,9 @@ class _EditorPageState extends State<EditorPage> {
         keepLocalCopy: _exportOptions.keepLocalCopy,
         saveToPhotoLibrary: _exportOptions.saveToPhotoLibrary,
         saveToFiles: _exportOptions.saveToFiles,
+        beforeAfter: _exportOptions.beforeAfter,
+        beforeAfterLayout: _exportOptions.beforeAfterLayout,
+        beforeAfterLabels: _exportOptions.beforeAfterLabels,
       );
       _applyJpegQuality(preset.jpegQuality);
     });
@@ -3939,9 +4010,10 @@ class _EditorPageState extends State<EditorPage> {
     required ValueChanged<bool> onChanged,
     Key? controlKey,
     BuildContext? styleContext,
+    String? tooltip,
   }) {
     final resolvedContext = styleContext ?? context;
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
@@ -3961,6 +4033,8 @@ class _EditorPageState extends State<EditorPage> {
         ],
       ),
     );
+    if (tooltip == null) return row;
+    return AppTooltip(message: tooltip, child: row);
   }
 
   Widget _numberField({
