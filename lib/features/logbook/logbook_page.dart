@@ -7,6 +7,7 @@ import '../../core/logbook/dive_export.dart';
 import '../../core/logbook/dive_log.dart';
 import '../../core/logbook/dive_log_store.dart';
 import '../../core/logbook/uddf.dart';
+import '../../l10n/l10n.dart';
 import '../timeline/timeline_theme.dart';
 import 'dive_edit_page.dart';
 import 'dive_page.dart';
@@ -64,27 +65,28 @@ class _LogbookPageState extends State<LogbookPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return TimelineTheme(
       child: CupertinoPageScaffold(
         backgroundColor: TimelineColors.background,
         navigationBar: CupertinoNavigationBar(
           backgroundColor: TimelineColors.background,
-          middle: const Text('Logbook'),
-          previousPageTitle: 'Back',
+          middle: Text(l10n.logbook),
+          previousPageTitle: l10n.back,
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               LogbookIconButton(
                 key: const Key('logbook_more'),
                 icon: CupertinoIcons.ellipsis,
-                label: 'Import and export',
+                label: l10n.importAndExport,
                 onPressed: _showMore,
               ),
               const SizedBox(width: 8),
               LogbookIconButton(
                 key: const Key('logbook_add'),
                 icon: CupertinoIcons.add,
-                label: 'Add dive',
+                label: l10n.addDive,
                 onPressed: _addDive,
               ),
             ],
@@ -107,14 +109,14 @@ class _LogbookPageState extends State<LogbookPage> {
                       child: CupertinoSlidingSegmentedControl<_View>(
                         groupValue: _view,
                         onValueChanged: (v) => setState(() => _view = v!),
-                        children: const {
+                        children: {
                           _View.list: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 10),
-                            child: Text('Dives'),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            child: Text(l10n.dives),
                           ),
                           _View.map: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 10),
-                            child: Text('Map'),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            child: Text(l10n.map),
                           ),
                         },
                       ),
@@ -143,28 +145,27 @@ class _LogbookPageState extends State<LogbookPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               CupertinoIcons.book,
               color: TimelineColors.secondaryText,
               size: 48,
-              semanticLabel: 'Logbook',
+              semanticLabel: context.l10n.logbook,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'No dives yet',
+            Text(
+              context.l10n.noDivesYet,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: TimelineColors.text,
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Import a UDDF log from your dive computer or Subsurface, or '
-              'add a dive by hand. Your logbook stays on this device.',
+            Text(
+              context.l10n.noDivesYetBody,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: TimelineColors.secondaryText,
                 fontSize: 15,
               ),
@@ -178,13 +179,13 @@ class _LogbookPageState extends State<LogbookPage> {
                 LogbookActionButton(
                   key: const Key('logbook_import'),
                   icon: CupertinoIcons.arrow_down_doc,
-                  label: 'Import log',
+                  label: context.l10n.importLog,
                   primary: true,
                   onPressed: _import,
                 ),
                 LogbookActionButton(
                   icon: CupertinoIcons.add,
-                  label: 'Add dive',
+                  label: context.l10n.addDive,
                   onPressed: _addDive,
                 ),
               ],
@@ -237,7 +238,8 @@ class _LogbookPageState extends State<LogbookPage> {
       itemBuilder: (context, i) {
         final dive = log.dives[i];
         final site = log.site(dive.siteId);
-        final stats = formatDiveStats(dive);
+        final l10n = context.l10n;
+        final stats = formatDiveStats(l10n, dive);
         return Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
@@ -257,7 +259,7 @@ class _LogbookPageState extends State<LogbookPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          diveTitle(dive, site),
+                          diveTitleIn(l10n, dive, site),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -269,7 +271,7 @@ class _LogbookPageState extends State<LogbookPage> {
                         const SizedBox(height: 2),
                         Text(
                           [
-                            formatDiveDate(dive.start),
+                            formatDiveDate(l10n, dive.start),
                             if (stats.isNotEmpty) stats,
                           ].join('\n'),
                           style: const TextStyle(
@@ -286,7 +288,7 @@ class _LogbookPageState extends State<LogbookPage> {
                       CupertinoIcons.photo_on_rectangle,
                       color: TimelineColors.secondaryText,
                       size: 18,
-                      semanticLabel: '${dive.media.length} linked media',
+                      semanticLabel: l10n.linkedMediaCount(dive.media.length),
                     ),
                   ],
                   const SizedBox(width: 4),
@@ -311,14 +313,16 @@ class _LogbookPageState extends State<LogbookPage> {
           site,
     ];
     if (sites.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Text(
-            'No dive site has a position yet. Add latitude and longitude '
-            'to a dive to see it here.',
+            context.l10n.noSitePositions,
             textAlign: TextAlign.center,
-            style: TextStyle(color: TimelineColors.secondaryText, fontSize: 15),
+            style: const TextStyle(
+              color: TimelineColors.secondaryText,
+              fontSize: 15,
+            ),
           ),
         ),
       );
@@ -329,11 +333,12 @@ class _LogbookPageState extends State<LogbookPage> {
 
   void _showSite(DiveSite site) {
     final dives = _controller.log.divesAt(site.id);
+    final l10n = context.l10n;
     showCupertinoModalPopup<void>(
       context: context,
       builder: (popup) => CupertinoActionSheet(
-        title: Text(site.name.isEmpty ? 'Dive site' : site.name),
-        message: Text(dives.length == 1 ? '1 dive' : '${dives.length} dives'),
+        title: Text(site.name.isEmpty ? l10n.diveSite : site.name),
+        message: Text(l10n.diveCount(dives.length)),
         actions: [
           for (final dive in dives)
             CupertinoActionSheetAction(
@@ -342,13 +347,14 @@ class _LogbookPageState extends State<LogbookPage> {
                 _openDive(dive);
               },
               child: Text(
-                '${diveTitle(dive, null)} · ${formatDiveDate(dive.start)}',
+                '${diveTitleIn(l10n, dive, null)} · '
+                '${formatDiveDate(l10n, dive.start)}',
               ),
             ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.of(popup).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
       ),
     );
@@ -394,39 +400,40 @@ class _LogbookPageState extends State<LogbookPage> {
         }
 
         final hasDives = _controller.log.dives.isNotEmpty;
+        final l10n = context.l10n;
         return CupertinoActionSheet(
           actions: [
             CupertinoActionSheetAction(
               onPressed: () => run(_import),
-              child: const Text('Import UDDF log'),
+              child: Text(l10n.importUddfLog),
             ),
             if (hasDives) ...[
               CupertinoActionSheetAction(
                 onPressed: () => run(_matchLibrary),
-                child: const Text('Link photos by capture time'),
+                child: Text(l10n.linkPhotosByTime),
               ),
               CupertinoActionSheetAction(
                 onPressed: () =>
                     run(() => _export('gpx', 'application/gpx+xml', writeGpx)),
-                child: const Text('Export GPX'),
+                child: Text(l10n.exportGpx),
               ),
               CupertinoActionSheetAction(
                 onPressed: () =>
                     run(() => _export('uddf', 'application/xml', writeUddf)),
-                child: const Text('Export UDDF'),
+                child: Text(l10n.exportUddf),
               ),
               CupertinoActionSheetAction(
                 onPressed: () => run(
                   () =>
                       _export('geojson', 'application/geo+json', writeGeoJson),
                 ),
-                child: const Text('Export GeoJSON'),
+                child: Text(l10n.exportGeoJson),
               ),
             ],
           ],
           cancelButton: CupertinoActionSheetAction(
             onPressed: () => Navigator.of(popup).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
         );
       },
@@ -434,32 +441,24 @@ class _LogbookPageState extends State<LogbookPage> {
   }
 
   Future<void> _import() async {
+    final l10n = context.l10n;
     try {
       final text = await _media.pickLogText();
       if (text == null) return;
       final added = await _controller.importLog(parseUddf(text));
-      await _alert(
-        'Log imported',
-        added == 0
-            ? 'Every dive in this log is already in your logbook.'
-            : added == 1
-            ? '1 new dive was added.'
-            : '$added new dives were added.',
-      );
+      await _alert(l10n.logImported, l10n.logImportedBody(added));
     } on UddfFormatException catch (e) {
-      await _alert('Can’t import this file', e.message);
+      await _alert(l10n.cannotImportFile, e.message);
     } on Object catch (e) {
-      await _alert('Can’t import this file', '$e');
+      await _alert(l10n.cannotImportFile, '$e');
     }
   }
 
   Future<void> _matchLibrary() async {
     final dives = _controller.log.dives.where((d) => d.duration != null);
+    final l10n = context.l10n;
     if (dives.isEmpty) {
-      await _alert(
-        'No dive times',
-        'Dives need a start time and duration to match photos.',
-      );
+      await _alert(l10n.noDiveTimes, l10n.noDiveTimesBody);
       return;
     }
     try {
@@ -468,14 +467,9 @@ class _LogbookPageState extends State<LogbookPage> {
       final linked = await _controller.linkByTime(
         await _media.libraryCandidates(from, to),
       );
-      await _alert(
-        'Photos linked',
-        linked == 0
-            ? 'No new photos or videos were taken during your dives.'
-            : '$linked photos and videos were linked to their dives.',
-      );
+      await _alert(l10n.photosLinked, l10n.photosLinkedBody(linked));
     } on Object catch (e) {
-      await _alert('Can’t read the photo library', '$e');
+      await _alert(l10n.cannotReadPhotoLibrary, '$e');
     }
   }
 
@@ -484,6 +478,7 @@ class _LogbookPageState extends State<LogbookPage> {
     String mimeType,
     String Function(DiveLog) write,
   ) async {
+    final l10n = context.l10n;
     try {
       await _media.saveFile(
         'AquaRecover logbook.$extension',
@@ -491,7 +486,7 @@ class _LogbookPageState extends State<LogbookPage> {
         mimeType: mimeType,
       );
     } on Object catch (e) {
-      await _alert('Export failed', '$e');
+      await _alert(l10n.exportFailed, '$e');
     }
   }
 
@@ -506,7 +501,7 @@ class _LogbookPageState extends State<LogbookPage> {
           CupertinoDialogAction(
             isDefaultAction: true,
             onPressed: () => Navigator.of(dialog).pop(),
-            child: const Text('OK'),
+            child: Text(context.l10n.ok),
           ),
         ],
       ),

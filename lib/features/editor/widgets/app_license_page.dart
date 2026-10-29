@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/app_version.dart';
+import '../../../l10n/l10n.dart';
 
 class AppLicensePage extends StatefulWidget {
   const AppLicensePage({super.key});
@@ -16,8 +17,8 @@ class _AppLicensePageState extends State<AppLicensePage> {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('Open-source licenses'),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(context.l10n.openSourceLicenses),
       ),
       child: SafeArea(
         child: FutureBuilder<List<_PackageLicense>>(
@@ -28,7 +29,7 @@ class _AppLicensePageState extends State<AppLicensePage> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    'The license list could not be loaded.',
+                    context.l10n.licensesLoadFailed,
                     style: CupertinoTheme.of(context).textTheme.textStyle,
                   ),
                 ),
@@ -47,8 +48,7 @@ class _AppLicensePageState extends State<AppLicensePage> {
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
                     child: Text(
-                      'AquaRecover $aquaRecoverVersion includes the following software. '
-                      'Select a component to read its license text.',
+                      context.l10n.licensesIntro(aquaRecoverVersion),
                       style: CupertinoTheme.of(context).textTheme.textStyle
                           .copyWith(
                             color: CupertinoDynamicColor.resolve(

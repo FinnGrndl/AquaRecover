@@ -4,6 +4,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../../../core/photo/photo_library_service.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/model_labels.dart';
 import '../../../core/utils/bounded_concurrency.dart';
 import '../../../shared/widgets/mouse_drag_scroll.dart';
 import '../../../shared/widgets/sheet_width.dart';
@@ -198,11 +200,11 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
         CupertinoButton(
           padding: EdgeInsets.zero,
           onPressed: _importing ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.cancel),
         ),
         const Spacer(),
         Text(
-          'Photos',
+          context.l10n.photosTitle,
           style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
         ),
         const Spacer(),
@@ -215,7 +217,7 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
               ? _importProgress == null
                     ? const CupertinoActivityIndicator()
                     : Text('${(_importProgress! * 100).round()}%')
-              : Text('Import ${_selectedIds.length}'),
+              : Text(context.l10n.importCount(_selectedIds.length)),
         ),
       ],
     ),
@@ -267,22 +269,25 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
                 color: CupertinoColors.secondaryLabel.resolveFrom(context),
               ),
               const SizedBox(height: 12),
-              Text(_friendly(_error!), textAlign: TextAlign.center),
+              Text(
+                permissionError?.messageIn(context.l10n) ?? _friendly(_error!),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 20),
               if (permissionError?.canOpenSettings ?? false)
                 CupertinoButton.filled(
                   onPressed: widget.service.openSettings,
-                  child: const Text('Open System Settings'),
+                  child: Text(context.l10n.openSystemSettings),
                 )
               else
                 CupertinoButton.filled(
                   onPressed: _loadAlbums,
-                  child: const Text('Try again'),
+                  child: Text(context.l10n.tryAgain),
                 ),
               if (permissionError?.canOpenSettings ?? false)
                 CupertinoButton(
                   onPressed: _loadAlbums,
-                  child: const Text('Try again'),
+                  child: Text(context.l10n.tryAgain),
                 ),
             ],
           ),
@@ -290,7 +295,7 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
       );
     }
     if (_assets.isEmpty) {
-      return const Center(child: Text('No photos or videos found.'));
+      return Center(child: Text(context.l10n.noPhotosOrVideos));
     }
     return GridView.builder(
       controller: _scrollController,
@@ -422,22 +427,20 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
       }
       if (!mounted) return;
       if (paths.isEmpty) {
-        throw StateError(
-          'None of the selected Photos items could be downloaded. Open them in Photos first, then try again.',
-        );
+        throw StateError(context.l10n.noneDownloadedFromPhotos);
       }
       if (failures > 0) {
         await showAppDialog<void>(
           context: context,
           builder: (dialogContext) => CupertinoAlertDialog(
-            title: const Text('Some items were skipped'),
+            title: Text(context.l10n.itemsSkippedTitle),
             content: Text(
-              '$failures selected item${failures == 1 ? '' : 's'} could not be downloaded from Photos. The remaining ${paths.length} will be imported.',
+              context.l10n.itemsNotDownloaded(failures, paths.length),
             ),
             actions: [
               CupertinoDialogAction(
                 onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Continue'),
+                child: Text(context.l10n.continueAction),
               ),
             ],
           ),
@@ -456,7 +459,10 @@ class _PhotoLibrarySheetState extends State<PhotoLibrarySheet>
   }
 
   String _friendly(String message) {
-    final oneLine = message.replaceAll(RegExp(r'[\r\n]+'), ' ').trim();
+    final bare = message.replaceFirst('Bad state: ', '');
+    final oneLine = (localizedKnownMessage(context.l10n, bare) ?? bare)
+        .replaceAll(RegExp(r'[\r\n]+'), ' ')
+        .trim();
     return oneLine.length > 260 ? '${oneLine.substring(0, 260)}...' : oneLine;
   }
 }

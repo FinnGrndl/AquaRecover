@@ -5,6 +5,8 @@ import 'package:path/path.dart' as p;
 
 import '../../../core/models/media_job.dart';
 import '../../../core/models/media_kind.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/model_labels.dart';
 import '../../../shared/reduce_motion.dart';
 import '../../../shared/widgets/sheet_width.dart';
 import '../../../shared/widgets/app_tooltip.dart';
@@ -68,15 +70,15 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text(
-                        'Queue changes are locked until the current export finishes.',
-                        style: TextStyle(fontSize: 13),
+                      child: Text(
+                        context.l10n.queueLocked,
+                        style: const TextStyle(fontSize: 13),
                       ),
                     ),
                   ),
                 Expanded(
                   child: _jobs.isEmpty
-                      ? const Center(child: Text('No selected media.'))
+                      ? Center(child: Text(context.l10n.noSelectedMedia))
                       : ListView.separated(
                           key: const Key('queue_overview_list'),
                           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
@@ -104,12 +106,12 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Selection',
+                  context.l10n.selection,
                   style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${_jobs.length} item${_jobs.length == 1 ? '' : 's'} in the queue',
+                  context.l10n.itemsInQueue(_jobs.length),
                   style: CupertinoTheme.of(context).textTheme.textStyle
                       .copyWith(
                         color: CupertinoColors.secondaryLabel.resolveFrom(
@@ -125,7 +127,7 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
             key: const Key('queue_overview_done'),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Done'),
+            child: Text(context.l10n.done),
           ),
         ],
       ),
@@ -136,10 +138,11 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
     final selected = job.id == _selectedJobId;
     final primary = CupertinoTheme.of(context).primaryColor;
     final canRemove = !widget.busy;
+    final l10n = context.l10n;
     final details = <String>[
-      job.kind.label,
-      job.source.label,
-      job.status.label,
+      job.kind.labelIn(l10n),
+      job.source.labelIn(l10n),
+      job.status.labelIn(l10n),
       if (job.metadata?.sizeLabel != null) job.metadata!.sizeLabel,
       if (job.metadata?.dimensionsLabel != null) job.metadata!.dimensionsLabel!,
       if (job.metadata?.durationLabel != null) job.metadata!.durationLabel!,
@@ -147,8 +150,10 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
     return Semantics(
       selected: selected,
       button: true,
-      label:
-          '${job.displayName ?? p.basename(job.inputPath)}, ${job.status.label}',
+      label: l10n.itemWithStatus(
+        job.displayName ?? p.basename(job.inputPath),
+        job.status.labelIn(l10n),
+      ),
       child: GestureDetector(
         key: Key('queue_item_${job.id}'),
         behavior: HitTestBehavior.opaque,
@@ -207,7 +212,7 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
               const SizedBox(width: 8),
               _statusIcon(job),
               AppTooltip(
-                message: 'Remove from queue',
+                message: l10n.removeFromQueue,
                 child: CupertinoButton(
                   key: Key('queue_remove_${job.id}'),
                   padding: EdgeInsets.zero,
@@ -218,8 +223,9 @@ class _QueueOverviewSheetState extends State<QueueOverviewSheet> {
                   onPressed: canRemove ? () => _remove(job, index) : null,
                   child: Icon(
                     CupertinoIcons.trash,
-                    semanticLabel:
-                        'Remove ${job.displayName ?? p.basename(job.inputPath)} from queue',
+                    semanticLabel: l10n.removeItemFromQueue(
+                      job.displayName ?? p.basename(job.inputPath),
+                    ),
                     size: 19,
                     color: canRemove
                         ? CupertinoColors.destructiveRed

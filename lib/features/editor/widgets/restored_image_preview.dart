@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/models/lut_profile.dart';
 import '../../../core/models/restoration_settings.dart';
 import '../../../core/processing/preview_render_worker.dart';
+import '../../../l10n/l10n.dart';
 
 class RestoredImagePreview extends StatefulWidget {
   const RestoredImagePreview({
@@ -231,7 +232,9 @@ class _RestoredImagePreviewState extends State<RestoredImagePreview> {
               ),
               const SizedBox(height: 8),
               Text(
-                _error == null ? 'Rendering preview' : 'Preview unavailable',
+                _error == null
+                    ? context.l10n.renderingPreview
+                    : context.l10n.previewUnavailable,
                 style: CupertinoTheme.of(
                   context,
                 ).textTheme.textStyle.copyWith(color: secondary),

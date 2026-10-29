@@ -5,6 +5,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/models/image_transform_settings.dart';
+import '../../../l10n/l10n.dart';
 import '../editor_tools.dart';
 
 typedef TransformPreviewBuilder =
@@ -91,10 +92,8 @@ class _ImageTransformPreviewState extends State<ImageTransformPreview> {
             width: width,
             height: height,
             child: Semantics(
-              label: interactive ? 'Crop area' : null,
-              hint: interactive
-                  ? 'Drag an edge or corner to crop. Drag inside to move the crop and pinch to resize it.'
-                  : null,
+              label: interactive ? context.l10n.cropArea : null,
+              hint: interactive ? context.l10n.cropAreaHint : null,
               image: true,
               onIncrease: interactive ? () => _adjustCropScale(.9, size) : null,
               onDecrease: interactive
@@ -102,18 +101,20 @@ class _ImageTransformPreviewState extends State<ImageTransformPreview> {
                   : null,
               customSemanticsActions: interactive
                   ? {
-                      const CustomSemanticsAction(
-                        label: 'Move crop left',
+                      CustomSemanticsAction(
+                        label: context.l10n.moveCropLeft,
                       ): () =>
                           _moveCrop(const Offset(-.02, 0), size),
-                      const CustomSemanticsAction(
-                        label: 'Move crop right',
+                      CustomSemanticsAction(
+                        label: context.l10n.moveCropRight,
                       ): () =>
                           _moveCrop(const Offset(.02, 0), size),
-                      const CustomSemanticsAction(label: 'Move crop up'): () =>
+                      CustomSemanticsAction(
+                        label: context.l10n.moveCropUp,
+                      ): () =>
                           _moveCrop(const Offset(0, -.02), size),
-                      const CustomSemanticsAction(
-                        label: 'Move crop down',
+                      CustomSemanticsAction(
+                        label: context.l10n.moveCropDown,
                       ): () =>
                           _moveCrop(const Offset(0, .02), size),
                     }

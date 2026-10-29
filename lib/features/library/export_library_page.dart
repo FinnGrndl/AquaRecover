@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import '../../core/models/media_kind.dart';
 import '../../core/persistence/export_library_service.dart';
 import '../../core/platform/share_service.dart';
+import '../../l10n/l10n.dart';
 import '../editor/widgets/video_preview_tile.dart';
 import '../../shared/widgets/app_tooltip.dart';
 import '../../shared/widgets/app_dialog.dart';
@@ -60,7 +61,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
                 CustomScrollView(
                   slivers: [
                     CupertinoSliverNavigationBar(
-                      largeTitle: const Text('Local Exports'),
+                      largeTitle: Text(context.l10n.localExportsTitle),
                       backgroundColor: const Color(
                         0xff0b1115,
                       ).withValues(alpha: .92),
@@ -71,7 +72,11 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
                               key: const Key('local_export_selection_mode'),
                               padding: EdgeInsets.zero,
                               onPressed: _busy ? null : _toggleSelectionMode,
-                              child: Text(_selectionMode ? 'Cancel' : 'Select'),
+                              child: Text(
+                                _selectionMode
+                                    ? context.l10n.cancel
+                                    : context.l10n.select,
+                              ),
                             ),
                     ),
                     CupertinoSliverRefreshControl(
@@ -109,15 +114,15 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
         hasScrollBody: false,
         child: _message(
           CupertinoIcons.exclamationmark_triangle,
-          'Exports could not be loaded.',
-          action: 'Try again',
+          context.l10n.exportsLoadFailed,
+          action: context.l10n.tryAgain,
         ),
       );
     }
     if (_items.isEmpty) {
       return SliverFillRemaining(
         hasScrollBody: false,
-        child: _message(CupertinoIcons.tray, 'No local exports yet.'),
+        child: _message(CupertinoIcons.tray, context.l10n.noLocalExports),
       );
     }
     return SliverPadding(
@@ -148,7 +153,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
           children: [
             Expanded(
               child: Text(
-                '${_selectedPaths.length} selected',
+                context.l10n.selectedCount(_selectedPaths.length),
                 style: const TextStyle(color: CupertinoColors.systemGrey),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -162,7 +167,9 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
                 kMinInteractiveDimensionCupertino,
               ),
               onPressed: _busy ? null : _toggleSelectAll,
-              child: Text(allSelected ? 'Deselect all' : 'Select all'),
+              child: Text(
+                allSelected ? context.l10n.deselectAll : context.l10n.selectAll,
+              ),
             ),
           ],
         ),
@@ -174,7 +181,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
         children: [
           Expanded(
             child: Text(
-              '${_items.length} local export${_items.length == 1 ? '' : 's'}',
+              context.l10n.localExportCount(_items.length),
               style: const TextStyle(color: CupertinoColors.systemGrey),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -190,9 +197,9 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
             onPressed: _busy
                 ? null
                 : () => _confirmDelete(_items, deleteAll: true),
-            child: const Text(
-              'Delete all',
-              style: TextStyle(color: CupertinoColors.destructiveRed),
+            child: Text(
+              context.l10n.deleteAll,
+              style: const TextStyle(color: CupertinoColors.destructiveRed),
             ),
           ),
         ],
@@ -215,7 +222,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
       onPressed: count == 0 || _busy ? null : () => _confirmDelete(selected),
       child: _deleting
           ? const CupertinoActivityIndicator(color: CupertinoColors.white)
-          : Text('Delete $count'),
+          : Text(context.l10n.deleteCount(count)),
     );
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -233,9 +240,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
                   children: [
                     Expanded(
                       child: AppTooltip(
-                        message: count == 1
-                            ? 'Share the selected export'
-                            : 'Share the selected exports',
+                        message: context.l10n.shareSelectedExports(count),
                         child: Builder(
                           builder: (buttonContext) => CupertinoButton(
                             key: const Key('share_selected_local_exports'),
@@ -264,7 +269,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
                                       const SizedBox(width: 6),
                                       Flexible(
                                         child: Text(
-                                          'Share $count',
+                                          context.l10n.shareCount(count),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -499,26 +504,25 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
   }) async {
     if (items.isEmpty || _busy) return;
     final count = items.length;
+    final l10n = context.l10n;
     final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (dialogContext) => CupertinoAlertDialog(
         title: Text(
           deleteAll
-              ? 'Delete all local exports?'
-              : 'Delete $count export${count == 1 ? '' : 's'}?',
+              ? l10n.deleteAllExportsTitle
+              : l10n.deleteExportsTitle(count),
         ),
-        content: const Text(
-          'The local files and their settings sidecars will be deleted. Imported originals and copies in Photos are not affected.',
-        ),
+        content: Text(l10n.deleteExportsBody),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -544,14 +548,12 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
       await showAppDialog<void>(
         context: context,
         builder: (dialogContext) => CupertinoAlertDialog(
-          title: const Text('Some exports could not be deleted'),
-          content: Text(
-            '$failures of $count files may have been moved or are currently unavailable.',
-          ),
+          title: Text(l10n.someExportsNotDeleted),
+          content: Text(l10n.someExportsNotDeletedBody(failures, count)),
           actions: [
             CupertinoDialogAction(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('OK'),
+              child: Text(l10n.ok),
             ),
           ],
         ),
@@ -615,10 +617,10 @@ class ExportDetailPage extends StatelessWidget {
           children: [
             if (shareService.isAvailable)
               AppTooltip(
-                message: 'Share export',
+                message: context.l10n.shareExport,
                 child: Semantics(
                   button: true,
-                  label: 'Share export',
+                  label: context.l10n.shareExport,
                   excludeSemantics: true,
                   child: Builder(
                     builder: (buttonContext) => CupertinoButton(
@@ -636,10 +638,10 @@ class ExportDetailPage extends StatelessWidget {
                 ),
               ),
             AppTooltip(
-              message: 'Delete export',
+              message: context.l10n.deleteExport,
               child: Semantics(
                 button: true,
-                label: 'Delete export',
+                label: context.l10n.deleteExport,
                 excludeSemantics: true,
                 child: CupertinoButton(
                   key: const Key('delete_local_export'),
@@ -667,9 +669,11 @@ class ExportDetailPage extends StatelessWidget {
                         child: Image.file(
                           File(item.path),
                           fit: BoxFit.contain,
-                          errorBuilder: (_, _, _) => const Text(
-                            'Preview unavailable.',
-                            style: TextStyle(color: CupertinoColors.white),
+                          errorBuilder: (_, _, _) => Text(
+                            context.l10n.previewUnavailableShort,
+                            style: const TextStyle(
+                              color: CupertinoColors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -714,22 +718,21 @@ class ExportDetailPage extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
+    final l10n = context.l10n;
     final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (dialogContext) => CupertinoAlertDialog(
-        title: const Text('Delete local export?'),
-        content: const Text(
-          'The local file and its settings sidecar will be deleted. The imported original and any copy in Photos are not affected.',
-        ),
+        title: Text(l10n.deleteExportTitle),
+        content: Text(l10n.deleteExportBody),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -743,14 +746,12 @@ class ExportDetailPage extends StatelessWidget {
       await showAppDialog<void>(
         context: context,
         builder: (dialogContext) => CupertinoAlertDialog(
-          title: const Text('Export could not be deleted'),
-          content: const Text(
-            'The file may have been moved or is currently unavailable.',
-          ),
+          title: Text(l10n.exportNotDeleted),
+          content: Text(l10n.exportNotDeletedBody),
           actions: [
             CupertinoDialogAction(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('OK'),
+              child: Text(l10n.ok),
             ),
           ],
         ),
