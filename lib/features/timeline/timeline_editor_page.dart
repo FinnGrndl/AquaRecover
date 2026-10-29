@@ -14,6 +14,7 @@ import '../../core/media/media_classifier.dart';
 import '../../core/models/media_kind.dart';
 import '../../core/models/restoration_settings.dart';
 import '../../core/photo/photo_library_service.dart';
+import '../../core/platform/share_service.dart';
 import '../../core/timeline/ffmpeg_timeline_renderer.dart';
 import '../../core/timeline/timeline_project.dart';
 import '../../core/timeline/timeline_project_store.dart';
@@ -45,6 +46,7 @@ import 'widgets/tools/transition_panel.dart';
 import 'widgets/tools/volume_panel.dart';
 import 'widgets/viewer_selection_overlay.dart';
 import '../../shared/widgets/app_dialog.dart';
+import '../../shared/widgets/share_failed_dialog.dart';
 
 /// The movie editor, laid out like CapCut and dressed like iOS: the viewer
 /// on top, transport, a multi-lane timeline with a centred playhead, one
@@ -62,6 +64,7 @@ class TimelineEditorPage extends StatefulWidget {
     this.overlayProbe,
     this.audioProbe,
     this.exportDirectory,
+    this.shareService = const ShareService(),
     this.initialMedia = const [],
     this.today,
   });
@@ -89,6 +92,9 @@ class TimelineEditorPage extends StatefulWidget {
   /// Overrides where rendered movies go, so widget tests need no real
   /// file system.
   final Future<Directory> Function()? exportDirectory;
+
+  /// Opens the system share sheet for a rendered movie.
+  final ShareService shareService;
 
   /// Media picked before the editor opened, added on start.
   final List<String> initialMedia;
@@ -413,6 +419,16 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
   bool get _canSaveToPhotos =>
       Platform.isIOS || Platform.isMacOS || Platform.isAndroid;
 
+  Future<void> _shareMovie(Rect? origin) async {
+    final path = _outputPath;
+    if (path == null) return;
+    try {
+      await widget.shareService.shareFiles([path], origin: origin);
+    } on Object catch (error) {
+      if (mounted) await showShareFailedDialog(context, error);
+    }
+  }
+
   String? get _backendNote => switch (_renderer.backend) {
     TimelineRenderBackend.android => 'fades render as dips to black',
     TimelineRenderBackend.none => 'needs ffmpeg on this computer',
@@ -709,9 +725,11 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                   : _render,
               onCancel: _renderer.cancel,
               onSaveToPhotos: _canSaveToPhotos ? _saveToPhotos : null,
+              onShare: widget.shareService.isAvailable ? _shareMovie : null,
               onOpenLibrary: () => Navigator.of(context).push(
                 CupertinoPageRoute<void>(
-                  builder: (_) => const ExportLibraryPage(),
+                  builder: (_) =>
+                      ExportLibraryPage(shareService: widget.shareService),
                 ),
               ),
             ),
