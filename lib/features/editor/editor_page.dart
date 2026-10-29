@@ -32,6 +32,7 @@ import '../../core/photo/photo_library_service.dart';
 import '../../core/persistence/folder_export_service.dart';
 import '../../core/persistence/sidecar_service.dart';
 import '../../core/platform/raw_processing_service.dart';
+import '../../core/platform/share_service.dart';
 import '../../core/processing/scene_analyzer.dart';
 import '../../core/processing/scene_suggestion_service.dart';
 import '../../core/processing/image_restoration_service.dart';
@@ -63,6 +64,7 @@ import '../timeline/movie_from_queue.dart';
 import '../timeline/timeline_projects_page.dart';
 import '../../shared/widgets/scrollbar_list_view.dart';
 import '../../shared/widgets/app_dialog.dart';
+import '../../shared/widgets/share_failed_dialog.dart';
 
 typedef PhotoMediaPicker = Future<List<String>> Function();
 
@@ -80,6 +82,7 @@ class EditorPage extends StatefulWidget {
     this.photoMediaPicker,
     this.onShowTutorial,
     this.sceneSuggestions,
+    this.shareService = const ShareService(),
   });
 
   final List<String> initialPaths;
@@ -95,6 +98,9 @@ class EditorPage extends StatefulWidget {
 
   /// Suggests a preset per photo; defaults to the engine-decoder service.
   final SceneSuggestionService? sceneSuggestions;
+
+  /// Opens the system share sheet for finished exports.
+  final ShareService shareService;
 
   @override
   State<EditorPage> createState() => _EditorPageState();
@@ -139,7 +145,12 @@ class _EditorPageState extends State<EditorPage> {
   bool _busy = false;
   bool _exportStartPending = false;
   bool _cancelRequested = false;
+  bool _sharing = false;
   String? _status = 'Ready.';
+
+  /// Local copies written by the last export run, single or batch, which
+  /// the status card offers to share.
+  List<String> _shareablePaths = const [];
 
   /// Undo history per queue item, keyed by job id.
   final Map<String, EditHistory<MediaEditState>> _histories = {};
@@ -1360,13 +1371,18 @@ class _EditorPageState extends State<EditorPage> {
                         color: CupertinoColors.white,
                       ),
                       SizedBox(width: 6),
-                      Text(
-                        'Exporting',
-                        maxLines: 1,
-                        style: TextStyle(
-                          color: CupertinoColors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                      // Large text sizes cut the label short instead of
+                      // overflowing the fixed-width bar slot.
+                      Flexible(
+                        child: Text(
+                          'Exporting',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: CupertinoColors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -1744,6 +1760,10 @@ class _EditorPageState extends State<EditorPage> {
         const SizedBox(height: 14),
         if (_jobs.length > 1) ...[
           _batchExportReviewPanel(panelContext),
+          const SizedBox(height: 12),
+        ],
+        if (_canShareExports) ...[
+          _shareExportsButton(),
           const SizedBox(height: 12),
         ],
         _exportOptionsSection(panelContext),
@@ -2860,6 +2880,11 @@ class _EditorPageState extends State<EditorPage> {
                 style: detailStyle,
               ),
             ),
+          if (_canShareExports)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: _shareExportsButton(),
+            ),
           if (_busy && _canCancelCurrentWork)
             CupertinoButton(
               padding: EdgeInsets.zero,
@@ -3019,6 +3044,7 @@ class _EditorPageState extends State<EditorPage> {
   }) async {
     setState(() {
       _busy = true;
+      _shareablePaths = const [];
       _status = 'Inspecting imported media...';
     });
     final now = DateTime.now().microsecondsSinceEpoch;
@@ -3105,6 +3131,7 @@ class _EditorPageState extends State<EditorPage> {
     if (selectedId == null) return;
     setState(() {
       _exportStartPending = true;
+      _shareablePaths = const [];
       _status = 'Preparing export...';
     });
     try {
@@ -3344,6 +3371,9 @@ class _EditorPageState extends State<EditorPage> {
           ),
         );
         if (!partOfBatch) _step = EditorWorkflowStep.export;
+        if (_exportOptions.keepLocalCopy) {
+          _shareablePaths = [..._shareablePaths, output];
+        }
         _status =
             'Exported ${p.basename(output)} to ${_exportDestinationNames().join(', ')}.';
       });
@@ -3691,9 +3721,71 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   void _openLocalExports() {
-    Navigator.of(
-      context,
-    ).push(CupertinoPageRoute<void>(builder: (_) => const ExportLibraryPage()));
+    Navigator.of(context).push(
+      CupertinoPageRoute<void>(
+        builder: (_) => ExportLibraryPage(shareService: widget.shareService),
+      ),
+    );
+  }
+
+  bool get _canShareExports =>
+      _shareablePaths.isNotEmpty &&
+      !_exportOperationActive &&
+      widget.shareService.isAvailable;
+
+  /// Share next to the finished export: one file, or every file a batch
+  /// kept, in a single share sheet.
+  Widget _shareExportsButton() {
+    final count = _shareablePaths.length;
+    return AppTooltip(
+      message: count == 1
+          ? 'Share the exported file'
+          : 'Share all $count exported files',
+      child: Builder(
+        builder: (buttonContext) => CupertinoButton(
+          key: const Key('share_exports'),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          minimumSize: const Size(
+            kMinInteractiveDimensionCupertino,
+            kMinInteractiveDimensionCupertino,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          color: CupertinoColors.activeBlue,
+          disabledColor: CupertinoColors.activeBlue.withValues(alpha: .38),
+          foregroundColor: CupertinoColors.white,
+          onPressed: _sharing
+              ? null
+              : () => _shareExports(shareOriginOf(buttonContext)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(CupertinoIcons.share, size: 20),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  count == 1 ? 'Share' : 'Share all $count',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _shareExports(Rect? origin) async {
+    if (_sharing || _shareablePaths.isEmpty) return;
+    setState(() => _sharing = true);
+    try {
+      await widget.shareService.shareFiles(_shareablePaths, origin: origin);
+    } on Object catch (error) {
+      if (mounted) await showShareFailedDialog(context, error);
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
   }
 
   void _showAbout() {

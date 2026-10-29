@@ -4,17 +4,21 @@ import 'package:flutter/cupertino.dart';
 
 import '../../core/models/media_kind.dart';
 import '../../core/persistence/export_library_service.dart';
+import '../../core/platform/share_service.dart';
 import '../editor/widgets/video_preview_tile.dart';
 import '../../shared/widgets/app_tooltip.dart';
 import '../../shared/widgets/app_dialog.dart';
+import '../../shared/widgets/share_failed_dialog.dart';
 
 class ExportLibraryPage extends StatefulWidget {
   const ExportLibraryPage({
     super.key,
     this.service = const ExportLibraryService(),
+    this.shareService = const ShareService(),
   });
 
   final ExportLibraryService service;
+  final ShareService shareService;
 
   @override
   State<ExportLibraryPage> createState() => _ExportLibraryPageState();
@@ -26,7 +30,10 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
   bool _loading = true;
   bool _selectionMode = false;
   bool _deleting = false;
+  bool _sharing = false;
   Object? _loadError;
+
+  bool get _busy => _deleting || _sharing;
 
   @override
   void initState() {
@@ -63,9 +70,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
                           : CupertinoButton(
                               key: const Key('local_export_selection_mode'),
                               padding: EdgeInsets.zero,
-                              onPressed: _deleting
-                                  ? null
-                                  : _toggleSelectionMode,
+                              onPressed: _busy ? null : _toggleSelectionMode,
                               child: Text(_selectionMode ? 'Cancel' : 'Select'),
                             ),
                     ),
@@ -156,7 +161,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
                 kMinInteractiveDimensionCupertino,
                 kMinInteractiveDimensionCupertino,
               ),
-              onPressed: _deleting ? null : _toggleSelectAll,
+              onPressed: _busy ? null : _toggleSelectAll,
               child: Text(allSelected ? 'Deselect all' : 'Select all'),
             ),
           ],
@@ -182,7 +187,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
               kMinInteractiveDimensionCupertino,
               kMinInteractiveDimensionCupertino,
             ),
-            onPressed: _deleting
+            onPressed: _busy
                 ? null
                 : () => _confirmDelete(_items, deleteAll: true),
             child: const Text(
@@ -197,6 +202,21 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
 
   Widget _selectionActionBar() {
     final count = _selectedPaths.length;
+    final selected = _items
+        .where((item) => _selectedPaths.contains(item.path))
+        .toList(growable: false);
+    final delete = CupertinoButton(
+      key: const Key('delete_selected_local_exports'),
+      foregroundColor: CupertinoColors.white,
+      color: count == 0
+          ? CupertinoColors.systemGrey
+          : CupertinoColors.destructiveRed,
+      borderRadius: BorderRadius.circular(14),
+      onPressed: count == 0 || _busy ? null : () => _confirmDelete(selected),
+      child: _deleting
+          ? const CupertinoActivityIndicator(color: CupertinoColors.white)
+          : Text('Delete $count'),
+    );
     return DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xff171c20).withValues(alpha: .97),
@@ -208,27 +228,82 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-          child: CupertinoButton(
-            key: const Key('delete_selected_local_exports'),
-            foregroundColor: CupertinoColors.white,
-            color: count == 0
-                ? CupertinoColors.systemGrey
-                : CupertinoColors.destructiveRed,
-            borderRadius: BorderRadius.circular(14),
-            onPressed: count == 0 || _deleting
-                ? null
-                : () => _confirmDelete(
-                    _items
-                        .where((item) => _selectedPaths.contains(item.path))
-                        .toList(growable: false),
-                  ),
-            child: _deleting
-                ? const CupertinoActivityIndicator(color: CupertinoColors.white)
-                : Text('Delete $count'),
-          ),
+          child: widget.shareService.isAvailable
+              ? Row(
+                  children: [
+                    Expanded(
+                      child: AppTooltip(
+                        message: count == 1
+                            ? 'Share the selected export'
+                            : 'Share the selected exports',
+                        child: Builder(
+                          builder: (buttonContext) => CupertinoButton(
+                            key: const Key('share_selected_local_exports'),
+                            foregroundColor: CupertinoColors.white,
+                            color: count == 0
+                                ? CupertinoColors.systemGrey
+                                : CupertinoColors.activeBlue,
+                            borderRadius: BorderRadius.circular(14),
+                            onPressed: count == 0 || _busy
+                                ? null
+                                : () => _share(
+                                    selected,
+                                    shareOriginOf(buttonContext),
+                                  ),
+                            child: _sharing
+                                ? const CupertinoActivityIndicator(
+                                    color: CupertinoColors.white,
+                                  )
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        CupertinoIcons.share,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          'Share $count',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: delete),
+                  ],
+                )
+              : delete,
         ),
       ),
     );
+  }
+
+  Future<void> _share(List<LocalExportItem> items, Rect? origin) async {
+    if (items.isEmpty || _busy) return;
+    setState(() => _sharing = true);
+    try {
+      final outcome = await widget.shareService.shareFiles([
+        for (final item in items) item.path,
+      ], origin: origin);
+      if (!mounted) return;
+      if (outcome == ShareOutcome.shared) {
+        setState(() {
+          _selectionMode = false;
+          _selectedPaths.clear();
+        });
+      }
+    } on Object catch (error) {
+      if (mounted) await showShareFailedDialog(context, error);
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
   }
 
   Widget _message(IconData icon, String message, {String? action}) {
@@ -260,8 +335,8 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
       message: item.fileName,
       child: GestureDetector(
         key: Key('local_export_${item.fileName}'),
-        onLongPress: _deleting ? null : () => _selectItem(item),
-        onTap: _deleting
+        onLongPress: _busy ? null : () => _selectItem(item),
+        onTap: _busy
             ? null
             : () => _selectionMode
                   ? _toggleItem(item)
@@ -376,7 +451,11 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
   Future<void> _openDetail(BuildContext context, LocalExportItem item) async {
     final deleted = await Navigator.of(context).push<bool>(
       CupertinoPageRoute<bool>(
-        builder: (_) => ExportDetailPage(item: item, service: widget.service),
+        builder: (_) => ExportDetailPage(
+          item: item,
+          service: widget.service,
+          shareService: widget.shareService,
+        ),
       ),
     );
     if (deleted == true && mounted) await _reload(showLoading: false);
@@ -418,7 +497,7 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
     List<LocalExportItem> items, {
     bool deleteAll = false,
   }) async {
-    if (items.isEmpty || _deleting) return;
+    if (items.isEmpty || _busy) return;
     final count = items.length;
     final confirmed = await showAppDialog<bool>(
       context: context,
@@ -512,10 +591,12 @@ class ExportDetailPage extends StatelessWidget {
     super.key,
     required this.item,
     this.service = const ExportLibraryService(),
+    this.shareService = const ShareService(),
   });
 
   final LocalExportItem item;
   final ExportLibraryService service;
+  final ShareService shareService;
 
   @override
   Widget build(BuildContext context) {
@@ -529,22 +610,49 @@ class ExportDetailPage extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: AppTooltip(
-          message: 'Delete export',
-          child: Semantics(
-            button: true,
-            label: 'Delete export',
-            excludeSemantics: true,
-            child: CupertinoButton(
-              key: const Key('delete_local_export'),
-              padding: EdgeInsets.zero,
-              onPressed: () => _confirmDelete(context),
-              child: const Icon(
-                CupertinoIcons.trash,
-                color: CupertinoColors.destructiveRed,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (shareService.isAvailable)
+              AppTooltip(
+                message: 'Share export',
+                child: Semantics(
+                  button: true,
+                  label: 'Share export',
+                  excludeSemantics: true,
+                  child: Builder(
+                    builder: (buttonContext) => CupertinoButton(
+                      key: const Key('share_local_export'),
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(
+                        kMinInteractiveDimensionCupertino,
+                        kMinInteractiveDimensionCupertino,
+                      ),
+                      onPressed: () =>
+                          _share(buttonContext, shareOriginOf(buttonContext)),
+                      child: const Icon(CupertinoIcons.share),
+                    ),
+                  ),
+                ),
+              ),
+            AppTooltip(
+              message: 'Delete export',
+              child: Semantics(
+                button: true,
+                label: 'Delete export',
+                excludeSemantics: true,
+                child: CupertinoButton(
+                  key: const Key('delete_local_export'),
+                  padding: EdgeInsets.zero,
+                  onPressed: () => _confirmDelete(context),
+                  child: const Icon(
+                    CupertinoIcons.trash,
+                    color: CupertinoColors.destructiveRed,
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
       child: SafeArea(
@@ -595,6 +703,14 @@ class ExportDetailPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _share(BuildContext context, Rect? origin) async {
+    try {
+      await shareService.shareFiles([item.path], origin: origin);
+    } on Object catch (error) {
+      if (context.mounted) await showShareFailedDialog(context, error);
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
