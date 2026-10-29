@@ -381,6 +381,7 @@ class _FakeImageService extends ImageRestorationService {
     ExportOptions exportOptions = const ExportOptions(),
     LutProfile lutProfile = LutProfile.none,
     ImageTransformSettings transform = const ImageTransformSettings(),
+    String? metadataSourcePath,
   }) async => outputs[inputs.indexOf(inputPath)];
 }
 

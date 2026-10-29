@@ -37,18 +37,52 @@ class ExportMetadata {
     0xA214, // SubjectLocation
   };
 
+  /// IFD0 tags kept by a comparison export: only when it was taken.
+  static const captureDateImageTags = <int>{
+    0x0132, // DateTime
+  };
+
+  /// EXIF sub-IFD tags kept by a comparison export.
+  static const captureDateExifTags = <int>{
+    0x9003, // DateTimeOriginal
+    0x9004, // DateTimeDigitized
+    0x9010, // OffsetTime
+    0x9011, // OffsetTimeOriginal
+    0x9012, // OffsetTimeDigitized
+    0x9290, // SubSecTime
+    0x9291, // SubSecTimeOriginal
+    0x9292, // SubSecTimeDigitized
+  };
+
   /// A sanitized copy of [source] for an upright export of [width]×[height].
   /// Returns `null` when [source] carries nothing worth keeping.
+  ///
+  /// [captureDateOnly] keeps nothing but the capture date and time. A
+  /// before/after comparison is a new image, so camera, exposure and GPS
+  /// tags no longer describe it, but it should still sort by the dive.
   static img.ExifData? forExport(
     img.ExifData? source, {
     required int width,
     required int height,
+    bool captureDateOnly = false,
   }) {
     if (source == null || source.isEmpty) return null;
     final result = img.ExifData();
     final sourceImage = source.directories['ifd0'];
     final image = result.imageIfd;
-    if (sourceImage != null) {
+    if (sourceImage != null && captureDateOnly) {
+      for (final tag in captureDateImageTags) {
+        final value = sourceImage.data[tag];
+        if (value != null) image.data[tag] = value.clone();
+      }
+      final exif = sourceImage.sub.directories['exif'];
+      if (exif != null) {
+        for (final tag in captureDateExifTags) {
+          final value = exif.data[tag];
+          if (value != null) result.exifIfd.data[tag] = value.clone();
+        }
+      }
+    } else if (sourceImage != null) {
       for (final tag in keptImageTags) {
         final value = sourceImage.data[tag];
         if (value != null) image.data[tag] = value.clone();

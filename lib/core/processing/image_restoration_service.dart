@@ -57,10 +57,22 @@ class ImageRestorationService {
       inputPath,
       extension: exportOptions.imageFormat.extension,
       temporary: !exportOptions.keepLocalCopy,
+      beforeAfter: exportOptions.beforeAfter,
     );
 
     if (_canUseNativeRenderer) {
       try {
+        if (exportOptions.beforeAfter) {
+          return await _composeNativeBeforeAfter(
+            inputPath,
+            outputPath,
+            settings,
+            exportOptions: exportOptions,
+            lutProfile: lutProfile,
+            transform: transform,
+            metadataSourcePath: metadataSourcePath,
+          );
+        }
         final restored = await _restoreFileNatively(
           inputPath,
           outputPath,
@@ -149,6 +161,59 @@ class ImageRestorationService {
     return restored;
   }
 
+  /// Renders the restored pane with the native pipeline into a lossless
+  /// intermediate, then composes the comparison in the background: the
+  /// "before" pane is the portable decode with the same transform.
+  Future<String> _composeNativeBeforeAfter(
+    String inputPath,
+    String outputPath,
+    RestorationSettings settings, {
+    required ExportOptions exportOptions,
+    required LutProfile lutProfile,
+    required ImageTransformSettings transform,
+    String? metadataSourcePath,
+  }) async {
+    var restoredPath = await OutputPaths.forIntermediatePng(
+      inputPath,
+      label: 'restored',
+    );
+    try {
+      restoredPath = await _restoreFileNatively(
+        inputPath,
+        restoredPath,
+        settings,
+        exportOptions: exportOptions.copyWith(
+          imageFormat: ImageOutputFormat.png,
+          stripMetadata: true,
+          beforeAfter: false,
+        ),
+        lutProfile: lutProfile,
+        transform: transform,
+      );
+      final outputBytes = await compute(
+        _composeBeforeAfterInBackground,
+        _BeforeAfterComposeRequest(
+          inputPath: inputPath,
+          restoredPath: restoredPath,
+          metadataSourcePath: metadataSourcePath ?? inputPath,
+          settings: settings.toJson(),
+          exportOptions: exportOptions.toJson(),
+          transform: transform.toJson(),
+        ),
+        debugLabel: 'AquaRecover before/after',
+      );
+      await File(outputPath).writeAsBytes(outputBytes, flush: true);
+      return outputPath;
+    } finally {
+      try {
+        final restored = File(restoredPath);
+        if (await restored.exists()) await restored.delete();
+      } on FileSystemException {
+        // Best effort: the intermediate lives in the temporary directory.
+      }
+    }
+  }
+
   bool _isNativeSafetyLimit(PlatformException error) {
     final text = '${error.code} ${error.message ?? ''}'.toLowerCase();
     return text.contains('too large') ||
@@ -191,6 +256,49 @@ class _ImageBytesRestoreRequest {
   final Map<String, Object?> lutProfile;
   final Map<String, Object?> transform;
   final img.ExifData? sourceExif;
+}
+
+class _BeforeAfterComposeRequest {
+  const _BeforeAfterComposeRequest({
+    required this.inputPath,
+    required this.restoredPath,
+    required this.metadataSourcePath,
+    required this.settings,
+    required this.exportOptions,
+    required this.transform,
+  });
+
+  final String inputPath;
+  final String restoredPath;
+  final String metadataSourcePath;
+  final Map<String, Object?> settings;
+  final Map<String, Object?> exportOptions;
+  final Map<String, Object?> transform;
+}
+
+Future<Uint8List> _composeBeforeAfterInBackground(
+  _BeforeAfterComposeRequest request,
+) async {
+  const pipeline = StillRenderPipeline();
+  final exportOptions = ExportOptions.fromJson(request.exportOptions);
+  final source = pipeline.decode(await File(request.inputPath).readAsBytes());
+  final restored = pipeline.decode(
+    await File(request.restoredPath).readAsBytes(),
+  );
+  final composite = pipeline.composeBeforeAfter(
+    source,
+    restored,
+    transform: ImageTransformSettings.fromJson(request.transform),
+    exportOptions: exportOptions,
+  );
+  return pipeline.encodeExport(
+    composite,
+    exportOptions: exportOptions,
+    jpegQuality: RestorationSettings.fromJson(request.settings).jpegQuality,
+    sourceExif: exportOptions.stripMetadata
+        ? null
+        : await CaptureMetadata.exifFromFile(request.metadataSourcePath),
+  );
 }
 
 Future<Uint8List> _restoreFileBytesInBackground(

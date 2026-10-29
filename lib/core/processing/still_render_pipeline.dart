@@ -8,6 +8,7 @@ import '../models/export_options.dart';
 import '../models/image_transform_settings.dart';
 import '../models/lut_profile.dart';
 import '../models/restoration_settings.dart';
+import 'before_after_compositor.dart';
 import 'export_metadata.dart';
 import 'image_transform_service.dart';
 import 'lut_service.dart';
@@ -21,6 +22,7 @@ class StillRenderPipeline {
     this.processor = const UnderwaterProcessor(),
     this.lutService = const LutService(),
     this.transformService = const ImageTransformService(),
+    this.compositor = const BeforeAfterCompositor(),
   });
 
   static const maxDecodedImagePixels = 120 * 1000 * 1000;
@@ -29,6 +31,7 @@ class StillRenderPipeline {
   final UnderwaterProcessor processor;
   final LutService lutService;
   final ImageTransformService transformService;
+  final BeforeAfterCompositor compositor;
 
   /// Decodes [bytes] and validates the decoded size.
   img.Image decode(Uint8List bytes) {
@@ -82,6 +85,9 @@ class StillRenderPipeline {
   /// source's capture date, camera, exposure and GPS EXIF (see
   /// [ExportMetadata]). [sourceExif] supplies that metadata when [bytes] is an
   /// intermediate decode (HEIC, RAW) that no longer carries it.
+  ///
+  /// With [ExportOptions.beforeAfter] the export is one comparison image of
+  /// the original and the restored photo (see [composeBeforeAfter]).
   Future<Uint8List> renderEncoded(
     Uint8List bytes, {
     required RestorationSettings settings,
@@ -97,19 +103,66 @@ class StillRenderPipeline {
       lutProfile: lutProfile,
       transform: transform,
     );
+    return encodeExport(
+      exportOptions.beforeAfter
+          ? composeBeforeAfter(
+              decoded,
+              rendered,
+              transform: transform,
+              exportOptions: exportOptions,
+            )
+          : rendered,
+      exportOptions: exportOptions,
+      jpegQuality: settings.jpegQuality,
+      sourceExif: exportOptions.stripMetadata
+          ? null
+          : sourceExif ??
+                CaptureMetadata.exifFromBytes(bytes) ??
+                (decoded.hasExif ? decoded.exif : null),
+    );
+  }
+
+  /// The before/after comparison of [source] and its [restored] render.
+  ///
+  /// "Before" gets the same crop, rotation and straightening as the export
+  /// but no restoration or LUT, so the panes differ only in colour.
+  img.Image composeBeforeAfter(
+    img.Image source,
+    img.Image restored, {
+    required ImageTransformSettings transform,
+    required ExportOptions exportOptions,
+  }) {
+    return compositor.compose(
+      before: transformService.apply(source, transform),
+      after: restored,
+      layout: exportOptions.beforeAfterLayout,
+      labels: exportOptions.beforeAfterLabels,
+    );
+  }
+
+  /// Encodes a rendered export with the metadata [exportOptions] allow.
+  ///
+  /// [sourceExif] is sanitized by [ExportMetadata.forExport]; a comparison
+  /// image keeps only the capture date. Unwritable metadata falls back to an
+  /// export without EXIF rather than failing.
+  Uint8List encodeExport(
+    img.Image rendered, {
+    required ExportOptions exportOptions,
+    required int jpegQuality,
+    img.ExifData? sourceExif,
+  }) {
     final exif = exportOptions.stripMetadata
         ? null
         : ExportMetadata.forExport(
-            sourceExif ??
-                CaptureMetadata.exifFromBytes(bytes) ??
-                (decoded.hasExif ? decoded.exif : null),
+            sourceExif,
             width: rendered.width,
             height: rendered.height,
+            captureDateOnly: exportOptions.beforeAfter,
           );
     Uint8List encodeWith(img.ExifData metadata) => encode(
       rendered,
       png: exportOptions.outputPng,
-      jpegQuality: settings.jpegQuality,
+      jpegQuality: jpegQuality,
       exif: metadata,
     );
     if (exif == null) return encodeWith(img.ExifData());
