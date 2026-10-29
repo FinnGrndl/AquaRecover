@@ -3,10 +3,12 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../media/capture_metadata.dart';
 import '../models/export_options.dart';
 import '../models/image_transform_settings.dart';
 import '../models/lut_profile.dart';
 import '../models/restoration_settings.dart';
+import 'export_metadata.dart';
 import 'image_transform_service.dart';
 import 'lut_service.dart';
 import 'underwater_processor.dart';
@@ -75,35 +77,73 @@ class StillRenderPipeline {
   }
 
   /// Decodes, renders and encodes [bytes] according to [exportOptions].
+  ///
+  /// Unless [ExportOptions.stripMetadata] is set, the export keeps the
+  /// source's capture date, camera, exposure and GPS EXIF (see
+  /// [ExportMetadata]). [sourceExif] supplies that metadata when [bytes] is an
+  /// intermediate decode (HEIC, RAW) that no longer carries it.
   Future<Uint8List> renderEncoded(
     Uint8List bytes, {
     required RestorationSettings settings,
     ExportOptions exportOptions = const ExportOptions(),
     LutProfile lutProfile = LutProfile.none,
     ImageTransformSettings transform = const ImageTransformSettings(),
+    img.ExifData? sourceExif,
   }) async {
+    final decoded = decode(bytes);
     final rendered = await render(
-      decode(bytes),
+      decoded,
       settings: settings,
       lutProfile: lutProfile,
       transform: transform,
     );
-    return encode(
+    final exif = exportOptions.stripMetadata
+        ? null
+        : ExportMetadata.forExport(
+            sourceExif ??
+                CaptureMetadata.exifFromBytes(bytes) ??
+                (decoded.hasExif ? decoded.exif : null),
+            width: rendered.width,
+            height: rendered.height,
+          );
+    Uint8List encodeWith(img.ExifData metadata) => encode(
       rendered,
       png: exportOptions.outputPng,
       jpegQuality: settings.jpegQuality,
+      exif: metadata,
     );
+    if (exif == null) return encodeWith(img.ExifData());
+    try {
+      return encodeWith(exif);
+    } on Object {
+      // Unwritable source metadata must not fail the export.
+      return encodeWith(img.ExifData());
+    }
   }
 
+  /// Encodes [image] as JPEG or PNG. When [exif] is given it replaces the
+  /// image's own EXIF in the output; an empty [exif] writes none.
   static Uint8List encode(
     img.Image image, {
     bool png = false,
     int jpegQuality = 94,
+    img.ExifData? exif,
   }) {
-    if (png) return Uint8List.fromList(img.encodePng(image));
-    return Uint8List.fromList(
-      img.encodeJpg(image, quality: jpegQuality.clamp(1, 100).toInt()),
-    );
+    final original = image.exif;
+    if (exif != null) image.exif = exif;
+    try {
+      if (png) {
+        final encoded = Uint8List.fromList(img.encodePng(image));
+        return exif == null || exif.isEmpty
+            ? encoded
+            : ExportMetadata.embed(encoded, exif);
+      }
+      return Uint8List.fromList(
+        img.encodeJpg(image, quality: jpegQuality.clamp(1, 100).toInt()),
+      );
+    } finally {
+      image.exif = original;
+    }
   }
 
   static img.Image downscale(img.Image source, int maxDimension) {
