@@ -3,13 +3,19 @@
 Changes are generated from Conventional Commit messages. AquaRecover follows
 semantic versioning; the number after `+` is the platform build number.
 
-## 1.6.0 - 2026-10-29
+## 1.6.0 - 2026-10-31
 
 ### Added
 
 - Keep capture date, camera and location in exported photos
 - Share exported photos and movies
 - Before/after comparison image
+- Localize editor, logbook, library and tour (WIP)
+
+### Other
+
+- Localize the movie editor
+- Native language lists, notices, and movie fixes
 ## 1.5.0 - 2026-10-21
 
 ### Added
