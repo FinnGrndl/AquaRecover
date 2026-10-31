@@ -7,8 +7,9 @@ semantic versioning; the number after `+` is the platform build number.
 
 ### Added
 
-- Share exported photos and movies
 - Keep capture date, camera and location in exported photos
+- Share exported photos and movies
+- Before/after comparison image
 ## 1.5.0 - 2026-10-21
 
 ### Added
