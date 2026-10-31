@@ -5,6 +5,7 @@ import '../../timeline_controller.dart';
 import '../../timeline_theme.dart';
 import 'tool_controls.dart';
 import '../../../../shared/widgets/app_tooltip.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Speed of the selected video clip or video overlay: 0.25×–4× with detents
 /// at the common speeds, evenly spaced so slow motion is as easy to set as
@@ -75,23 +76,22 @@ class _SpeedPanelState extends State<SpeedPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final target = _target;
     final header = ToolHeader(
-      title: 'Speed',
+      title: l10n.toolSpeed,
       trailing: ToolTextButton(
-        label: 'Reset',
+        label: l10n.reset,
         onPressed: target == null || target.speed == 1 ? null : () => _set(1),
       ),
     );
     if (target == null) {
       return ToolPanelBody(
         header: header,
-        children: const [
-          ToolEmptyNote('Select a video clip to change its speed.'),
-        ],
+        children: [ToolEmptyNote(l10n.selectVideoForSpeed)],
       );
     }
-    final label = '${_speedText(target.speed)}×';
+    final label = _speedText(l10n, target.speed);
     return ToolPanelBody(
       header: header,
       children: [
@@ -127,12 +127,16 @@ class _SpeedPanelState extends State<SpeedPanel> {
           ],
         ),
         Semantics(
-          label: 'Speed',
+          label: l10n.toolSpeed,
           value: label,
-          increasedValue:
-              '${_speedText(SpeedPanel.speedAt(SpeedPanel.positionOf(target.speed) + 1))}×',
-          decreasedValue:
-              '${_speedText(SpeedPanel.speedAt(SpeedPanel.positionOf(target.speed) - 1))}×',
+          increasedValue: _speedText(
+            l10n,
+            SpeedPanel.speedAt(SpeedPanel.positionOf(target.speed) + 1),
+          ),
+          decreasedValue: _speedText(
+            l10n,
+            SpeedPanel.speedAt(SpeedPanel.positionOf(target.speed) - 1),
+          ),
           child: SizedBox(
             height: 44,
             child: CupertinoSlider(
@@ -155,7 +159,7 @@ class _SpeedPanelState extends State<SpeedPanel> {
               children: [
                 for (final d in SpeedPanel.detents)
                   Text(
-                    '${_speedText(d)}×',
+                    _speedText(l10n, d),
                     style: TextStyle(
                       color: d == target.speed
                           ? TimelineColors.text
@@ -171,20 +175,20 @@ class _SpeedPanelState extends State<SpeedPanel> {
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
-          'Sound keeps its pitch. Length on the timeline changes with speed.',
-          style: TextStyle(color: TimelineColors.secondaryText, fontSize: 12),
+        Text(
+          l10n.speedPitchNote,
+          style: const TextStyle(
+            color: TimelineColors.secondaryText,
+            fontSize: 12,
+          ),
         ),
       ],
     );
   }
 
-  static String _speedText(double speed) {
-    final text = speed.toStringAsFixed(2);
-    return text
-        .replaceFirst(RegExp(r'0$'), '')
-        .replaceFirst(RegExp(r'\.0$'), '');
-  }
+  /// "1.5×", with the app language's decimal separator.
+  static String _speedText(AppLocalizations l10n, double speed) =>
+      l10n.speedValue(l10n.compactDecimal(speed));
 }
 
 /// How long the selected photo, photo overlay, or title stays on screen.
@@ -195,6 +199,7 @@ class DurationPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final clip = controller.selectedClip;
     final overlay = controller.selectedOverlay;
     final seconds = clip != null && !clip.isVideo
@@ -222,29 +227,29 @@ class DurationPanel extends StatelessWidget {
     );
     return ToolPanelBody(
       header: ToolHeader(
-        title: 'Duration',
-        subtitle: selectionName(controller),
+        title: l10n.toolDuration,
+        subtitle: selectionName(context.l10n, controller),
       ),
       children: [
         if (seconds == null)
-          const ToolEmptyNote('Select a photo or title to change its length.')
+          ToolEmptyNote(l10n.selectPhotoForDuration)
         else ...[
           ToolSlider(
             controller: controller,
-            label: 'Length on screen',
+            label: l10n.lengthOnScreen,
             value: seconds.clamp(0.5, 15).toDouble(),
             min: 0.5,
             max: 15,
             divisions: 29,
-            valueLabel: secondsLabel(seconds),
+            valueLabel: secondsLabel(l10n, seconds),
             onChanged: controller.setStillSeconds,
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              step(CupertinoIcons.minus, -0.5, 'Half a second shorter'),
+              step(CupertinoIcons.minus, -0.5, l10n.halfSecondShorter),
               const SizedBox(width: 24),
-              step(CupertinoIcons.plus, 0.5, 'Half a second longer'),
+              step(CupertinoIcons.plus, 0.5, l10n.halfSecondLonger),
             ],
           ),
         ],

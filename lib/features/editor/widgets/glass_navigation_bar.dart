@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../../shared/widgets/app_tooltip.dart';
 import 'editor_glass_surface.dart';
 
@@ -71,7 +72,7 @@ class GlassNavigationBar extends StatelessWidget {
     if (onTitlePressed != null) {
       titleBlock = Semantics(
         button: true,
-        hint: 'Rename',
+        hint: context.l10n.renameHint,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onTitlePressed,

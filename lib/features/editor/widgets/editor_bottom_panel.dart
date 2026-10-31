@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 
 import '../../../shared/reduce_motion.dart';
+import '../../../l10n/l10n.dart';
 import '../editor_tools.dart';
 import '../../../shared/widgets/app_tooltip.dart';
 import 'editor_glass_surface.dart';
@@ -18,9 +19,10 @@ class EditorCollapsedPanelButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Semantics(
       button: true,
-      label: 'Open ${group.label} tools',
+      label: l10n.openToolsNamed(group.labelIn(l10n)),
       child: CupertinoButton(
         key: const Key('editor_tool_panel_open'),
         padding: EdgeInsets.zero,
@@ -38,7 +40,7 @@ class EditorCollapsedPanelButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Open ${group.label}',
+                l10n.openTool(group.labelIn(l10n)),
                 style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
                   color: CupertinoColors.white,
                   fontWeight: FontWeight.w700,
@@ -82,7 +84,7 @@ class EditorBottomPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassBottomPanel(
-      label: '${group.label} tools',
+      label: context.l10n.toolsNamed(group.labelIn(context.l10n)),
       open: open,
       height: height,
       onClose: onClose,
@@ -151,10 +153,10 @@ class GlassBottomPanel extends StatelessWidget {
                 right: 0,
                 child: Center(
                   child: AppTooltip(
-                    message: 'Collapse $label',
+                    message: context.l10n.collapseItem(label),
                     child: Semantics(
                       button: true,
-                      label: 'Collapse $label',
+                      label: context.l10n.collapseItem(label),
                       excludeSemantics: true,
                       child: CupertinoButton(
                         key: const Key('editor_tool_panel_close'),

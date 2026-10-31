@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/l10n.dart';
 import '../../shared/reduce_motion.dart';
 import '../../shared/widgets/app_tooltip.dart';
 
@@ -106,6 +107,15 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
   }
 
   Widget _header(BuildContext context) {
+    // Like a navigation bar, the header stops growing at large text sizes
+    // so a long Skip label keeps the title in view.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.3,
+      child: _headerRow(context),
+    );
+  }
+
+  Widget _headerRow(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 10, 10, 2),
       child: Row(
@@ -117,26 +127,32 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
               width: 34,
               height: 34,
               fit: BoxFit.cover,
-              semanticLabel: 'AquaRecover app icon',
+              semanticLabel: context.l10n.appIconLabel,
             ),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Quick Tour',
-              style: TextStyle(
+              context.l10n.quickTour,
+              style: const TextStyle(
                 color: CupertinoColors.white,
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          CupertinoButton(
-            key: const Key('tutorial_skip'),
-            minimumSize: const Size(44, 44),
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Skip'),
+          Flexible(
+            child: CupertinoButton(
+              key: const Key('tutorial_skip'),
+              minimumSize: const Size(44, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                context.l10n.skip,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ),
         ],
       ),
@@ -144,6 +160,7 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
   }
 
   Widget _pages() {
+    final l10n = context.l10n;
     return PageView(
       key: const Key('tutorial_pages'),
       controller: _pageController,
@@ -152,20 +169,18 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
         setState(() => _page = page);
       },
       children: [
-        const _TutorialPage(
-          key: Key('tutorial_page_welcome'),
+        _TutorialPage(
+          key: const Key('tutorial_page_welcome'),
           icon: CupertinoIcons.wand_stars,
-          title: 'Restore color with a clear workflow',
-          body:
-              'AquaRecover keeps the process simple: choose media, refine the result, then decide where to export it.',
-          child: _WorkflowOverview(),
+          title: l10n.tourWelcomeTitle,
+          body: l10n.tourWelcomeBody,
+          child: const _WorkflowOverview(),
         ),
         _TutorialPage(
           key: const Key('tutorial_page_import'),
           icon: CupertinoIcons.photo_on_rectangle,
-          title: 'One photo or a complete batch',
-          body:
-              'A single selection opens in the editor. Select several items and they stay together in a queue you can review at any time.',
+          title: l10n.tourImportTitle,
+          body: l10n.tourImportBody,
           child: _ImportDemo(
             count: _batchCount,
             onChanged: (count) {
@@ -177,9 +192,8 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
         _TutorialPage(
           key: const Key('tutorial_page_edit'),
           icon: CupertinoIcons.slider_horizontal_3,
-          title: 'Edit, inspect, and compare',
-          body:
-              'Start with a preset, then fine-tune adjustments, crop, and LUT. Tap a value bubble to adjust it; Reset restores the preset value.',
+          title: l10n.tourEditTitle,
+          body: l10n.tourEditBody,
           child: _EditorDemo(
             selectedTool: _selectedTool,
             split: _splitPreview,
@@ -199,9 +213,8 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
         _TutorialPage(
           key: const Key('tutorial_page_export'),
           icon: CupertinoIcons.arrow_up_square,
-          title: 'You choose when and where to save',
-          body:
-              'Importing and editing never create a saved copy. On export, choose one or more destinations for the finished media.',
+          title: l10n.tourExportTitle,
+          body: l10n.tourExportBody,
           child: _ExportDemo(
             selected: _exportDestinations,
             onToggle: _toggleExportDestination,
@@ -228,10 +241,10 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
             children: [
               if (_page > 0) ...[
                 AppTooltip(
-                  message: 'Previous page',
+                  message: context.l10n.previousPage,
                   child: Semantics(
                     button: true,
-                    label: 'Previous page',
+                    label: context.l10n.previousPage,
                     excludeSemantics: true,
                     child: CupertinoButton(
                       key: const Key('tutorial_back'),
@@ -254,7 +267,9 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
                   onPressed: _isLastPage
                       ? () => Navigator.of(context).pop()
                       : () => _goToPage(_page + 1),
-                  child: Text(_isLastPage ? 'Start editing' : 'Next'),
+                  child: Text(
+                    _isLastPage ? context.l10n.startEditing : context.l10n.next,
+                  ),
                 ),
               ),
             ],
@@ -380,7 +395,7 @@ class _TutorialPageControl extends StatelessWidget {
           Semantics(
             button: true,
             selected: index == selectedIndex,
-            label: 'Tutorial page ${index + 1} of $count',
+            label: context.l10n.tutorialPageOf(index + 1, count),
             child: CupertinoButton(
               minimumSize: const Size(44, 44),
               padding: EdgeInsets.zero,
@@ -412,38 +427,35 @@ class _WorkflowOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Column(
       children: [
-        const Row(
+        Row(
           children: [
             Expanded(
               child: _WorkflowStep(
                 icon: CupertinoIcons.photo_on_rectangle,
-                label: 'Import',
+                label: l10n.workflowImport,
               ),
             ),
-            _WorkflowArrow(),
+            const _WorkflowArrow(),
             Expanded(
               child: _WorkflowStep(
                 icon: CupertinoIcons.slider_horizontal_3,
-                label: 'Edit',
+                label: l10n.workflowEdit,
               ),
             ),
-            _WorkflowArrow(),
+            const _WorkflowArrow(),
             Expanded(
               child: _WorkflowStep(
                 icon: CupertinoIcons.arrow_up_square,
-                label: 'Export',
+                label: l10n.workflowExport,
               ),
             ),
           ],
         ),
         const SizedBox(height: 18),
-        _Callout(
-          icon: CupertinoIcons.lock_shield,
-          text:
-              'Your media is processed on this device. AquaRecover does not upload it to a service.',
-        ),
+        _Callout(icon: CupertinoIcons.lock_shield, text: l10n.onDevicePrivacy),
       ],
     );
   }
@@ -503,19 +515,19 @@ class _ImportDemo extends StatelessWidget {
               groupValue: count,
               backgroundColor: const Color(0x1fffffff),
               thumbColor: const Color(0x8a0a84ff),
-              children: const {
+              children: {
                 1: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Text(
-                    'One photo',
-                    style: TextStyle(color: CupertinoColors.white),
+                    context.l10n.onePhoto,
+                    style: const TextStyle(color: CupertinoColors.white),
                   ),
                 ),
                 3: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Text(
-                    'Batch',
-                    style: TextStyle(color: CupertinoColors.white),
+                    context.l10n.batch,
+                    style: const TextStyle(color: CupertinoColors.white),
                   ),
                 ),
               },
@@ -563,8 +575,8 @@ class _ImportDemo extends StatelessWidget {
             ),
             child: Text(
               count == 1
-                  ? 'The photo opens directly in the editor.'
-                  : 'Three items are ready in one editable queue.',
+                  ? context.l10n.tourOnePhotoHint
+                  : context.l10n.tourBatchHint,
               key: ValueKey(count),
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -589,11 +601,11 @@ class _EditorDemo extends StatelessWidget {
     required this.onOriginalChanged,
   });
 
-  static const _tools = [
-    (CupertinoIcons.rectangle_grid_2x2, 'Presets', 'Choose a starting look.'),
-    (CupertinoIcons.slider_horizontal_3, 'Adjust', 'Fine-tune each value.'),
-    (CupertinoIcons.crop_rotate, 'Crop', 'Crop, rotate, and flip.'),
-    (CupertinoIcons.sparkles, 'LUT', 'Apply a finishing LUT.'),
+  static List<(IconData, String, String)> _toolsIn(AppLocalizations l10n) => [
+    (CupertinoIcons.rectangle_grid_2x2, l10n.toolPresets, l10n.tourPresetsHint),
+    (CupertinoIcons.slider_horizontal_3, l10n.toolAdjust, l10n.tourAdjustHint),
+    (CupertinoIcons.crop_rotate, l10n.toolCrop, l10n.tourCropHint),
+    (CupertinoIcons.sparkles, l10n.toolLut, l10n.tourLutHint),
   ];
 
   final int selectedTool;
@@ -605,7 +617,9 @@ class _EditorDemo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final active = _tools[selectedTool];
+    final l10n = context.l10n;
+    final tools = _toolsIn(l10n);
+    final active = tools[selectedTool];
     return Column(
       children: [
         _DemoSurface(
@@ -643,14 +657,14 @@ class _EditorDemo extends StatelessWidget {
                     child: AppTooltip(
                       trigger: AppTooltipTrigger.hoverOnly,
                       message: split
-                          ? 'Show edited preview'
-                          : 'Show split preview',
+                          ? l10n.showEditedPreview
+                          : l10n.showSplitPreview,
                       child: Semantics(
                         button: true,
                         selected: split,
                         label: split
-                            ? 'Show edited preview'
-                            : 'Show split preview',
+                            ? l10n.showEditedPreview
+                            : l10n.showSplitPreview,
                         child: CupertinoButton(
                           key: const Key('tutorial_compare_toggle'),
                           minimumSize: const Size(44, 44),
@@ -673,10 +687,10 @@ class _EditorDemo extends StatelessWidget {
                     bottom: 8,
                     child: _DemoLabel(
                       label: showingOriginal
-                          ? 'Original'
+                          ? l10n.original
                           : split
-                          ? 'Original / Edited'
-                          : 'Edited',
+                          ? l10n.originalSlashEdited
+                          : l10n.compareEdited,
                     ),
                   ),
                 ],
@@ -687,13 +701,13 @@ class _EditorDemo extends StatelessWidget {
         const SizedBox(height: 12),
         Row(
           children: [
-            for (var index = 0; index < _tools.length; index++) ...[
+            for (var index = 0; index < tools.length; index++) ...[
               if (index > 0) const SizedBox(width: 6),
               Expanded(
                 child: _DemoToolButton(
                   index: index,
-                  icon: _tools[index].$1,
-                  label: _tools[index].$2,
+                  icon: tools[index].$1,
+                  label: tools[index].$2,
                   selected: index == selectedTool,
                   onPressed: () => onToolChanged(index),
                 ),
@@ -713,7 +727,7 @@ class _EditorDemo extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Try Split, or press and hold the preview for the original.',
+          l10n.tourCompareHint,
           textAlign: TextAlign.center,
           style: TextStyle(
             color: CupertinoColors.systemGrey.resolveFrom(context),
@@ -802,7 +816,7 @@ class _DemoToolButton extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: '$label editor tool',
+      label: context.l10n.editorToolNamed(label),
       child: CupertinoButton(
         key: Key('tutorial_tool_$index'),
         minimumSize: const Size(44, 54),
@@ -836,28 +850,28 @@ class _DemoToolButton extends StatelessWidget {
 class _ExportDemo extends StatelessWidget {
   const _ExportDemo({required this.selected, required this.onToggle});
 
-  static const _destinations = [
-    (CupertinoIcons.photo_on_rectangle, 'Photos'),
-    (CupertinoIcons.tray, 'AquaRecover'),
-    (CupertinoIcons.folder, 'Files'),
-  ];
-
   final Set<int> selected;
   final ValueChanged<int> onToggle;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final destinations = [
+      (CupertinoIcons.photo_on_rectangle, l10n.destinationPhotos),
+      (CupertinoIcons.tray, 'AquaRecover'),
+      (CupertinoIcons.folder, l10n.destinationFiles),
+    ];
     return Column(
       children: [
         Row(
           children: [
-            for (var index = 0; index < _destinations.length; index++) ...[
+            for (var index = 0; index < destinations.length; index++) ...[
               if (index > 0) const SizedBox(width: 8),
               Expanded(
                 child: Semantics(
                   button: true,
                   selected: selected.contains(index),
-                  label: '${_destinations[index].$2} export destination',
+                  label: l10n.exportDestinationNamed(destinations[index].$2),
                   child: CupertinoButton(
                     key: Key('tutorial_export_destination_$index'),
                     minimumSize: const Size(44, 92),
@@ -872,10 +886,10 @@ class _ExportDemo extends StatelessWidget {
                     onPressed: () => onToggle(index),
                     child: Column(
                       children: [
-                        Icon(_destinations[index].$1, size: 23),
+                        Icon(destinations[index].$1, size: 23),
                         const SizedBox(height: 8),
                         Text(
-                          _destinations[index].$2,
+                          destinations[index].$2,
                           maxLines: 1,
                           style: const TextStyle(
                             color: CupertinoColors.white,
@@ -892,10 +906,9 @@ class _ExportDemo extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        const _Callout(
+        _Callout(
           icon: CupertinoIcons.check_mark_circled_solid,
-          text:
-              'Only a confirmed export writes the finished file. Completed batch items then leave the queue.',
+          text: l10n.tourExportCallout,
         ),
       ],
     );

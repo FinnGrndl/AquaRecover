@@ -1,0 +1,5 @@
+/* Permission prompts shown by iOS. Keep these in step with Info.plist. */
+"NSCameraUsageDescription" = "AquaRecover uses the camera when you choose to capture underwater photos or videos for editing.";
+"NSLocationWhenInUseUsageDescription" = "AquaRecover accesses location information only when required by the iOS media picker to import photos or videos you select. Your location is not tracked.";
+"NSPhotoLibraryUsageDescription" = "AquaRecover imports selected dive photos and videos for on-device restoration.";
+"NSPhotoLibraryAddUsageDescription" = "AquaRecover can save restored exports back to your photo library.";

@@ -1,31 +1,35 @@
 import '../../core/models/media_kind.dart';
 import '../../core/models/restoration_settings.dart';
+import '../../l10n/l10n.dart';
 
 typedef SettingValueReader = double Function(RestorationSettings settings);
 typedef SettingValueWriter =
     RestorationSettings Function(RestorationSettings settings, double value);
 
+/// Text that follows the app language.
+typedef LocalizedText = String Function(AppLocalizations l10n);
+
 enum EditorToolGroup { presets, light, crop, color, details, effects, video }
 
 extension EditorToolGroupX on EditorToolGroup {
-  String get label => switch (this) {
-    EditorToolGroup.presets => 'Presets',
-    EditorToolGroup.light => 'Adjust',
-    EditorToolGroup.crop => 'Crop',
-    EditorToolGroup.color => 'Color',
-    EditorToolGroup.details => 'Details',
-    EditorToolGroup.effects => 'LUT',
-    EditorToolGroup.video => 'Video',
+  String labelIn(AppLocalizations l10n) => switch (this) {
+    EditorToolGroup.presets => l10n.toolPresets,
+    EditorToolGroup.light => l10n.toolAdjust,
+    EditorToolGroup.crop => l10n.toolCrop,
+    EditorToolGroup.color => l10n.toolColor,
+    EditorToolGroup.details => l10n.toolDetails,
+    EditorToolGroup.effects => l10n.toolLut,
+    EditorToolGroup.video => l10n.toolVideo,
   };
 
-  String get subtitle => switch (this) {
-    EditorToolGroup.presets => 'Starting profile and strength',
-    EditorToolGroup.light => 'All image adjustments',
-    EditorToolGroup.crop => 'Crop, rotate, and flip',
-    EditorToolGroup.color => 'Water cast and color balance',
-    EditorToolGroup.details => 'Haze, clarity, and sharpening',
-    EditorToolGroup.effects => 'Look-up table and vignette',
-    EditorToolGroup.video => 'Preview frame and trim',
+  String subtitleIn(AppLocalizations l10n) => switch (this) {
+    EditorToolGroup.presets => l10n.toolPresetsSubtitle,
+    EditorToolGroup.light => l10n.toolAdjustSubtitle,
+    EditorToolGroup.crop => l10n.toolCropSubtitle,
+    EditorToolGroup.color => l10n.toolColorSubtitle,
+    EditorToolGroup.details => l10n.toolDetailsSubtitle,
+    EditorToolGroup.effects => l10n.toolLutSubtitle,
+    EditorToolGroup.video => l10n.toolVideoSubtitle,
   };
 
   bool isAvailableFor(MediaKind kind) {
@@ -40,244 +44,225 @@ extension EditorToolGroupX on EditorToolGroup {
     EditorToolGroup.light => [
       AdjustmentControl(
         id: 'recovery',
-        label: 'Water correction',
+        label: (l10n) => l10n.adjRecovery,
         value: (settings) => settings.recovery,
         apply: (settings, value) => settings.copyWith(recovery: value),
         min: 0,
         max: 1.5,
         divisions: 30,
-        help:
-            'Controls the underwater cast-recovery stage only. It strengthens color recovery and local neutralization, but does not scale exposure, contrast, saturation, or sharpening.',
+        help: (l10n) => l10n.adjRecoveryHelp,
         format: (value) => '${(value * 100).round()}%',
       ),
       AdjustmentControl(
         id: 'contrast_stretch',
-        label: 'Contrast stretch',
+        label: (l10n) => l10n.adjContrastStretch,
         value: (settings) => settings.contrastStretch,
         apply: (settings, value) => settings.copyWith(contrastStretch: value),
         min: 0,
         max: 1,
         divisions: 20,
-        help:
-            'Expands the measured dark-to-bright range. High values can make murky scenes punchier but may clip detail.',
+        help: (l10n) => l10n.adjContrastStretchHelp,
       ),
       AdjustmentControl(
         id: 'contrast',
-        label: 'Contrast',
+        label: (l10n) => l10n.adjContrast,
         value: (settings) => settings.contrast,
         apply: (settings, value) => settings.copyWith(contrast: value),
         min: .7,
         max: 1.6,
         divisions: 45,
-        help:
-            'Changes separation around the midtones without re-running the underwater color recovery.',
+        help: (l10n) => l10n.adjContrastHelp,
       ),
       AdjustmentControl(
         id: 'gamma',
-        label: 'Gamma',
+        label: (l10n) => l10n.adjGamma,
         value: (settings) => settings.gamma,
         apply: (settings, value) => settings.copyWith(gamma: value),
         min: .75,
         max: 1.35,
         divisions: 30,
-        help:
-            'Moves midtone brightness while keeping the black and white endpoints mostly fixed.',
+        help: (l10n) => l10n.adjGammaHelp,
       ),
       AdjustmentControl(
         id: 'brightness',
-        label: 'Brightness',
+        label: (l10n) => l10n.adjBrightness,
         value: (settings) => settings.brightness,
         apply: (settings, value) => settings.copyWith(brightness: value),
         min: -.5,
         max: .5,
         divisions: 40,
-        help:
-            'Adds or removes a uniform amount of light after the main correction.',
+        help: (l10n) => l10n.adjBrightnessHelp,
       ),
       AdjustmentControl(
         id: 'exposure',
-        label: 'Exposure',
+        label: (l10n) => l10n.adjExposure,
         value: (settings) => settings.exposure,
         apply: (settings, value) => settings.copyWith(exposure: value),
         min: -.5,
         max: .5,
         divisions: 40,
-        help:
-            'Multiplies scene brightness like a small exposure adjustment. It affects shadows and highlights together.',
+        help: (l10n) => l10n.adjExposureHelp,
         format: (value) =>
             '${value >= 0 ? '+' : ''}${value.toStringAsFixed(2)} EV',
       ),
       AdjustmentControl(
         id: 'highlights',
-        label: 'Highlights',
+        label: (l10n) => l10n.adjHighlights,
         value: (settings) => settings.highlights,
         apply: (settings, value) => settings.copyWith(highlights: value),
         min: -.6,
         max: .6,
         divisions: 48,
-        help:
-            'Brightens or darkens the lightest parts while protecting the rest of the tonal range.',
+        help: (l10n) => l10n.adjHighlightsHelp,
       ),
       AdjustmentControl(
         id: 'shadows',
-        label: 'Shadows',
+        label: (l10n) => l10n.adjShadows,
         value: (settings) => settings.shadows,
         apply: (settings, value) => settings.copyWith(shadows: value),
         min: -.6,
         max: .6,
         divisions: 48,
-        help:
-            'Opens or deepens darker areas without applying a full-image brightness change.',
+        help: (l10n) => l10n.adjShadowsHelp,
       ),
       AdjustmentControl(
         id: 'black_point',
-        label: 'Black point',
+        label: (l10n) => l10n.adjBlackPoint,
         value: (settings) => settings.blackPoint,
         apply: (settings, value) => settings.copyWith(blackPoint: value),
         min: 0,
         max: .5,
         divisions: 30,
-        help:
-            'Deepens the darkest tones. Increase carefully to avoid losing shadow detail.',
+        help: (l10n) => l10n.adjBlackPointHelp,
       ),
     ],
     EditorToolGroup.color => [
       AdjustmentControl(
         id: 'temperature',
-        label: 'Temperature',
+        label: (l10n) => l10n.adjTemperature,
         value: (settings) => settings.temperature,
         apply: (settings, value) => settings.copyWith(temperature: value),
         min: -1,
         max: 1,
         divisions: 40,
-        help:
-            'Final warm-cool trim after the water correction. The white balance picker sets it from a tap.',
+        help: (l10n) => l10n.adjTemperatureHelp,
         format: _signedPercent,
       ),
       AdjustmentControl(
         id: 'tint',
-        label: 'Tint',
+        label: (l10n) => l10n.adjTint,
         value: (settings) => settings.tint,
         apply: (settings, value) => settings.copyWith(tint: value),
         min: -1,
         max: 1,
         divisions: 40,
-        help:
-            'Final green-magenta trim. Positive values remove a leftover green cast.',
+        help: (l10n) => l10n.adjTintHelp,
         format: _signedPercent,
       ),
       AdjustmentControl(
         id: 'red_recovery',
-        label: 'Red recovery',
+        label: (l10n) => l10n.adjRedRecovery,
         value: (settings) => settings.redRecovery,
         apply: (settings, value) => settings.copyWith(redRecovery: value),
         min: 0,
         max: 1.8,
         divisions: 36,
-        help:
-            'Targets warm colors absorbed by water. Its result is multiplied by Water correction, so both controls work together.',
+        help: (l10n) => l10n.adjRedRecoveryHelp,
       ),
       AdjustmentControl(
         id: 'auto_white_balance',
-        label: 'Auto white balance',
+        label: (l10n) => l10n.adjAutoWhiteBalance,
         value: (settings) => settings.autoWhiteBalance,
         apply: (settings, value) => settings.copyWith(autoWhiteBalance: value),
         min: 0,
         max: 1,
         divisions: 20,
-        help:
-            'Balances the average red, green, and blue levels within safe bounds. Lower it when intentional lighting should stay warm or cool.',
+        help: (l10n) => l10n.adjAutoWhiteBalanceHelp,
       ),
       AdjustmentControl(
         id: 'saturation',
-        label: 'Saturation',
+        label: (l10n) => l10n.adjSaturation,
         value: (settings) => settings.saturation,
         apply: (settings, value) => settings.copyWith(saturation: value),
         min: .6,
         max: 1.8,
         divisions: 48,
-        help:
-            'Changes the intensity of all colors equally. High values can exaggerate color noise and water tint.',
+        help: (l10n) => l10n.adjSaturationHelp,
       ),
       AdjustmentControl(
         id: 'vibrance',
-        label: 'Vibrance',
+        label: (l10n) => l10n.adjVibrance,
         value: (settings) => settings.vibrance,
         apply: (settings, value) => settings.copyWith(vibrance: value),
         min: 0,
         max: 1,
         divisions: 20,
-        help: 'Boosts muted colors more than colors that are already strong.',
+        help: (l10n) => l10n.adjVibranceHelp,
       ),
       AdjustmentControl(
         id: 'hue',
-        label: 'Hue',
+        label: (l10n) => l10n.adjHue,
         value: (settings) => settings.hue,
         apply: (settings, value) => settings.copyWith(hue: value),
         min: -.25,
         max: .25,
         divisions: 50,
-        help:
-            'Small hue rotations help match strobes, filters, and water type.',
+        help: (l10n) => l10n.adjHueHelp,
       ),
       AdjustmentControl(
         id: 'highlight_protection',
-        label: 'Highlight protection',
+        label: (l10n) => l10n.adjHighlightProtection,
         value: (settings) => settings.highlightProtection,
         apply: (settings, value) =>
             settings.copyWith(highlightProtection: value),
         min: 0,
         max: 1,
         divisions: 20,
-        help:
-            'Reduces correction in the brightest areas to preserve strobes, the sun, and reflective equipment.',
+        help: (l10n) => l10n.adjHighlightProtectionHelp,
       ),
     ],
     EditorToolGroup.details => [
       AdjustmentControl(
         id: 'haze_reduction',
-        label: 'Haze reduction',
+        label: (l10n) => l10n.adjHazeReduction,
         value: (settings) => settings.hazeReduction,
         apply: (settings, value) => settings.copyWith(hazeReduction: value),
         min: 0,
         max: 1,
         divisions: 20,
-        help:
-            'Reduces blue-green veil and increases separation in low-contrast water.',
+        help: (l10n) => l10n.adjHazeReductionHelp,
       ),
       AdjustmentControl(
         id: 'clarity',
-        label: 'Clarity',
+        label: (l10n) => l10n.adjClarity,
         value: (settings) => settings.clarity,
         apply: (settings, value) => settings.copyWith(clarity: value),
         min: 0,
         max: 1,
         divisions: 20,
-        help:
-            'Adds local midtone contrast to reveal texture. It is gentler than sharpening edges directly.',
+        help: (l10n) => l10n.adjClarityHelp,
       ),
       AdjustmentControl(
         id: 'sharpness',
-        label: 'Sharpness',
+        label: (l10n) => l10n.adjSharpness,
         value: (settings) => settings.sharpness,
         apply: (settings, value) => settings.copyWith(sharpness: value),
         min: 0,
         max: 1,
         divisions: 20,
-        help:
-            'Strengthens fine edges during export. Too much can emphasize noise or compression artifacts.',
+        help: (l10n) => l10n.adjSharpnessHelp,
       ),
     ],
     EditorToolGroup.effects => [
       AdjustmentControl(
         id: 'vignette',
-        label: 'Vignette',
+        label: (l10n) => l10n.adjVignette,
         value: (settings) => settings.vignette,
         apply: (settings, value) => settings.copyWith(vignette: value),
         min: 0,
         max: 1,
         divisions: 20,
-        help: 'Darkens the image edges to guide attention toward the center.',
+        help: (l10n) => l10n.adjVignetteHelp,
       ),
     ],
     _ => const [],
@@ -287,10 +272,10 @@ extension EditorToolGroupX on EditorToolGroup {
 enum EditorCompareMode { edited, original, split }
 
 extension EditorCompareModeX on EditorCompareMode {
-  String get label => switch (this) {
-    EditorCompareMode.edited => 'Edited',
-    EditorCompareMode.original => 'Original',
-    EditorCompareMode.split => 'Split',
+  String labelIn(AppLocalizations l10n) => switch (this) {
+    EditorCompareMode.edited => l10n.compareEdited,
+    EditorCompareMode.original => l10n.compareOriginal,
+    EditorCompareMode.split => l10n.compareSplit,
   };
 
   bool get isOriginal => this == EditorCompareMode.original;
@@ -304,10 +289,13 @@ extension EditorCompareModeX on EditorCompareMode {
 enum EditorPreviewFit { fit, fill }
 
 extension EditorPreviewFitX on EditorPreviewFit {
-  String get label => this == EditorPreviewFit.fit ? 'Fit' : 'Fill';
+  String labelIn(AppLocalizations l10n) => this == EditorPreviewFit.fit
+      ? l10n.previewFitLabel
+      : l10n.previewFillLabel;
 
-  String get actionLabel =>
-      this == EditorPreviewFit.fit ? 'Fill preview area' : 'Fit entire image';
+  String actionLabelIn(AppLocalizations l10n) => this == EditorPreviewFit.fit
+      ? l10n.previewFillAction
+      : l10n.previewFitAction;
 
   EditorPreviewFit get toggled => this == EditorPreviewFit.fit
       ? EditorPreviewFit.fill
@@ -328,13 +316,13 @@ class AdjustmentControl {
   });
 
   final String id;
-  final String label;
+  final LocalizedText label;
   final SettingValueReader value;
   final SettingValueWriter apply;
   final double min;
   final double max;
   final int? divisions;
-  final String? help;
+  final LocalizedText? help;
   final String Function(double value)? format;
 }
 

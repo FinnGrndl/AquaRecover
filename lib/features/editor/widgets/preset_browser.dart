@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 
 import '../../../core/models/restoration_settings.dart';
 import '../../../core/processing/scene_analyzer.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/model_labels.dart';
 import '../editor_tools.dart';
 import 'setting_slider.dart';
 import '../../../shared/widgets/mouse_drag_scroll.dart';
@@ -30,6 +32,7 @@ class PresetBrowser extends StatelessWidget {
       context,
     );
     final textStyle = CupertinoTheme.of(context).textTheme.textStyle;
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -85,7 +88,7 @@ class PresetBrowser extends StatelessWidget {
         ),
         SettingSlider(
           key: const Key('preset_strength'),
-          label: 'Preset strength',
+          label: l10n.presetStrength,
           value: settings.preset == RestorationPreset.none
               ? 0
               : settings.presetStrength,
@@ -94,8 +97,8 @@ class PresetBrowser extends StatelessWidget {
           divisions: 20,
           format: (value) => '${(value * 100).round()}%',
           help: settings.preset == RestorationPreset.none
-              ? 'None leaves the image unchanged. Choose another preset to adjust its strength.'
-              : 'Scales the selected preset while keeping later manual adjustments.',
+              ? l10n.presetStrengthNoneHelp
+              : l10n.presetStrengthHelp,
           onChanged: enabled && settings.preset != RestorationPreset.none
               ? (value) => onChanged(settings.withPresetStrength(value))
               : null,
@@ -114,7 +117,10 @@ class PresetBrowser extends StatelessWidget {
             const SizedBox(width: 7),
             Expanded(
               child: Text(
-                '${settings.preset.label}: ${settings.preset.help}',
+                l10n.presetSummary(
+                  settings.preset.labelIn(l10n),
+                  settings.preset.helpIn(l10n),
+                ),
                 style: textStyle.copyWith(fontSize: 13, color: secondary),
               ),
             ),
@@ -142,12 +148,6 @@ class SuggestionCard extends StatelessWidget {
   final bool applied;
   final VoidCallback? onApply;
 
-  static String waterLabel(WaterType water) => switch (water) {
-    WaterType.blue => 'Blue water',
-    WaterType.green => 'Green water',
-    WaterType.neutral => 'Little color cast',
-  };
-
   @override
   Widget build(BuildContext context) {
     final primary = CupertinoTheme.of(context).primaryColor;
@@ -158,12 +158,12 @@ class SuggestionCard extends StatelessWidget {
     final textStyle = CupertinoTheme.of(context).textTheme.textStyle;
     final preset = suggestion.suggestedPreset;
     final strength = (suggestion.suggestedStrength * 100).round();
-    final reason = suggestion.reasons.isEmpty ? null : suggestion.reasons.first;
+    final l10n = context.l10n;
+    final reason = suggestion.reasonIn(l10n);
+    final water = suggestion.waterType.labelIn(l10n);
     return Semantics(
       container: true,
-      label:
-          '${waterLabel(suggestion.waterType)}. Suggested ${preset.label} '
-          'at $strength percent.',
+      label: l10n.suggestionSemantics(water, preset.labelIn(l10n), strength),
       // A neutral card, so the Apply button stays the only tinted control.
       child: Container(
         key: const Key('preset_suggestion'),
@@ -184,8 +184,7 @@ class SuggestionCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${waterLabel(suggestion.waterType)}: '
-                    '${preset.label} $strength%',
+                    l10n.suggestionTitle(water, preset.labelIn(l10n), strength),
                     style: textStyle.copyWith(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -217,7 +216,7 @@ class SuggestionCard extends StatelessWidget {
                     const SizedBox(width: 4),
                   ],
                   Text(
-                    applied ? 'Applied' : 'Apply',
+                    applied ? l10n.applied : l10n.apply,
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -255,8 +254,12 @@ class _PresetButton extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: '${preset.label} preset${suggested ? ', suggested' : ''}',
-      hint: preset.help,
+      label: suggested
+          ? context.l10n.presetChipSuggestedSemantics(
+              preset.labelIn(context.l10n),
+            )
+          : context.l10n.presetChipSemantics(preset.labelIn(context.l10n)),
+      hint: preset.helpIn(context.l10n),
       // The chip keeps its compact capsule; the button around it keeps the
       // 44 pt hit region.
       child: CupertinoButton(
@@ -295,7 +298,7 @@ class _PresetButton extends StatelessWidget {
                     const SizedBox(width: 4),
                   ],
                   Text(
-                    preset.label,
+                    preset.labelIn(context.l10n),
                     style: TextStyle(
                       color: selected
                           ? CupertinoColors.white

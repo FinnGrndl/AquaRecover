@@ -3,6 +3,7 @@ import '../../shared/widgets/app_tooltip.dart';
 
 import '../../core/logbook/dive_log.dart';
 import '../../core/timeline/timeline_project.dart';
+import '../../l10n/l10n.dart';
 import '../timeline/timeline_theme.dart';
 
 /// A round 44 pt glass button with a labelled symbol, as on the home screen.
@@ -82,32 +83,27 @@ class LogbookActionButton extends StatelessWidget {
   );
 }
 
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-String formatDiveDate(DateTime t) =>
-    '${_months[t.month - 1]} ${t.day}, ${t.year} · '
-    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+/// "Oct 11, 2026 · 09:41" in the app language.
+String formatDiveDate(AppLocalizations l10n, DateTime t) =>
+    '${l10n.mediumDate(t)} · ${l10n.time24(t)}';
 
 /// "18.4 m · 45 min · 26 °C", leaving out what is unknown.
-String formatDiveStats(Dive dive) => [
-  if (dive.maxDepth != null) '${dive.maxDepth!.toStringAsFixed(1)} m',
-  if (dive.duration != null) '${dive.duration!.inMinutes} min',
+String formatDiveStats(AppLocalizations l10n, Dive dive) => [
+  if (dive.maxDepth != null) l10n.depthValue(dive.maxDepth!),
+  if (dive.duration != null) l10n.minutesValue(dive.duration!.inMinutes),
   if (dive.waterTemperature != null)
-    '${dive.waterTemperature!.toStringAsFixed(0)} °C',
+    l10n.temperatureValue(dive.waterTemperature!),
 ].join(' · ');
+
+/// "#12 Blue Hole", or "Dive 12" without a site, in the app language. The
+/// files the logbook exports use the English [diveTitle].
+String diveTitleIn(AppLocalizations l10n, Dive dive, DiveSite? site) {
+  final name = site?.name.trim() ?? '';
+  if (dive.number <= 0) return name.isEmpty ? l10n.diveTitleUnnamed : name;
+  return name.isEmpty
+      ? l10n.diveTitleNumber(dive.number)
+      : l10n.diveTitleNumberSite(dive.number, name);
+}
 
 /// A movie with one clip per linked medium, in capture order.
 TimelineProject movieFromDive(

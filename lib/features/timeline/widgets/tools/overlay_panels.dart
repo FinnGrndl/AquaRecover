@@ -4,6 +4,8 @@ import '../../../../core/timeline/timeline_project.dart';
 import '../../timeline_controller.dart';
 import '../../timeline_theme.dart';
 import 'tool_controls.dart';
+import '../../../../l10n/timeline_labels.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Opacity of the selected overlay or title.
 class OpacityPanel extends StatelessWidget {
@@ -13,13 +15,14 @@ class OpacityPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final overlay = controller.selectedOverlay;
     return ToolPanelBody(
       header: ToolHeader(
-        title: 'Opacity',
-        subtitle: selectionName(controller),
+        title: l10n.toolOpacity,
+        subtitle: selectionName(context.l10n, controller),
         trailing: ToolTextButton(
-          label: 'Reset',
+          label: l10n.reset,
           onPressed: overlay == null || overlay.opacity == 1
               ? null
               : () => controller.setOpacity(1),
@@ -27,12 +30,12 @@ class OpacityPanel extends StatelessWidget {
       ),
       children: [
         if (overlay == null)
-          const ToolEmptyNote('Select an overlay to change its opacity.')
+          ToolEmptyNote(l10n.selectOverlayForOpacity)
         else
           ToolSlider(
             key: const Key('timeline_opacity_slider'),
             controller: controller,
-            label: 'Opacity',
+            label: l10n.toolOpacity,
             value: overlay.opacity,
             min: 0,
             max: 1,
@@ -52,20 +55,23 @@ class AnimationPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final overlay = controller.selectedOverlay;
-    final options = {for (final a in OverlayAnimation.values) a: a.label};
+    final options = {
+      for (final a in OverlayAnimation.values) a: a.labelIn(l10n),
+    };
     return ToolPanelBody(
       header: ToolHeader(
-        title: 'Animation',
-        subtitle: selectionName(controller),
+        title: l10n.animation,
+        subtitle: selectionName(context.l10n, controller),
       ),
       children: [
         if (overlay == null)
-          const ToolEmptyNote('Select an overlay or title to animate it.')
+          ToolEmptyNote(l10n.selectOverlayToAnimate)
         else ...[
           ToolSegmented<OverlayAnimation>(
             key: const Key('timeline_animation_in'),
-            label: 'In',
+            label: l10n.animationIn,
             labelWidth: 40,
             value: overlay.animationIn,
             options: options,
@@ -74,7 +80,7 @@ class AnimationPanel extends StatelessWidget {
           const SizedBox(height: 10),
           ToolSegmented<OverlayAnimation>(
             key: const Key('timeline_animation_out'),
-            label: 'Out',
+            label: l10n.animationOut,
             labelWidth: 40,
             value: overlay.animationOut,
             options: options,
@@ -82,8 +88,7 @@ class AnimationPanel extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Each animation takes '
-            '${OverlayAnimation.seconds.toStringAsFixed(1)} s.',
+            l10n.animationDuration(l10n.decimal(OverlayAnimation.seconds)),
             style: const TextStyle(
               color: TimelineColors.secondaryText,
               fontSize: 12,
@@ -103,6 +108,7 @@ class LayerPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final layer = controller.selectedLayer;
     final overlay = controller.selectedOverlay;
     final sharesLane =
@@ -112,18 +118,18 @@ class LayerPanel extends StatelessWidget {
         );
     return ToolPanelBody(
       header: ToolHeader(
-        title: 'Layer',
-        subtitle: layer == null ? null : '${layer.layer} of ${layer.of}',
+        title: l10n.toolLayer,
+        subtitle: layer == null ? null : l10n.layerOf(layer.layer, layer.of),
       ),
       children: [
         if (layer == null)
-          const ToolEmptyNote('Select an overlay or title.')
+          ToolEmptyNote(l10n.selectOverlayOrTitle)
         else ...[
           ToolActionRow(
             key: const Key('timeline_layer_up'),
             icon: CupertinoIcons.square_stack_3d_up,
-            label: 'Bring Forward',
-            detail: 'Shows in front of the layer above',
+            label: l10n.bringForward,
+            detail: l10n.bringForwardDetail,
             onPressed: layer.layer < layer.of || sharesLane
                 ? () => controller.moveLayer(1)
                 : null,
@@ -131,8 +137,8 @@ class LayerPanel extends StatelessWidget {
           ToolActionRow(
             key: const Key('timeline_layer_down'),
             icon: CupertinoIcons.square_stack_3d_down_right,
-            label: 'Send Backward',
-            detail: 'Shows behind the layer below',
+            label: l10n.sendBackward,
+            detail: l10n.sendBackwardDetail,
             onPressed: layer.layer > 1 || sharesLane
                 ? () => controller.moveLayer(-1)
                 : null,

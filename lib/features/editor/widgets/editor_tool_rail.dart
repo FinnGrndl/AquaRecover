@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import '../../../shared/widgets/app_tooltip.dart';
 
+import '../../../l10n/l10n.dart';
 import '../editor_tools.dart';
 import 'editor_glass_surface.dart';
 
@@ -26,14 +27,14 @@ class GlassToolRail extends StatelessWidget {
     required this.selectedIndex,
     required this.panelOpen,
     required this.onSelected,
-    this.semanticLabel = 'Editing tools',
+    this.semanticLabel,
   });
 
   final List<GlassToolRailItem> items;
   final int selectedIndex;
   final bool panelOpen;
   final ValueChanged<int> onSelected;
-  final String semanticLabel;
+  final String? semanticLabel;
 
   static const height = 60.0;
 
@@ -41,7 +42,7 @@ class GlassToolRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
-      label: semanticLabel,
+      label: semanticLabel ?? context.l10n.editingTools,
       child: SizedBox(
         height: height,
         child: EditorGlassSurface(
@@ -90,7 +91,7 @@ class EditorToolRail extends StatelessWidget {
           GlassToolRailItem(
             key: Key('editor_tool_${group.name}'),
             icon: _iconFor(group),
-            label: group.label,
+            label: group.labelIn(context.l10n),
           ),
       ],
       selectedIndex: groups.indexOf(selectedGroup),
@@ -131,8 +132,8 @@ class _ToolButton extends StatelessWidget {
         ? primary
         : CupertinoDynamicColor.resolve(CupertinoColors.label, context);
     final action = selected && panelOpen
-        ? 'Collapse ${item.label} tools'
-        : 'Open ${item.label} tools';
+        ? context.l10n.collapseToolsNamed(item.label)
+        : context.l10n.openToolsNamed(item.label);
     return AppTooltip(
       message: action,
       child: Semantics(

@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import '../../../shared/widgets/app_tooltip.dart';
 
 import '../../../core/models/image_transform_settings.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/model_labels.dart';
 import 'precision_wheel.dart';
 import 'setting_slider.dart';
 import '../../../shared/widgets/mouse_drag_scroll.dart';
@@ -22,6 +24,7 @@ class CropBrowser extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -39,7 +42,7 @@ class CropBrowser extends StatelessWidget {
                   aspect: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Text(
-                      aspect.label,
+                      aspect.labelIn(l10n),
                       style: const TextStyle(color: CupertinoColors.white),
                     ),
                   ),
@@ -62,12 +65,12 @@ class CropBrowser extends StatelessWidget {
         if (settings.aspectRatio == CropAspectRatio.freeform)
           SettingSlider(
             key: const Key('crop_freeform_ratio'),
-            label: 'Freeform ratio',
+            label: l10n.freeformRatio,
             value: settings.customAspectRatio,
             min: minFreeformAspectRatio,
             max: maxFreeformAspectRatio,
             divisions: 399,
-            format: (value) => '${value.toStringAsFixed(2)}:1',
+            format: (value) => '${l10n.decimal(value, digits: 2)}:1',
             onChanged: enabled
                 ? (value) =>
                       onChanged(settings.copyWith(customAspectRatio: value))
@@ -80,7 +83,7 @@ class CropBrowser extends StatelessWidget {
             _CropIconButton(
               key: const Key('crop_rotate_left'),
               icon: CupertinoIcons.rotate_left,
-              label: 'Rotate left',
+              label: l10n.rotateLeft,
               enabled: enabled,
               onPressed: () => onChanged(
                 settings.copyWith(
@@ -91,7 +94,7 @@ class CropBrowser extends StatelessWidget {
             _CropIconButton(
               key: const Key('crop_rotate_right'),
               icon: CupertinoIcons.rotate_right,
-              label: 'Rotate right',
+              label: l10n.rotateRight,
               enabled: enabled,
               onPressed: () => onChanged(
                 settings.copyWith(
@@ -102,7 +105,7 @@ class CropBrowser extends StatelessWidget {
             _CropIconButton(
               key: const Key('crop_flip_horizontal'),
               icon: CupertinoIcons.arrow_left_right,
-              label: 'Flip horizontally',
+              label: l10n.flipHorizontally,
               selected: settings.flipHorizontal,
               enabled: enabled,
               onPressed: () => onChanged(
@@ -112,7 +115,7 @@ class CropBrowser extends StatelessWidget {
             _CropIconButton(
               key: const Key('crop_flip_vertical'),
               icon: CupertinoIcons.arrow_up_arrow_down,
-              label: 'Flip vertically',
+              label: l10n.flipVertically,
               selected: settings.flipVertical,
               enabled: enabled,
               onPressed: () => onChanged(
@@ -122,7 +125,7 @@ class CropBrowser extends StatelessWidget {
             _CropIconButton(
               key: const Key('crop_reset'),
               icon: CupertinoIcons.arrow_counterclockwise,
-              label: 'Reset crop',
+              label: l10n.resetCrop,
               enabled: enabled && !settings.isIdentity,
               onPressed: () => onChanged(const ImageTransformSettings()),
             ),
@@ -135,7 +138,7 @@ class CropBrowser extends StatelessWidget {
           min: -45,
           max: 45,
           divisions: 90,
-          semanticLabel: 'Straighten',
+          semanticLabel: l10n.straighten,
           valueFormatter: (value) => '${value.round()}°',
           onChanged: enabled
               ? (value) =>

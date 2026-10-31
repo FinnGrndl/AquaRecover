@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 
 import '../../../core/models/restoration_settings.dart';
 import '../../../shared/reduce_motion.dart';
+import '../../../l10n/l10n.dart';
 import '../editor_tools.dart';
 import 'setting_slider.dart';
 import '../../../shared/widgets/mouse_drag_scroll.dart';
@@ -59,7 +60,7 @@ class AdjustmentBrowser extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
-                'Tap a value to adjust it',
+                context.l10n.tapValueToAdjust,
                 style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
                   color: CupertinoDynamicColor.resolve(
                     CupertinoColors.secondaryLabel,
@@ -83,8 +84,10 @@ class AdjustmentBrowser extends StatelessWidget {
                         ? () => onChanged(active.apply(settings, presetValue))
                         : null,
                     child: Text(
-                      'Reset',
-                      semanticsLabel: 'Reset ${active.label}',
+                      context.l10n.reset,
+                      semanticsLabel: context.l10n.resetItem(
+                        active.label(context.l10n),
+                      ),
                       style: const TextStyle(fontSize: 13),
                     ),
                   ),
@@ -122,12 +125,12 @@ class AdjustmentBrowser extends StatelessWidget {
         const SizedBox(height: 12),
         SettingSlider(
           key: Key('active_adjustment_${active.id}'),
-          label: active.label,
+          label: active.label(context.l10n),
           value: active.value(settings),
           min: active.min,
           max: active.max,
           divisions: active.divisions,
-          help: active.help,
+          help: active.help?.call(context.l10n),
           format: active.format,
           showHeader: false,
           showValue: false,
@@ -183,11 +186,12 @@ class _AdjustmentValueButton extends StatelessWidget {
       context,
     );
     final foreground = selected ? accent : label;
+    final l10n = context.l10n;
     return Semantics(
       button: true,
       selected: selected,
-      label: '${control.label}, ${_compactValue(control, value)}',
-      hint: control.help,
+      label: '${control.label(l10n)}, ${_compactValue(control, value)}',
+      hint: control.help?.call(l10n),
       child: CupertinoButton(
         key: Key('adjustment_${control.id}'),
         padding: EdgeInsets.zero,
@@ -230,7 +234,7 @@ class _AdjustmentValueButton extends StatelessWidget {
               ),
               const SizedBox(height: _labelGap),
               Text(
-                control.label,
+                control.label(l10n),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,

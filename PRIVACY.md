@@ -24,6 +24,10 @@ files remain under the user's control and can be removed through the operating
 system or by deleting the application container. Map tiles shown in the dive
 logbook are cached in the app's cache directory.
 
+An export is shared only when the user taps Share. The operating system's share
+sheet then hands the file to the app or service the user chooses there, such as
+AirDrop, Messages, or Mail; AquaRecover itself sends nothing.
+
 ## Dive logbook
 
 The dive logbook is stored only on the device and links photos and videos

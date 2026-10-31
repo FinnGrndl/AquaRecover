@@ -21,6 +21,7 @@
 		B48C1BE8F03A9A50AF570BF8 /* RawBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95CB7EF67D9212A431396FE /* RawBridge.swift */; };
 		E67441FB420ED4766BA959C9 /* AquaMediaPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F886DCC597B1E4EE1CF3990 /* AquaMediaPipeline.swift */; };
 		597B4989C2ECA2A916EA7DB0 /* AquaTimelineRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8FB40CD74EC506AB968C03E /* AquaTimelineRenderer.swift */; };
+		16EA81AD2DED02C3A32EF4D7 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A29EBDD67FCB286FFF275651 /* InfoPlist.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -69,6 +70,8 @@
 		D95CB7EF67D9212A431396FE /* RawBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawBridge.swift; sourceTree = "<group>"; };
 		6F886DCC597B1E4EE1CF3990 /* AquaMediaPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AquaMediaPipeline.swift; sourceTree = "<group>"; };
 		C8FB40CD74EC506AB968C03E /* AquaTimelineRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AquaTimelineRenderer.swift; sourceTree = "<group>"; };
+		CB720A9CAAE7100AFC22D296 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		2DBDEB607DF56C37F66D4001 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -136,6 +139,7 @@
 				97C146FD1CF9000F007C117D /* Assets.xcassets */,
 				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
 				97C147021CF9000F007C117D /* Info.plist */,
+				A29EBDD67FCB286FFF275651 /* InfoPlist.strings */,
 				A9C9EAF8A95D4D9F88A00001 /* PrivacyInfo.xcprivacy */,
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
@@ -219,6 +223,7 @@
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				de,
 				en,
 				Base,
 			);
@@ -251,6 +256,7 @@
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
+				16EA81AD2DED02C3A32EF4D7 /* InfoPlist.strings in Resources */,
 				A9C9EAF8A95D4D9F88A00002 /* PrivacyInfo.xcprivacy in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 			);
@@ -340,6 +346,15 @@
 				97C147001CF9000F007C117D /* Base */,
 			);
 			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		A29EBDD67FCB286FFF275651 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				CB720A9CAAE7100AFC22D296 /* en */,
+				2DBDEB607DF56C37F66D4001 /* de */,
+			);
+			name = InfoPlist.strings;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */

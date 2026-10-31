@@ -15,6 +15,9 @@ import 'timeline_media_picker.dart';
 import 'timeline_theme.dart';
 import '../../shared/widgets/scrollbar_list_view.dart';
 import '../../shared/widgets/app_dialog.dart';
+import '../../l10n/timeline_labels.dart';
+import '../../l10n/model_labels.dart';
+import '../../l10n/l10n.dart';
 
 /// Lists saved movies and starts new ones.
 class TimelineProjectsPage extends StatefulWidget {
@@ -46,23 +49,11 @@ class TimelineProjectsPage extends StatefulWidget {
     );
   }
 
-  /// "Dive, Oct 11": short, readable, and sorts nothing away.
-  static String defaultName(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return 'Dive, ${months[date.month - 1]} ${date.day}';
+  /// "Dive, Oct 11": short, readable, and sorts nothing away. English
+  /// unless [l10n] gives the app language.
+  static String defaultName(DateTime date, [AppLocalizations? l10n]) {
+    final strings = l10n ?? englishL10n;
+    return strings.defaultMovieName(strings.monthDay(date));
   }
 
   static String newProjectId() =>
@@ -76,7 +67,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
   late final TimelineProjectStore _store =
       widget.store ?? TimelineProjectStore();
   List<TimelineProject>? _projects;
-  String? _error;
+  Object? _error;
 
   @override
   void initState() {
@@ -89,7 +80,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
       final projects = await _store.list();
       if (mounted) setState(() => _projects = projects);
     } on Object catch (error) {
-      if (mounted) setState(() => _error = '$error');
+      if (mounted) setState(() => _error = error);
     }
   }
 
@@ -107,7 +98,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
       context,
       TimelineProject(
         id: TimelineProjectsPage.newProjectId(),
-        name: TimelineProjectsPage.defaultName(DateTime.now()),
+        name: TimelineProjectsPage.defaultName(DateTime.now(), context.l10n),
       ),
       store: _store,
       initialMedia: paths,
@@ -119,19 +110,17 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
     final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: Text('Delete “${project.name}”?'),
-        content: const Text(
-          'Only the movie project is removed. Your photos, clips, and exported movies stay.',
-        ),
+        title: Text(context.l10n.deleteNamedQuestion(project.name)),
+        content: Text(context.l10n.deleteMovieBody),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -172,18 +161,18 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                     child: GlassNavigationBar(
-                      leadingLabel: 'Library',
+                      leadingLabel: context.l10n.libraryBack,
                       onLeadingPressed: () => Navigator.of(context).maybePop(),
-                      title: 'Movies',
+                      title: context.l10n.movies,
                       subtitle: projects == null || count == 0
-                          ? 'Made on this device'
-                          : '$count movie${count == 1 ? '' : 's'}',
+                          ? context.l10n.madeOnThisDevice
+                          : context.l10n.movieCount(count),
                       trailingWidth: 46,
                       trailing: AppTooltip(
-                        message: 'New movie',
+                        message: context.l10n.newMovie,
                         child: Semantics(
                           button: true,
-                          label: 'New movie',
+                          label: context.l10n.newMovie,
                           child: CupertinoButton(
                             key: const Key('timeline_new_movie'),
                             padding: EdgeInsets.zero,
@@ -218,7 +207,7 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            _error!,
+            localizedErrorMessage(context.l10n, _error!),
             textAlign: TextAlign.center,
             style: const TextStyle(color: TimelineColors.danger),
           ),
@@ -253,10 +242,10 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
-                  'Turn a dive into a movie',
+                Text(
+                  context.l10n.turnDiveIntoMovie,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: TimelineColors.text,
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
@@ -264,11 +253,10 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Line up photos and clips, give each the color it needs, '
-                  'and export a movie without leaving this device.',
+                Text(
+                  context.l10n.turnDiveIntoMovieBody,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: TimelineColors.secondaryText,
                     fontSize: 15,
                     height: 1.35,
@@ -284,9 +272,9 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
                     vertical: 13,
                   ),
                   onPressed: _create,
-                  child: const Text(
-                    'New movie',
-                    style: TextStyle(
+                  child: Text(
+                    context.l10n.newMovie,
+                    style: const TextStyle(
                       color: CupertinoColors.white,
                       fontWeight: FontWeight.w600,
                     ),
@@ -301,11 +289,11 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
     return ScrollbarListView(
       padding: EdgeInsets.fromLTRB(16, 22, 16, bottom),
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 10),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 10),
           child: Text(
-            'Recent',
-            style: TextStyle(
+            context.l10n.recent,
+            style: const TextStyle(
               color: TimelineColors.text,
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -340,11 +328,14 @@ class _TimelineProjectsPageState extends State<TimelineProjectsPage> {
               ),
             ),
           ),
-        const Padding(
-          padding: EdgeInsets.only(top: 4, left: 4),
+        Padding(
+          padding: const EdgeInsets.only(top: 4, left: 4),
           child: Text(
-            'Swipe left or touch and hold a movie to delete it.',
-            style: TextStyle(color: TimelineColors.secondaryText, fontSize: 12),
+            context.l10n.swipeToDeleteMovie,
+            style: const TextStyle(
+              color: TimelineColors.secondaryText,
+              fontSize: 12,
+            ),
           ),
         ),
       ],
@@ -403,7 +394,7 @@ class _ProjectContextMenu extends StatelessWidget {
             CupertinoContextMenuAction(
               trailingIcon: CupertinoIcons.film,
               onPressed: () => _closeThen(menuContext, onOpen),
-              child: const Text('Open'),
+              child: Text(context.l10n.open),
             ),
           ),
         ),
@@ -415,7 +406,7 @@ class _ProjectContextMenu extends StatelessWidget {
               isDestructiveAction: true,
               trailingIcon: CupertinoIcons.delete,
               onPressed: () => _closeThen(menuContext, onDelete),
-              child: const Text('Delete'),
+              child: Text(context.l10n.delete),
             ),
           ),
         ),
@@ -465,7 +456,7 @@ class _ProjectRow extends StatelessWidget {
       button: true,
       label: project.name,
       customSemanticsActions: {
-        const CustomSemanticsAction(label: 'Delete'): onDelete,
+        CustomSemanticsAction(label: context.l10n.delete): onDelete,
       },
       child: CupertinoButton(
         padding: EdgeInsets.zero,
@@ -527,9 +518,11 @@ class _ProjectRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '$clips item${clips == 1 ? '' : 's'} · '
-                      '${formatTimecode(project.duration, tenths: false)} · '
-                      '${project.aspect.label}',
+                      context.l10n.movieSummary(
+                        clips,
+                        formatTimecode(project.duration, tenths: false),
+                        project.aspect.labelIn(context.l10n),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(

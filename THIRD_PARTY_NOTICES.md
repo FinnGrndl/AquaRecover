@@ -5,7 +5,7 @@ license texts are registered by Flutter and can be opened from **About >
 Licenses** inside the app. The resolved versions in `pubspec.lock` are the
 authoritative dependency list for a build.
 
-Direct dependencies in version 1.5.0:
+Direct dependencies in version 1.6.0:
 
 | Component | Resolved version | License |
 | --- | ---: | --- |
@@ -17,10 +17,12 @@ Direct dependencies in version 1.5.0:
 | image_picker | 1.2.3 | BSD-3-Clause; bundled Android code also includes Apache-2.0 material |
 | image_picker_android | 0.8.13+19 | BSD-3-Clause; includes Apache-2.0 material |
 | image_picker_platform_interface | 2.11.1 | BSD-3-Clause |
+| intl | 0.20.2 | BSD-3-Clause |
 | latlong2 | 0.10.1 | Apache-2.0 |
 | path | 1.9.1 | BSD-3-Clause |
 | path_provider | 2.1.6 | BSD-3-Clause |
 | photo_manager | 3.12.0 | Apache-2.0 |
+| share_plus | 13.3.1 | BSD-3-Clause |
 | video_player | 2.14.0 | BSD-3-Clause |
 | xml | 7.0.1 | MIT |
 

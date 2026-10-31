@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../l10n/l10n.dart';
+import '../../../l10n/model_labels.dart';
+
 import '../../../core/models/media_job.dart';
 import '../../../core/models/media_kind.dart';
 import '../../../shared/reduce_motion.dart';
@@ -49,11 +52,11 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
                 ),
                 Expanded(
                   child: widget.targets.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Padding(
-                            padding: EdgeInsets.all(24),
+                            padding: const EdgeInsets.all(24),
                             child: Text(
-                              'There are no other photos in this batch.',
+                              context.l10n.noOtherPhotosInBatch,
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -86,12 +89,12 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Copy edits',
+                  context.l10n.copyEdits,
                   style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Choose the photos that should use these values.',
+                  context.l10n.copyEditsSubtitle,
                   style: TextStyle(
                     color: CupertinoColors.secondaryLabel.resolveFrom(context),
                     fontSize: 13,
@@ -104,7 +107,7 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
             key: const Key('batch_edit_copy_done'),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             onPressed: _applying ? null : () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
         ],
       ),
@@ -130,9 +133,9 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Copy from',
-                  style: TextStyle(
+                Text(
+                  context.l10n.copyFrom,
+                  style: const TextStyle(
                     color: CupertinoColors.activeBlue,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -160,8 +163,13 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
     return Semantics(
       selected: selected,
       button: true,
-      label:
-          '${selected ? 'Deselect' : 'Select'} ${job.displayName ?? p.basename(job.inputPath)}',
+      label: selected
+          ? context.l10n.deselectItem(
+              job.displayName ?? p.basename(job.inputPath),
+            )
+          : context.l10n.selectItem(
+              job.displayName ?? p.basename(job.inputPath),
+            ),
       child: GestureDetector(
         key: Key('batch_edit_target_${job.id}'),
         behavior: HitTestBehavior.opaque,
@@ -256,14 +264,17 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
               key: const Key('batch_edit_apply_all'),
               color: CupertinoColors.secondarySystemFill.resolveFrom(context),
               onPressed: canApplyAll ? _applyAll : null,
-              child: const FittedBox(
+              child: FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(CupertinoIcons.rectangle_stack_badge_plus, size: 19),
-                    SizedBox(width: 7),
-                    Text('Apply to all'),
+                    const Icon(
+                      CupertinoIcons.rectangle_stack_badge_plus,
+                      size: 19,
+                    ),
+                    const SizedBox(width: 7),
+                    Text(context.l10n.applyToAll),
                   ],
                 ),
               ),
@@ -278,7 +289,7 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
                   ? const CupertinoActivityIndicator(
                       color: CupertinoColors.white,
                     )
-                  : Text('Apply to ${_selectedIds.length}'),
+                  : Text(context.l10n.applyToCount(_selectedIds.length)),
             ),
           ),
         ],
@@ -317,7 +328,7 @@ class _BatchEditCopySheetState extends State<BatchEditCopySheet> {
   }
 
   String _details(MediaJob job) => [
-    job.status.label,
+    job.status.labelIn(context.l10n),
     if (job.metadata?.sizeLabel != null) job.metadata!.sizeLabel,
     if (job.metadata?.dimensionsLabel != null) job.metadata!.dimensionsLabel!,
   ].join(' · ');

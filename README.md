@@ -296,6 +296,17 @@ sharpening. RAW video on macOS still needs a locally installed `ffmpeg` outside
 the App Sandbox, and proprietary formats such as Blackmagic RAW, REDCODE RAW, and ProRes RAW are not
 implemented.
 
+## Languages
+
+The app follows the device language and ships in English and German, with
+English for every other language. The strings live in `lib/l10n/app_en.arb`
+(the template) and `lib/l10n/app_de.arb`; `flutter gen-l10n` regenerates the
+checked-in Dart files, and a test keeps both files at the same keys and
+placeholders. The iOS and macOS permission prompts are translated in
+`platform_overrides/*/Runner/*.lproj/InfoPlist.strings`. Logs, the MCP tools,
+file names, metadata sidecars, and the Before/After labels burned into
+exported comparison images stay in English.
+
 ## Edit with Claude
 
 AquaRecover includes an MCP server, so Claude can analyse, preview, and
@@ -314,7 +325,9 @@ the device. The dive logbook map loads tiles from OpenStreetMap, which sees the
 device's IP address and the map area being viewed. If an item exists only in iCloud, the operating system may download
 it before providing AquaRecover with a local file.
 
-Still exports are freshly encoded. Video exports remove metadata by default.
+Exports remove metadata by default. Turning off Strip metadata keeps the
+capture date, camera and location in exported photos; saving to Photos always
+files an export under its original capture date.
 The iOS and macOS privacy manifests declare no tracking and no collected data.
 The complete data flow is documented in the [privacy policy](PRIVACY.md) and
 [on-device privacy model](docs/ON_DEVICE_PRIVACY.md).
@@ -326,7 +339,7 @@ contains the Android APK, Windows installer, and signed macOS disk image. iOS
 builds are distributed through TestFlight while store preparation is in
 progress.
 
-Current source version: `1.5.0+18`.
+Current source version: `1.6.0+19`.
 
 To run from source with the same Flutter toolchain used by CI:
 
@@ -354,6 +367,7 @@ lib/core/processing/        restoration, transforms, LUTs, image/video services
 lib/core/photo/             photo-library permission and asset access
 lib/core/persistence/       export paths and versioned sidecars
 lib/features/editor/        editor, queue, crop, compare, and export workflow
+lib/l10n/                   English and German strings (ARB) and generated code
 ios/ and macos/             native Apple runners and processing bridges
 android/ and windows/       desktop/mobile platform runners
 platform_overrides/         native files retained during project regeneration

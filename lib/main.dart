@@ -5,6 +5,7 @@ import 'core/persistence/first_run_tutorial_store.dart';
 import 'features/editor/editor_page.dart';
 import 'features/editor/editor_tools.dart';
 import 'features/onboarding/first_run_tutorial_gate.dart';
+import 'l10n/app_localizations.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,10 @@ class AquaRecoverApp extends StatelessWidget {
     return CupertinoApp(
       debugShowCheckedModeBanner: false,
       title: 'AquaRecover',
+      // Follows the device language: German or English, and English for
+      // every other language.
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: CupertinoThemeData(
         primaryColor: CupertinoColors.activeBlue,
         brightness: Brightness.light,

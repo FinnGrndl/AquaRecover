@@ -4,6 +4,7 @@ import '../../../shared/widgets/app_tooltip.dart';
 import '../../editor/widgets/editor_glass_surface.dart';
 import '../timeline_theme.dart';
 import '../../../shared/widgets/mouse_drag_scroll.dart';
+import '../../../l10n/l10n.dart';
 
 /// One item of a [TimelineToolbar].
 class TimelineToolItem {
@@ -42,16 +43,16 @@ class TimelineToolbar extends StatefulWidget {
     super.key,
     required this.items,
     this.onBack,
-    this.backLabel = 'All tools',
-    this.semanticLabel = 'Movie tools',
+    this.backLabel,
+    this.semanticLabel,
   });
 
   final List<TimelineToolItem> items;
 
   /// Shows the leading back chevron when set.
   final VoidCallback? onBack;
-  final String backLabel;
-  final String semanticLabel;
+  final String? backLabel;
+  final String? semanticLabel;
 
   static const height = 62.0;
 
@@ -150,7 +151,7 @@ class _TimelineToolbarState extends State<TimelineToolbar> {
       child: Semantics(
         container: true,
         explicitChildNodes: true,
-        label: widget.semanticLabel,
+        label: widget.semanticLabel ?? context.l10n.movieTools,
         child: SizedBox(
           height: TimelineToolbar.height,
           child: EditorGlassSurface(
@@ -161,10 +162,10 @@ class _TimelineToolbarState extends State<TimelineToolbar> {
               children: [
                 if (widget.onBack != null) ...[
                   AppTooltip(
-                    message: widget.backLabel,
+                    message: widget.backLabel ?? context.l10n.allTools,
                     child: Semantics(
                       button: true,
-                      label: widget.backLabel,
+                      label: widget.backLabel ?? context.l10n.allTools,
                       excludeSemantics: true,
                       child: CupertinoButton(
                         key: const Key('timeline_tool_back'),

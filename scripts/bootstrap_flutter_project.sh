@@ -96,7 +96,27 @@ perms = [
 missing = [p for p in perms if p not in text]
 if missing:
     text = text.replace('    <application', '\n'.join(missing) + '\n    <application', 1)
+# Per-app language settings list the languages in res/xml/locales_config.xml.
+if 'android:localeConfig=' not in text:
+    text = text.replace(
+        '        android:label="AquaRecover"\n',
+        '        android:label="AquaRecover"\n'
+        '        android:localeConfig="@xml/locales_config"\n',
+        1,
+    )
 path.write_text(text)
+locales = path.parent / 'res' / 'xml' / 'locales_config.xml'
+if not locales.exists():
+    locales.parent.mkdir(parents=True, exist_ok=True)
+    locales.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<!-- The app languages offered in Android\'s per-app language settings. Keep in\n'
+        '     step with lib/l10n. -->\n'
+        '<locale-config xmlns:android="http://schemas.android.com/apk/res/android">\n'
+        '    <locale android:name="en" />\n'
+        '    <locale android:name="de" />\n'
+        '</locale-config>\n'
+    )
 PY
 fi
 
@@ -273,6 +293,59 @@ def add_runner_resource(
 
     project_path.write_text(text)
 
+def add_localized_strings(project_path, group_anchor, phase_anchor, variant_path=None):
+    """Adds Runner/<lang>.lproj/InfoPlist.strings as one localized resource
+    and lists every language in knownRegions."""
+    if not project_path.exists():
+        return
+    text = project_path.read_text()
+    for region in LANGUAGES:
+        if f'\t\t\t\t{region},\n' not in text.split('knownRegions = (', 1)[1].split(');', 1)[0]:
+            text = text.replace('knownRegions = (\n', f'knownRegions = (\n\t\t\t\t{region},\n', 1)
+    if '/* InfoPlist.strings in Resources */' in text:
+        project_path.write_text(text)
+        return
+
+    group_ref = unique_id(text, f'{project_path}:InfoPlist.strings:group')
+    build_ref = unique_id(text + group_ref, f'{project_path}:InfoPlist.strings:build')
+    language_refs = []
+    for region in LANGUAGES:
+        ref = unique_id(text + group_ref + build_ref + ''.join(language_refs), f'{project_path}:InfoPlist.strings:{region}')
+        language_refs.append(ref)
+        file_line = f'\t\t{ref} /* {region} */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = {region}; path = {region}.lproj/InfoPlist.strings; sourceTree = "<group>"; }};\n'
+        text = insert_before(text, '/* End PBXFileReference section */', file_line, 'PBXFileReference section')
+    build_line = f'\t\t{build_ref} /* InfoPlist.strings in Resources */ = {{isa = PBXBuildFile; fileRef = {group_ref} /* InfoPlist.strings */; }};\n'
+    text = insert_before(text, '/* End PBXBuildFile section */', build_line, 'PBXBuildFile section')
+    children = ''.join(f'\t\t\t\t{ref} /* {region} */,\n' for ref, region in zip(language_refs, LANGUAGES))
+    path_line = f'\t\t\tpath = {variant_path};\n' if variant_path else ''
+    group = (
+        f'\t\t{group_ref} /* InfoPlist.strings */ = {{\n'
+        '\t\t\tisa = PBXVariantGroup;\n'
+        '\t\t\tchildren = (\n'
+        f'{children}'
+        '\t\t\t);\n'
+        '\t\t\tname = InfoPlist.strings;\n'
+        f'{path_line}'
+        '\t\t\tsourceTree = "<group>";\n'
+        '\t\t};\n'
+    )
+    text = insert_before(text, '/* End PBXVariantGroup section */', group, 'PBXVariantGroup section')
+
+    child_pattern = re.compile(rf'(\n\t\t\t\t[0-9A-F]{{24}} /\* {re.escape(group_anchor)} \*/,\n)')
+    text, child_count = child_pattern.subn(rf'\1\t\t\t\t{group_ref} /* InfoPlist.strings */,\n', text, count=1)
+    if child_count == 0:
+        raise RuntimeError('Could not add InfoPlist.strings to the Runner group.')
+
+    resource_pattern = re.compile(rf'(\n\t\t\t\t[0-9A-F]{{24}} /\* {re.escape(phase_anchor)} in Resources \*/,\n)')
+    text, resource_count = resource_pattern.subn(rf'\1\t\t\t\t{build_ref} /* InfoPlist.strings in Resources */,\n', text, count=1)
+    if resource_count == 0:
+        raise RuntimeError('Could not add InfoPlist.strings to the Resources build phase.')
+
+    project_path.write_text(text)
+
+# The app's languages; keep in step with lib/l10n and CFBundleLocalizations.
+LANGUAGES = ['en', 'de']
+
 for spec in sys.argv[1:]:
     add_swift_source(spec)
 
@@ -291,6 +364,8 @@ add_runner_resource(
     'Assets.xcassets',
     'Runner/PrivacyInfo.xcprivacy',
 )
+add_localized_strings(ios_project, 'Info.plist', 'Assets.xcassets')
+add_localized_strings(mac_project, 'Info.plist', 'Assets.xcassets', 'Runner')
 PY
 
 python3 - "$ROOT/ios/Runner.xcodeproj/project.pbxproj" "$ROOT/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme" <<'PY'
@@ -361,6 +436,8 @@ entries = {
     'UIFileSharingEnabled': True,
     'BGTaskSchedulerPermittedIdentifiers': ['$(PRODUCT_BUNDLE_IDENTIFIER).video-export'],
     'UIBackgroundModes': ['processing'],
+    'CFBundleDevelopmentRegion': 'en',
+    'CFBundleLocalizations': ['en', 'de'],
 }
 for key, value in entries.items():
     if plist.get(key) != value:
@@ -390,6 +467,15 @@ entries = {
 }
 for key, value in entries.items():
     if key not in plist:
+        plist[key] = value
+        changed = True
+# The languages in macos/Runner/<lang>.lproj and lib/l10n.
+localizations = {
+    'CFBundleDevelopmentRegion': 'en',
+    'CFBundleLocalizations': ['en', 'de'],
+}
+for key, value in localizations.items():
+    if plist.get(key) != value:
         plist[key] = value
         changed = True
 if changed:

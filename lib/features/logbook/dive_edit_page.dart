@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 
 import '../../core/logbook/dive_log.dart';
+import '../../l10n/l10n.dart';
 import '../timeline/timeline_theme.dart';
 import 'logbook_controller.dart';
 import 'logbook_widgets.dart';
@@ -65,6 +66,7 @@ class _DiveEditPageState extends State<DiveEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return TimelineTheme(
       child: CupertinoPageScaffold(
         backgroundColor: TimelineColors.background,
@@ -74,17 +76,17 @@ class _DiveEditPageState extends State<DiveEditPage> {
             padding: EdgeInsets.zero,
             minimumSize: const Size(44, 44),
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
-          middle: Text(_exists ? 'Edit dive' : 'New dive'),
+          middle: Text(_exists ? l10n.editDive : l10n.newDive),
           trailing: CupertinoButton(
             key: const Key('dive_save'),
             padding: EdgeInsets.zero,
             minimumSize: const Size(44, 44),
             onPressed: _save,
-            child: const Text(
-              'Save',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            child: Text(
+              l10n.save,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -98,29 +100,31 @@ class _DiveEditPageState extends State<DiveEditPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _field('Number', _number, numeric: true),
+                      _field(l10n.diveNumber, _number, numeric: true),
                       _dateRow(),
-                      _field('Site', _site),
-                      _field('Latitude', _lat, numeric: true, signed: true),
-                      _field('Longitude', _lon, numeric: true, signed: true),
-                      _field('Max depth (m)', _depth, numeric: true),
-                      _field('Duration (min)', _minutes, numeric: true),
+                      _field(l10n.site, _site),
+                      _field(l10n.latitude, _lat, numeric: true, signed: true),
+                      _field(l10n.longitude, _lon, numeric: true, signed: true),
+                      _field(l10n.maxDepthMeters, _depth, numeric: true),
+                      _field(l10n.durationMinutes, _minutes, numeric: true),
                       _field(
-                        'Water temperature (°C)',
+                        l10n.waterTemperatureCelsius,
                         _temp,
                         numeric: true,
                         signed: true,
                       ),
-                      _field('Buddy', _buddy),
-                      _field('Notes', _notes, lines: 4),
+                      _field(l10n.buddy, _buddy),
+                      _field(l10n.notes, _notes, lines: 4),
                       if (_exists) ...[
                         const SizedBox(height: 24),
                         CupertinoButton(
                           minimumSize: const Size(44, 44),
                           onPressed: _delete,
-                          child: const Text(
-                            'Delete dive',
-                            style: TextStyle(color: TimelineColors.danger),
+                          child: Text(
+                            l10n.deleteDive,
+                            style: const TextStyle(
+                              color: TimelineColors.danger,
+                            ),
                           ),
                         ),
                       ],
@@ -178,7 +182,7 @@ class _DiveEditPageState extends State<DiveEditPage> {
   Widget _dateRow() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      ExcludeSemantics(child: _label('Date and time')),
+      ExcludeSemantics(child: _label(context.l10n.dateAndTime)),
       CupertinoButton(
         padding: const EdgeInsets.all(12),
         minimumSize: const Size(44, 44),
@@ -188,8 +192,10 @@ class _DiveEditPageState extends State<DiveEditPage> {
         child: Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            formatDiveDate(_start),
-            semanticsLabel: 'Date and time, ${formatDiveDate(_start)}',
+            formatDiveDate(context.l10n, _start),
+            semanticsLabel: context.l10n.dateAndTimeValue(
+              formatDiveDate(context.l10n, _start),
+            ),
             style: const TextStyle(color: TimelineColors.text, fontSize: 17),
           ),
         ),
@@ -214,7 +220,7 @@ class _DiveEditPageState extends State<DiveEditPage> {
                   child: CupertinoButton(
                     minimumSize: const Size(44, 44),
                     onPressed: () => Navigator.of(popup).pop(),
-                    child: const Text('Done'),
+                    child: Text(context.l10n.done),
                   ),
                 ),
                 Expanded(
@@ -246,15 +252,12 @@ class _DiveEditPageState extends State<DiveEditPage> {
       await showAppDialog<void>(
         context: context,
         builder: (dialog) => CupertinoAlertDialog(
-          title: const Text('Check the position'),
-          content: const Text(
-            'Enter both latitude (−90 to 90) and longitude (−180 to 180) in '
-            'decimal degrees, or leave both empty.',
-          ),
+          title: Text(context.l10n.checkPosition),
+          content: Text(context.l10n.checkPositionBody),
           actions: [
             CupertinoDialogAction(
               onPressed: () => Navigator.of(dialog).pop(),
-              child: const Text('OK'),
+              child: Text(context.l10n.ok),
             ),
           ],
         ),
@@ -289,20 +292,17 @@ class _DiveEditPageState extends State<DiveEditPage> {
     final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (dialog) => CupertinoAlertDialog(
-        title: const Text('Delete this dive?'),
-        content: const Text(
-          'Its photos and videos stay where they are; only the log entry is '
-          'removed.',
-        ),
+        title: Text(context.l10n.deleteDiveTitle),
+        content: Text(context.l10n.deleteDiveBody),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('Delete'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),

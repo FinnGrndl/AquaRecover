@@ -39,6 +39,7 @@ class RawProcessingService {
         exportOptions: exportOptions,
         lutProfile: lutProfile,
         transform: transform,
+        metadataSourcePath: inputPath,
       );
     } finally {
       await _deleteIntermediate(decodedPng);
@@ -60,6 +61,7 @@ class RawProcessingService {
         exportOptions: exportOptions,
         lutProfile: lutProfile,
         transform: transform,
+        metadataSourcePath: inputPath,
       );
     } finally {
       await _deleteIntermediate(decodedPng);

@@ -14,11 +14,15 @@ import '../../core/media/media_classifier.dart';
 import '../../core/models/media_kind.dart';
 import '../../core/models/restoration_settings.dart';
 import '../../core/photo/photo_library_service.dart';
+import '../../core/platform/share_service.dart';
 import '../../core/timeline/ffmpeg_timeline_renderer.dart';
 import '../../core/timeline/timeline_project.dart';
 import '../../core/timeline/timeline_project_store.dart';
 import '../../core/timeline/timeline_render_service.dart';
 import '../../core/utils/output_paths.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/model_labels.dart';
+import '../../l10n/timeline_labels.dart';
 import '../../shared/widgets/ocean_backdrop.dart';
 import '../editor/widgets/editor_bottom_panel.dart';
 import '../editor/widgets/editor_glass_surface.dart';
@@ -45,6 +49,7 @@ import 'widgets/tools/transition_panel.dart';
 import 'widgets/tools/volume_panel.dart';
 import 'widgets/viewer_selection_overlay.dart';
 import '../../shared/widgets/app_dialog.dart';
+import '../../shared/widgets/share_failed_dialog.dart';
 
 /// The movie editor, laid out like CapCut and dressed like iOS: the viewer
 /// on top, transport, a multi-lane timeline with a centred playhead, one
@@ -62,6 +67,7 @@ class TimelineEditorPage extends StatefulWidget {
     this.overlayProbe,
     this.audioProbe,
     this.exportDirectory,
+    this.shareService = const ShareService(),
     this.initialMedia = const [],
     this.today,
   });
@@ -89,6 +95,9 @@ class TimelineEditorPage extends StatefulWidget {
   /// Overrides where rendered movies go, so widget tests need no real
   /// file system.
   final Future<Directory> Function()? exportDirectory;
+
+  /// Opens the system share sheet for a rendered movie.
+  final ShareService shareService;
 
   /// Media picked before the editor opened, added on start.
   final List<String> initialMedia;
@@ -218,17 +227,14 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
           CupertinoDialogAction(
             isDefaultAction: true,
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(context.l10n.ok),
           ),
         ],
       ),
     );
   }
 
-  static String _friendly(Object error) {
-    final text = error.toString().replaceAll(RegExp(r'[\r\n]+'), ' ').trim();
-    return text.length <= 220 ? text : '${text.substring(0, 220)}…';
-  }
+  String _friendly(Object error) => localizedErrorMessage(context.l10n, error);
 
   // Adding media -----------------------------------------------------------
 
@@ -254,9 +260,8 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     );
     if (skipped.isNotEmpty) {
       await _showError(
-        'Some files were skipped',
-        '${skipped.length} file${skipped.length == 1 ? '' : 's'} cannot go '
-            'on a timeline (RAW video or unknown type).',
+        context.l10n.someFilesSkipped,
+        context.l10n.filesNotOnTimeline(skipped.length),
       );
     }
   }
@@ -276,9 +281,8 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     }
     if (kind == null || kind == MediaKind.rawVideo) {
       await _showError(
-        'Can’t add this overlay',
-        'Pick a photo or clip in a format AquaRecover can read. RAW video '
-            'cannot go on a timeline.',
+        context.l10n.cannotAddOverlay,
+        context.l10n.cannotAddOverlayBody,
       );
       return;
     }
@@ -316,15 +320,15 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     if (!mounted) return;
     if (!_controller.replaceSelectedClip(paths.first, videoDuration: seconds)) {
       await _showError(
-        'Can’t replace this clip',
-        'Pick a photo or clip in a format AquaRecover can read.',
+        context.l10n.cannotReplaceClip,
+        context.l10n.cannotReplaceClipBody,
       );
     }
   }
 
   void _addTitle() {
     _stop();
-    _controller.addTitle();
+    _controller.addTitle(text: context.l10n.defaultTitleText);
     setState(() {
       _tool = 'text';
       _textAutofocus = true;
@@ -360,11 +364,9 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
   Future<void> _render() async {
     _stop();
     final project = _controller.project;
+    final l10n = context.l10n;
     if (project.clips.isEmpty) {
-      await _showError(
-        'Nothing to export',
-        'Add at least one photo or clip first.',
-      );
+      await _showError(l10n.nothingToExport, l10n.nothingToExportBody);
       return;
     }
     setState(() {
@@ -385,15 +387,15 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       if (!mounted) return;
       setState(() => _outputPath = path);
       unawaited(HapticFeedback.mediumImpact());
-      _say('Movie saved to your AquaRecover exports.');
+      _say(l10n.movieSaved);
     } on TimelineRenderCancelled {
-      _say('Render cancelled.');
+      _say(l10n.renderCancelled);
     } on Object catch (error) {
       if (!mounted) return;
       // The Export panel behind the alert drops the failed render's
       // progress right away, not only after OK.
       setState(() => _rendering = false);
-      await _showError('Export failed', _friendly(error));
+      await _showError(l10n.exportFailed, _friendly(error));
     } finally {
       if (mounted) setState(() => _rendering = false);
     }
@@ -402,29 +404,41 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
   Future<void> _saveToPhotos() async {
     final path = _outputPath;
     if (path == null) return;
+    final l10n = context.l10n;
     try {
       await const PhotoLibraryService().saveExport(path, MediaKind.video);
-      _say('Saved to Photos.');
+      _say(l10n.savedToPhotos);
     } on Object catch (error) {
-      if (mounted) await _showError('Not saved to Photos', _friendly(error));
+      if (mounted) await _showError(l10n.notSavedToPhotos, _friendly(error));
     }
   }
 
   bool get _canSaveToPhotos =>
       Platform.isIOS || Platform.isMacOS || Platform.isAndroid;
 
+  Future<void> _shareMovie(Rect? origin) async {
+    final path = _outputPath;
+    if (path == null) return;
+    try {
+      await widget.shareService.shareFiles([path], origin: origin);
+    } on Object catch (error) {
+      if (mounted) await showShareFailedDialog(context, error);
+    }
+  }
+
   String? get _backendNote => switch (_renderer.backend) {
-    TimelineRenderBackend.android => 'fades render as dips to black',
-    TimelineRenderBackend.none => 'needs ffmpeg on this computer',
+    TimelineRenderBackend.android => context.l10n.backendNoteAndroid,
+    TimelineRenderBackend.none => context.l10n.backendNoteNoFfmpeg,
     _ => null,
   };
 
   Future<void> _rename() async {
     final field = TextEditingController(text: _controller.project.name);
+    final l10n = context.l10n;
     final name = await showAppDialog<String>(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('Movie name'),
+        title: Text(l10n.movieName),
         content: Padding(
           padding: const EdgeInsets.only(top: 10),
           child: CupertinoTextField(controller: field, autofocus: true),
@@ -432,12 +446,12 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           CupertinoDialogAction(
             isDefaultAction: true,
             onPressed: () => Navigator.of(context).pop(field.text.trim()),
-            child: const Text('Rename'),
+            child: Text(l10n.rename),
           ),
         ],
       ),
@@ -468,9 +482,8 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     if (!_controller.splitSelected()) {
       unawaited(
         _showError(
-          'Can’t split here',
-          'Move the playhead inside the item, away from its first and last '
-              'frames, then split.',
+          context.l10n.cannotSplitHere,
+          context.l10n.cannotSplitHereBody,
         ),
       );
     }
@@ -507,10 +520,11 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
   List<TimelineToolItem> _toolbarItems() {
     final selection = _controller.selection;
     final empty = _controller.project.clips.isEmpty;
+    final l10n = context.l10n;
     final split = _item(
       'split',
       CupertinoIcons.scissors,
-      'Split',
+      l10n.toolSplit,
       panel: false,
       key: const Key('timeline_split'),
       onPressed: _split,
@@ -518,39 +532,59 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
     final duplicate = _item(
       'duplicate',
       CupertinoIcons.plus_square_on_square,
-      'Duplicate',
+      l10n.toolDuplicate,
       panel: false,
       onPressed: _controller.duplicateSelected,
     );
     final delete = _item(
       'delete',
       CupertinoIcons.trash,
-      'Delete',
+      l10n.toolDelete,
       panel: false,
       destructive: true,
       key: const Key('timeline_delete'),
       onPressed: _delete,
     );
-    final effects = _item('effects', CupertinoIcons.sparkles, 'Effects');
-    final color = _item('color', CupertinoIcons.color_filter, 'Color');
-    final fade = _item('fade', CupertinoIcons.circle_lefthalf_fill, 'Fade');
-    final speed = _item('speed', CupertinoIcons.speedometer, 'Speed');
-    final volume = _item('volume', CupertinoIcons.speaker_2_fill, 'Volume');
-    final duration = _item('duration', CupertinoIcons.timer, 'Duration');
+    final effects = _item('effects', CupertinoIcons.sparkles, l10n.toolEffects);
+    final color = _item(
+      'color',
+      CupertinoIcons.color_filter,
+      l10n.toolColorGrade,
+    );
+    final fade = _item(
+      'fade',
+      CupertinoIcons.circle_lefthalf_fill,
+      l10n.toolFade,
+    );
+    final speed = _item('speed', CupertinoIcons.speedometer, l10n.toolSpeed);
+    final volume = _item(
+      'volume',
+      CupertinoIcons.speaker_2_fill,
+      l10n.toolVolume,
+    );
+    final duration = _item('duration', CupertinoIcons.timer, l10n.toolDuration);
     final opacity = _item(
       'opacity',
       CupertinoIcons.circle_righthalf_fill,
-      'Opacity',
+      l10n.toolOpacity,
     );
-    final animation = _item('animation', CupertinoIcons.wand_stars, 'Animate');
-    final layer = _item('layer', CupertinoIcons.square_stack_3d_up, 'Layer');
+    final animation = _item(
+      'animation',
+      CupertinoIcons.wand_stars,
+      l10n.toolAnimate,
+    );
+    final layer = _item(
+      'layer',
+      CupertinoIcons.square_stack_3d_up,
+      l10n.toolLayer,
+    );
     switch (selection) {
       case NoSelection():
         return [
           _item(
             'edit',
             CupertinoIcons.scissors,
-            'Edit',
+            l10n.toolEdit,
             panel: false,
             onPressed: empty
                 ? null
@@ -562,30 +596,30 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
           _item(
             'audio',
             CupertinoIcons.music_note_2,
-            'Audio',
+            l10n.toolAudio,
             onPressed: empty ? null : () => _toggle('audio'),
           ),
           _item(
             'text',
             CupertinoIcons.textformat,
-            'Text',
+            l10n.toolText,
             panel: false,
             onPressed: empty ? null : _addTitle,
           ),
           _item(
             'overlay',
             CupertinoIcons.rectangle_on_rectangle,
-            'Overlay',
+            l10n.toolOverlay,
             panel: false,
             onPressed: empty ? null : _addOverlay,
           ),
           _item(
             'effects',
             CupertinoIcons.sparkles,
-            'Effects',
+            l10n.toolEffects,
             onPressed: empty ? null : () => _toggle('effects'),
           ),
-          _item('format', CupertinoIcons.crop, 'Format'),
+          _item('format', CupertinoIcons.crop, l10n.toolFormat),
         ];
       case ClipSelection():
         final video = _controller.selectedClip?.isVideo ?? false;
@@ -596,14 +630,14 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
             volume,
           ] else ...[
             duration,
-            _item('motion', CupertinoIcons.move, 'Motion'),
+            _item('motion', CupertinoIcons.move, l10n.toolMotion),
           ],
           effects,
           color,
           fade,
           duplicate,
           delete,
-          _item('more', CupertinoIcons.ellipsis, 'More'),
+          _item('more', CupertinoIcons.ellipsis, l10n.toolMore),
         ];
       case OverlaySelection():
         final overlay = _controller.selectedOverlay;
@@ -612,7 +646,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
             _item(
               'text',
               CupertinoIcons.textformat,
-              'Edit',
+              l10n.toolEdit,
               onPressed: () => setState(() {
                 _tool = _tool == 'text' ? null : 'text';
                 _textAutofocus = _tool == 'text';
@@ -696,7 +730,7 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       ),
       'export' => Column(
         children: [
-          const ToolHeader(title: 'Export'),
+          ToolHeader(title: context.l10n.exportTitle),
           Expanded(
             child: DeliverPanel(
               controller: c,
@@ -709,9 +743,11 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                   : _render,
               onCancel: _renderer.cancel,
               onSaveToPhotos: _canSaveToPhotos ? _saveToPhotos : null,
+              onShare: widget.shareService.isAvailable ? _shareMovie : null,
               onOpenLibrary: () => Navigator.of(context).push(
                 CupertinoPageRoute<void>(
-                  builder: (_) => const ExportLibraryPage(),
+                  builder: (_) =>
+                      ExportLibraryPage(shareService: widget.shareService),
                 ),
               ),
             ),
@@ -747,9 +783,9 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       if (item.id == tool) return item.label;
     }
     return switch (tool) {
-      'export' => 'Export',
-      'transition' => 'Transition',
-      'text' => 'Text',
+      'export' => context.l10n.exportTitle,
+      'transition' => context.l10n.toolTransition,
+      'text' => context.l10n.toolText,
       _ => tool,
     };
   }
@@ -843,14 +879,14 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
       child: TimelineToolbar(
         items: items,
         semanticLabel: _controller.selection.isNone
-            ? 'Movie tools'
-            : '${selectionName(_controller)} tools',
+            ? context.l10n.movieTools
+            : context.l10n.itemTools(selectionName(context.l10n, _controller)),
         onBack: _controller.selection.isNone ? null : _back,
-        backLabel: 'Done',
+        backLabel: context.l10n.done,
       ),
     );
     Widget panel(double height, {bool animate = true}) => GlassBottomPanel(
-      label: '${_toolLabel(tool!, items)} tools',
+      label: context.l10n.itemTools(_toolLabel(tool!, items)),
       open: true,
       height: height,
       animate: animate,
@@ -1202,25 +1238,28 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
   Widget _topBar() {
     final project = _controller.project;
     final clips = project.clips.length;
+    final l10n = context.l10n;
     return GlassNavigationBar(
       leadingKey: const Key('timeline_back'),
-      leadingLabel: 'Movies',
+      leadingLabel: l10n.movies,
       onLeadingPressed: _rendering
           ? null
           : () => Navigator.of(context).maybePop(),
       title: project.name,
       subtitle: clips == 0
-          ? 'No clips yet · ${project.aspect.label}'
-          : '$clips item${clips == 1 ? '' : 's'} · '
-                '${formatTimecode(project.duration, tenths: false)} · '
-                '${project.aspect.label}',
+          ? l10n.noClipsYet(project.aspect.labelIn(l10n))
+          : l10n.movieSummary(
+              clips,
+              formatTimecode(project.duration, tenths: false),
+              project.aspect.labelIn(l10n),
+            ),
       onTitlePressed: _rendering ? null : _rename,
       trailingWidth: 46,
       trailing: AppTooltip(
-        message: 'Export movie',
+        message: l10n.exportMovie,
         child: Semantics(
           button: true,
-          label: 'Export movie',
+          label: l10n.exportMovie,
           child: CupertinoButton(
             key: const Key('timeline_open_export'),
             padding: EdgeInsets.zero,
@@ -1271,19 +1310,19 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Start with your best shots',
-                      style: TextStyle(
+                    Text(
+                      context.l10n.startWithBestShots,
+                      style: const TextStyle(
                         color: TimelineColors.text,
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Photos and clips play in the order you add them.',
+                    Text(
+                      context.l10n.startWithBestShotsBody,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: TimelineColors.secondaryText,
                         fontSize: 13,
                       ),
@@ -1298,21 +1337,21 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                         vertical: 11,
                       ),
                       onPressed: _addMedia,
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
+                          const Icon(
                             CupertinoIcons.add,
                             color: CupertinoColors.white,
                             size: 18,
                           ),
-                          SizedBox(width: 6),
+                          const SizedBox(width: 6),
                           Flexible(
                             child: Text(
-                              'Add photos and clips',
+                              context.l10n.addPhotosAndClips,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: CupertinoColors.white,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -1372,9 +1411,10 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Semantics(
-                    label:
-                        'Playhead ${formatTimecode(_controller.playhead)} of '
-                        '${formatTimecode(_controller.project.duration)}',
+                    label: context.l10n.playheadOf(
+                      formatTimecode(_controller.playhead),
+                      formatTimecode(_controller.project.duration),
+                    ),
                     excludeSemantics: true,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -1411,13 +1451,13 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                           _ZoomButton(
                             key: const Key('timeline_zoom_out'),
                             icon: CupertinoIcons.zoom_out,
-                            label: 'Zoom out timeline',
+                            label: context.l10n.zoomOutTimeline,
                             onPressed: _zoom.canZoomOut ? _zoom.zoomOut : null,
                           ),
                           _ZoomButton(
                             key: const Key('timeline_zoom_in'),
                             icon: CupertinoIcons.zoom_in,
-                            label: 'Zoom in timeline',
+                            label: context.l10n.zoomInTimeline,
                             onPressed: _zoom.canZoomIn ? _zoom.zoomIn : null,
                           ),
                         ],
@@ -1432,9 +1472,11 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
               icon: _playing
                   ? CupertinoIcons.pause_fill
                   : CupertinoIcons.play_fill,
-              label: _playing ? 'Pause' : 'Play',
+              label: _playing ? context.l10n.pause : context.l10n.play,
               tooltip: showsShortcutHints
-                  ? '${_playing ? 'Pause' : 'Play'} (Space)'
+                  ? context.l10n.playPauseShortcut(
+                      _playing ? context.l10n.pause : context.l10n.play,
+                    )
                   : null,
               size: 48,
               iconSize: 22,
@@ -1448,8 +1490,8 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                   GlassIconButton(
                     key: const Key('timeline_undo'),
                     icon: CupertinoIcons.arrow_uturn_left,
-                    label: 'Undo',
-                    tooltip: withShortcut('Undo', 'Z'),
+                    label: context.l10n.undo,
+                    tooltip: withShortcut(context.l10n.undo, 'Z'),
                     iconSize: 17,
                     onPressed: _controller.canUndo && !_rendering
                         ? _controller.undo
@@ -1459,8 +1501,8 @@ class _TimelineEditorPageState extends State<TimelineEditorPage>
                   GlassIconButton(
                     key: const Key('timeline_redo'),
                     icon: CupertinoIcons.arrow_uturn_right,
-                    label: 'Redo',
-                    tooltip: withShortcut('Redo', 'Z', shift: true),
+                    label: context.l10n.redo,
+                    tooltip: withShortcut(context.l10n.redo, 'Z', shift: true),
                     iconSize: 17,
                     onPressed: _controller.canRedo && !_rendering
                         ? _controller.redo

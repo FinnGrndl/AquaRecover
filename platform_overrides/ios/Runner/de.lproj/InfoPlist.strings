@@ -1,0 +1,5 @@
+/* Permission prompts shown by iOS. */
+"NSCameraUsageDescription" = "AquaRecover verwendet die Kamera, wenn du Unterwasserfotos oder -videos zum Bearbeiten aufnehmen möchtest.";
+"NSLocationWhenInUseUsageDescription" = "AquaRecover greift nur auf Ortungsdaten zu, wenn die iOS-Medienauswahl sie zum Importieren der von dir ausgewählten Fotos oder Videos benötigt. Dein Standort wird nicht verfolgt.";
+"NSPhotoLibraryUsageDescription" = "AquaRecover importiert ausgewählte Tauchfotos und -videos, um sie direkt auf dem Gerät zu korrigieren.";
+"NSPhotoLibraryAddUsageDescription" = "AquaRecover kann korrigierte Exporte in deiner Mediathek sichern.";

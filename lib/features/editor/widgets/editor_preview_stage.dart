@@ -9,6 +9,7 @@ import '../../../core/models/media_kind.dart';
 import '../../../core/models/image_transform_settings.dart';
 import '../../../core/models/lut_profile.dart';
 import '../../../core/models/restoration_settings.dart';
+import '../../../l10n/l10n.dart';
 import '../editor_tools.dart';
 import 'restored_image_preview.dart';
 import 'image_transform_preview.dart';
@@ -218,9 +219,11 @@ class EditorPreviewStage extends StatelessWidget {
   }) {
     final split = Row(
       children: [
-        Expanded(child: _labeledHalf(context, 'Original', original)),
+        Expanded(child: _labeledHalf(context, context.l10n.original, original)),
         Container(width: 1, color: CupertinoColors.white.withValues(alpha: .5)),
-        Expanded(child: _labeledHalf(context, 'Edited', edited)),
+        Expanded(
+          child: _labeledHalf(context, context.l10n.compareEdited, edited),
+        ),
       ],
     );
     if (!immersive) {
@@ -233,7 +236,7 @@ class EditorPreviewStage extends StatelessWidget {
     final original = _fitPreview(
       VideoFramePreviewTile(
         path: job.inputPath,
-        caption: 'Frame preview',
+        caption: context.l10n.framePreview,
         position: videoPreviewPosition,
         onDurationKnown: onVideoDurationKnown,
       ),
@@ -242,7 +245,7 @@ class EditorPreviewStage extends StatelessWidget {
       VideoFramePreviewTile(
         path: job.inputPath,
         settings: settings,
-        caption: 'Frame preview',
+        caption: context.l10n.framePreview,
         position: videoPreviewPosition,
         onDurationKnown: onVideoDurationKnown,
       ),
@@ -265,9 +268,11 @@ class EditorPreviewStage extends StatelessWidget {
   }) {
     final split = Row(
       children: [
-        Expanded(child: _labeledHalf(context, 'Original', original)),
+        Expanded(child: _labeledHalf(context, context.l10n.original, original)),
         Container(width: 1, color: CupertinoColors.white.withValues(alpha: .5)),
-        Expanded(child: _labeledHalf(context, 'Edited', edited)),
+        Expanded(
+          child: _labeledHalf(context, context.l10n.compareEdited, edited),
+        ),
       ],
     );
     if (!immersive) return split;
@@ -355,8 +360,8 @@ class EditorPreviewStage extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             kind.isVideo
-                ? 'Frame preview unavailable for this format'
-                : 'Preview generated during export',
+                ? context.l10n.framePreviewUnavailableFormat
+                : context.l10n.previewGeneratedDuringExport,
             textAlign: TextAlign.center,
             style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
               color: CupertinoColors.white.withValues(alpha: .72),
@@ -375,8 +380,8 @@ class EditorPreviewStage extends StatelessWidget {
         _chip(
           context,
           job.kind == MediaKind.video
-              ? '${compareMode.label} frame'
-              : compareMode.label,
+              ? context.l10n.compareModeFrame(compareMode.labelIn(context.l10n))
+              : compareMode.labelIn(context.l10n),
         ),
       ],
     );

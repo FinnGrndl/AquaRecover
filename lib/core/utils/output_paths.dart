@@ -22,11 +22,12 @@ class OutputPaths {
     String inputPath, {
     String extension = 'jpg',
     bool temporary = false,
+    bool beforeAfter = false,
   }) {
     return _forMedia(
       inputPath,
       extension: extension,
-      suffix: 'aqua',
+      suffix: beforeAfter ? 'aqua_before_after' : 'aqua',
       temporary: temporary,
     );
   }
@@ -44,14 +45,17 @@ class OutputPaths {
     );
   }
 
-  static Future<String> forIntermediatePng(String inputPath) async {
+  static Future<String> forIntermediatePng(
+    String inputPath, {
+    String label = 'raw_decode',
+  }) async {
     final dir = await intermediateDirectory();
     final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(
       RegExp(r'[:.]'),
       '-',
     );
     final stem = _safeStem(inputPath);
-    return p.join(dir.path, '${stem}_raw_decode_$stamp.png');
+    return p.join(dir.path, '${stem}_${label}_$stamp.png');
   }
 
   static Future<Directory> intermediateDirectory() async {

@@ -9,6 +9,7 @@ import '../../../core/media/engine_image_decoder.dart';
 import '../../../core/models/lut_profile.dart';
 import '../../../core/models/restoration_settings.dart';
 import '../../../core/processing/underwater_processor.dart';
+import '../../../l10n/l10n.dart';
 import 'editor_glass_surface.dart';
 import 'glass_navigation_bar.dart';
 import 'restored_image_preview.dart';
@@ -84,7 +85,7 @@ class _NeutralPointPickerState extends State<NeutralPointPicker> {
       );
       if (!mounted) return;
       if (thumbnail == null) {
-        setState(() => _error = 'This photo could not be read.');
+        setState(() => _error = context.l10n.photoUnreadable);
         return;
       }
       setState(() {
@@ -97,7 +98,7 @@ class _NeutralPointPickerState extends State<NeutralPointPicker> {
         );
       });
     } on Object {
-      if (mounted) setState(() => _error = 'This photo could not be read.');
+      if (mounted) setState(() => _error = context.l10n.photoUnreadable);
     }
   }
 
@@ -187,12 +188,12 @@ class _NeutralPointPickerState extends State<NeutralPointPicker> {
                 right: 12,
                 child: GlassNavigationBar(
                   leadingKey: const Key('neutral_picker_cancel'),
-                  leadingLabel: 'Cancel',
+                  leadingLabel: context.l10n.cancel,
                   showBackChevron: false,
                   leadingWidth: 92,
                   onLeadingPressed: () => Navigator.of(context).pop(),
-                  title: 'White balance',
-                  subtitle: 'Tap something white or grey',
+                  title: context.l10n.whiteBalance,
+                  subtitle: context.l10n.whiteBalanceSubtitle,
                   trailingWidth: 76,
                   trailing: CupertinoButton(
                     key: const Key('neutral_picker_done'),
@@ -201,9 +202,9 @@ class _NeutralPointPickerState extends State<NeutralPointPicker> {
                     borderRadius: BorderRadius.circular(99),
                     color: CupertinoColors.activeBlue,
                     onPressed: () => Navigator.of(context).pop(_settings),
-                    child: const Text(
-                      'Done',
-                      style: TextStyle(
+                    child: Text(
+                      context.l10n.done,
+                      style: const TextStyle(
                         color: CupertinoColors.white,
                         fontWeight: FontWeight.w600,
                       ),
@@ -225,8 +226,10 @@ class _NeutralPointPickerState extends State<NeutralPointPicker> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Temperature ${_signed(_settings.temperature)}  ·  '
-                              'Tint ${_signed(_settings.tint)}',
+                              context.l10n.whiteBalanceValues(
+                                _signed(_settings.temperature),
+                                _signed(_settings.tint),
+                              ),
                               key: const Key('neutral_picker_values'),
                               style: const TextStyle(
                                 color: CupertinoColors.white,
@@ -237,9 +240,7 @@ class _NeutralPointPickerState extends State<NeutralPointPicker> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              _error ??
-                                  'Sand, a slate, or a tank work well. '
-                                      'Drag to compare spots.',
+                              _error ?? context.l10n.whiteBalanceTip,
                               style: TextStyle(
                                 color: CupertinoColors.white.withValues(
                                   alpha: .72,
@@ -254,7 +255,7 @@ class _NeutralPointPickerState extends State<NeutralPointPicker> {
                         key: const Key('neutral_picker_reset'),
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         onPressed: _settings.hasWhiteBalance ? _reset : null,
-                        child: const Text('Reset'),
+                        child: Text(context.l10n.reset),
                       ),
                     ],
                   ),

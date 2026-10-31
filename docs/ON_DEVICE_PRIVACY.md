@@ -10,6 +10,9 @@
    process.
 5. The export is written to the app documents directory.
 6. If requested, the operating system adds that export to Photos.
+7. Only when the user taps Share, the system share sheet passes the export to
+   the app the user picks there. AquaRecover does not choose a recipient or
+   upload anything itself.
 
 No app code sends the media or its settings to a server.
 
@@ -55,10 +58,20 @@ classification to be reviewed before release.
 
 ## Exports and metadata
 
-- Dart still exports are encoded from decoded pixels and do not copy normal
-  source EXIF/GPS blocks.
-- Native Apple and video paths honor the metadata-strip export option; stripping
-  is enabled by default.
+- Still exports and the Apple and `ffmpeg` video paths honor the Strip
+  metadata export option, which is enabled by default. With it on, still
+  exports are encoded from decoded pixels without EXIF.
+- With Strip metadata off (as in the Archive preset), still exports keep the
+  source's capture date, camera and lens, exposure settings and GPS location.
+  The location stays because the export is the user's own photo going back to
+  their own library or folder. Orientation is reset because the pixels are
+  already upright, the pixel size is rewritten, and embedded thumbnails, maker
+  notes and source layout tags are dropped. JPEG exports carry this as EXIF;
+  PNG exports carry it in an `eXIf` chunk.
+- When an export is added to Photos or the Android gallery, AquaRecover passes
+  the original capture date (read on the device from the source's EXIF or
+  video header) as the library date, so the export is filed with the dive. It
+  does this in both modes; the date is not written into a stripped file.
 - A JSON sidecar records edit settings, source/output names, LUT and trim data.
   It does not record the original absolute path.
 - Files remain in the app documents directory until the user removes them or the

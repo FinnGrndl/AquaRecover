@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:video_player/video_player.dart';
 import '../../../shared/widgets/app_tooltip.dart';
+import '../../../l10n/l10n.dart';
 
 class VideoPreviewTile extends StatefulWidget {
   const VideoPreviewTile({super.key, required this.path});
@@ -61,13 +62,13 @@ class _VideoPreviewTileState extends State<VideoPreviewTile> {
         if (snapshot.hasError || !controller.value.isInitialized) {
           // Light text: the tile sits on black, and on Windows, which has
           // no video_player, this is what people see.
-          return const Center(
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               child: Text(
-                'Video preview unavailable.',
+                context.l10n.videoPreviewUnavailable,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xb8ffffff)),
+                style: const TextStyle(color: Color(0xb8ffffff)),
               ),
             ),
           );
@@ -84,10 +85,14 @@ class _VideoPreviewTileState extends State<VideoPreviewTile> {
             Positioned(
               bottom: 12,
               child: AppTooltip(
-                message: controller.value.isPlaying ? 'Pause' : 'Play',
+                message: controller.value.isPlaying
+                    ? context.l10n.pause
+                    : context.l10n.play,
                 child: Semantics(
                   button: true,
-                  label: controller.value.isPlaying ? 'Pause' : 'Play',
+                  label: controller.value.isPlaying
+                      ? context.l10n.pause
+                      : context.l10n.play,
                   excludeSemantics: true,
                   child: CupertinoButton.filled(
                     padding: const EdgeInsets.symmetric(

@@ -4,6 +4,7 @@ import '../../../../core/timeline/timeline_project.dart';
 import '../../timeline_controller.dart';
 import '../../timeline_theme.dart';
 import 'tool_controls.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The slow "Ken Burns" zoom of the selected photo.
 class MotionPanel extends StatelessWidget {
@@ -13,27 +14,33 @@ class MotionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final clip = controller.selectedClip;
     return ToolPanelBody(
-      header: ToolHeader(title: 'Motion', subtitle: selectionName(controller)),
+      header: ToolHeader(
+        title: l10n.toolMotion,
+        subtitle: selectionName(context.l10n, controller),
+      ),
       children: [
         if (clip == null || clip.isVideo)
-          const ToolEmptyNote('Select a photo to give it a slow zoom.')
+          ToolEmptyNote(l10n.selectPhotoForZoom)
         else ...[
           ToolSegmented<ClipMotion>(
             value: clip.motion,
-            options: const {
-              ClipMotion.none: 'Still',
-              ClipMotion.zoomIn: 'Zoom in',
-              ClipMotion.zoomOut: 'Zoom out',
+            options: {
+              ClipMotion.none: l10n.motionStill,
+              ClipMotion.zoomIn: l10n.motionZoomIn,
+              ClipMotion.zoomOut: l10n.motionZoomOut,
             },
             onChanged: controller.setMotion,
           ),
           const SizedBox(height: 10),
-          const Text(
-            'For a drifting, swaying camera, try Slow Drift and Swell in '
-            'Effects › Motion.',
-            style: TextStyle(color: TimelineColors.secondaryText, fontSize: 12),
+          Text(
+            l10n.motionDriftHint,
+            style: const TextStyle(
+              color: TimelineColors.secondaryText,
+              fontSize: 12,
+            ),
           ),
         ],
       ],

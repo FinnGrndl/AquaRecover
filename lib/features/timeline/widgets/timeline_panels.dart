@@ -3,11 +3,16 @@ import 'package:flutter/cupertino.dart';
 import '../../../core/models/lut_profile.dart';
 import '../../../core/models/restoration_settings.dart';
 import '../../../core/timeline/timeline_project.dart';
+import '../../../core/platform/share_service.dart';
+import '../../../shared/widgets/app_tooltip.dart';
 import '../../editor/widgets/precision_wheel.dart';
 import '../timeline_controller.dart';
 import '../timeline_theme.dart';
 import 'tools/tool_controls.dart';
 import '../../../shared/widgets/mouse_drag_scroll.dart';
+import '../../editor/editor_tools.dart' show LocalizedText;
+import '../../../l10n/model_labels.dart';
+import '../../../l10n/l10n.dart';
 
 /// One adjustable grade parameter on the Color page.
 class GradeControl {
@@ -20,7 +25,7 @@ class GradeControl {
     this.divisions = 100,
   });
 
-  final String label;
+  final LocalizedText label;
   final double min;
   final double max;
   final int divisions;
@@ -29,7 +34,7 @@ class GradeControl {
 
   static final all = <GradeControl>[
     GradeControl(
-      'Strength',
+      (l) => l.gradeStrength,
       0,
       1,
       (s) => s.presetStrength,
@@ -38,43 +43,49 @@ class GradeControl {
           .copyWith(temperature: s.temperature, tint: s.tint),
     ),
     GradeControl(
-      'Recovery',
+      (l) => l.gradeRecovery,
       0,
       2,
       (s) => s.recovery,
       (s, v) => s.copyWith(recovery: v),
     ),
     GradeControl(
-      'Red',
+      (l) => l.gradeRed,
       0,
       2,
       (s) => s.redRecovery,
       (s, v) => s.copyWith(redRecovery: v),
     ),
     GradeControl(
-      'Balance',
+      (l) => l.gradeBalance,
       0,
       1,
       (s) => s.autoWhiteBalance,
       (s, v) => s.copyWith(autoWhiteBalance: v),
     ),
     GradeControl(
-      'Temp',
+      (l) => l.gradeTemp,
       -1,
       1,
       (s) => s.temperature,
       (s, v) => s.copyWith(temperature: v),
     ),
-    GradeControl('Tint', -1, 1, (s) => s.tint, (s, v) => s.copyWith(tint: v)),
     GradeControl(
-      'Exposure',
+      (l) => l.adjTint,
+      -1,
+      1,
+      (s) => s.tint,
+      (s, v) => s.copyWith(tint: v),
+    ),
+    GradeControl(
+      (l) => l.adjExposure,
       -1,
       1,
       (s) => s.exposure,
       (s, v) => s.copyWith(exposure: v),
     ),
     GradeControl(
-      'Contrast',
+      (l) => l.adjContrast,
       .7,
       1.6,
       (s) => s.contrast,
@@ -82,34 +93,40 @@ class GradeControl {
       divisions: 90,
     ),
     GradeControl(
-      'Saturation',
+      (l) => l.adjSaturation,
       0,
       2,
       (s) => s.saturation,
       (s, v) => s.copyWith(saturation: v),
     ),
     GradeControl(
-      'Haze',
+      (l) => l.gradeHaze,
       0,
       1,
       (s) => s.hazeReduction,
       (s, v) => s.copyWith(hazeReduction: v),
     ),
     GradeControl(
-      'Shadows',
+      (l) => l.adjShadows,
       -1,
       1,
       (s) => s.shadows,
       (s, v) => s.copyWith(shadows: v),
     ),
     GradeControl(
-      'Highlights',
+      (l) => l.adjHighlights,
       -1,
       1,
       (s) => s.highlights,
       (s, v) => s.copyWith(highlights: v),
     ),
-    GradeControl('Hue', -1, 1, (s) => s.hue, (s, v) => s.copyWith(hue: v)),
+    GradeControl(
+      (l) => l.adjHue,
+      -1,
+      1,
+      (s) => s.hue,
+      (s, v) => s.copyWith(hue: v),
+    ),
   ];
 }
 
@@ -128,21 +145,22 @@ class _ColorPanelState extends State<ColorPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final controller = widget.controller;
     final clip = controller.selectedClip;
     final overlay = controller.selectedOverlay;
     final gradeable =
         clip != null || (overlay != null && overlay.title == null);
     final header = ToolHeader(
-      title: 'Color',
-      subtitle: selectionName(controller),
+      title: l10n.toolColorGrade,
+      subtitle: selectionName(l10n, controller),
       // Matching every clip to this grade is the quick way to even out a
       // whole dive.
       trailing: clip == null
           ? null
           : ToolTextButton(
               key: const Key('timeline_grade_all'),
-              label: 'Apply to All',
+              label: l10n.gradeApplyToAll,
               onPressed: controller.project.clips.length > 1
                   ? controller.applyGradeToAll
                   : null,
@@ -152,9 +170,7 @@ class _ColorPanelState extends State<ColorPanel> {
       return Column(
         children: [
           header,
-          const Expanded(
-            child: ToolEmptyNote('Select a clip or overlay to grade it.'),
-          ),
+          Expanded(child: ToolEmptyNote(l10n.selectToGrade)),
         ],
       );
     }
@@ -171,7 +187,7 @@ class _ColorPanelState extends State<ColorPanel> {
           children: [
             for (final preset in RestorationPreset.values)
               _Chip(
-                label: preset.label,
+                label: preset.labelIn(l10n),
                 selected: own != null
                     ? grade.preset == preset
                     : preset == RestorationPreset.none,
@@ -189,7 +205,7 @@ class _ColorPanelState extends State<ColorPanel> {
           children: [
             for (var i = 0; i < GradeControl.all.length; i++)
               _Chip(
-                label: GradeControl.all[i].label,
+                label: GradeControl.all[i].label(l10n),
                 selected: i == _control,
                 outlined: true,
                 onTap: () => setState(() => _control = i),
@@ -206,12 +222,12 @@ class _ColorPanelState extends State<ColorPanel> {
               onPointerUp: (_) => controller.endGesture(),
               onPointerCancel: (_) => controller.endGesture(),
               child: PrecisionWheel(
-                key: ValueKey('wheel-$id-${control.label}'),
+                key: ValueKey('wheel-$id-$_control'),
                 value: control.read(grade).clamp(control.min, control.max),
                 min: control.min,
                 max: control.max,
                 divisions: control.divisions,
-                semanticLabel: control.label,
+                semanticLabel: control.label(l10n),
                 valueFormatter: (v) => v.toStringAsFixed(2),
                 onChanged: (v) => controller.setGrade(control.write(grade, v)),
               ),
@@ -222,7 +238,7 @@ class _ColorPanelState extends State<ColorPanel> {
           children: [
             for (final item in LutProfile.builtIns)
               _Chip(
-                label: item.name,
+                label: item.nameIn(l10n),
                 selected: look.kind == item.kind,
                 onTap: () => controller.setLook(item),
               ),
@@ -326,6 +342,7 @@ class DeliverPanel extends StatelessWidget {
     required this.onCancel,
     required this.onSaveToPhotos,
     required this.onOpenLibrary,
+    this.onShare,
     this.backendNote,
   });
 
@@ -337,13 +354,103 @@ class DeliverPanel extends StatelessWidget {
   final VoidCallback onCancel;
   final VoidCallback? onSaveToPhotos;
   final VoidCallback onOpenLibrary;
+
+  /// Opens the system share sheet for the rendered movie, anchored to the
+  /// given rectangle. Null where the device has no file share sheet.
+  final ValueChanged<Rect?>? onShare;
   final String? backendNote;
 
   static const _frameRates = [24, 30, 60];
   static const _fadeSeconds = [0.3, 0.6, 1.0, 1.5];
 
+  static Widget _pill({
+    Key? key,
+    required VoidCallback onPressed,
+    required Widget child,
+  }) => CupertinoButton(
+    key: key,
+    color: TimelineColors.fill,
+    borderRadius: BorderRadius.circular(99),
+    padding: const EdgeInsets.symmetric(vertical: 12),
+    onPressed: onPressed,
+    child: child,
+  );
+
+  /// Save to Photos, Share and Open exports for a finished movie. Three
+  /// pills do not fit a phone's width side by side, so Open exports moves
+  /// to its own row when both delivery actions are offered.
+  List<Widget> _finishedActions(AppLocalizations l10n) {
+    final save = onSaveToPhotos;
+    final share = onShare;
+    final deliver = <Widget>[
+      if (save != null)
+        _pill(
+          onPressed: save,
+          child: Text(
+            l10n.saveToPhotos,
+            style: const TextStyle(color: TimelineColors.text),
+          ),
+        ),
+      if (share != null)
+        AppTooltip(
+          message: l10n.shareTheMovie,
+          child: Builder(
+            builder: (buttonContext) => _pill(
+              key: const Key('timeline_share_movie'),
+              onPressed: () => share(shareOriginOf(buttonContext)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    CupertinoIcons.share,
+                    size: 18,
+                    color: TimelineColors.text,
+                  ),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      l10n.share,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: TimelineColors.text),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+    ];
+    final library = _pill(
+      onPressed: onOpenLibrary,
+      child: Text(
+        l10n.openExports,
+        style: const TextStyle(color: TimelineColors.text),
+      ),
+    );
+    Widget row(List<Widget> buttons) => Row(
+      children: [
+        for (final (index, button) in buttons.indexed) ...[
+          if (index > 0) const SizedBox(width: 8),
+          Expanded(child: button),
+        ],
+      ],
+    );
+    if (deliver.length < 2) {
+      return [
+        row([...deliver, library]),
+      ];
+    }
+    return [
+      row(deliver),
+      const SizedBox(height: 8),
+      row([library]),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final project = controller.project;
     final (:width, :height) = project.outputSize;
     // The settings stay visible but read as disabled while rendering.
@@ -356,8 +463,14 @@ class DeliverPanel extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Text(
-            '$width × $height · ${formatTimecode(project.duration)} · '
-            'H.264 MP4${backendNote == null ? '' : ' · $backendNote'}',
+            [
+              l10n.movieExportSummary(
+                width,
+                height,
+                formatTimecode(project.duration),
+              ),
+              ?backendNote,
+            ].join(' · '),
             style: const TextStyle(
               color: TimelineColors.secondaryText,
               fontSize: 12,
@@ -376,7 +489,7 @@ class DeliverPanel extends StatelessWidget {
             borderRadius: BorderRadius.circular(99),
             onPressed: onCancel,
             child: Text(
-              'Cancel · ${(progress * 100).round()}%',
+              l10n.cancelWithProgress((progress * 100).round()),
               style: const TextStyle(color: TimelineColors.text),
             ),
           ),
@@ -386,9 +499,9 @@ class DeliverPanel extends StatelessWidget {
             color: CupertinoColors.activeBlue,
             borderRadius: BorderRadius.circular(99),
             onPressed: onRender,
-            child: const Text(
-              'Export movie',
-              style: TextStyle(
+            child: Text(
+              l10n.exportMovie,
+              style: const TextStyle(
                 color: CupertinoColors.white,
                 fontWeight: FontWeight.w600,
               ),
@@ -396,41 +509,11 @@ class DeliverPanel extends StatelessWidget {
           ),
         if (outputPath != null && !rendering) ...[
           const SizedBox(height: 10),
-          Row(
-            children: [
-              if (onSaveToPhotos != null) ...[
-                Expanded(
-                  child: CupertinoButton(
-                    color: TimelineColors.fill,
-                    borderRadius: BorderRadius.circular(99),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    onPressed: onSaveToPhotos,
-                    child: const Text(
-                      'Save to Photos',
-                      style: TextStyle(color: TimelineColors.text),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: CupertinoButton(
-                  color: TimelineColors.fill,
-                  borderRadius: BorderRadius.circular(99),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  onPressed: onOpenLibrary,
-                  child: const Text(
-                    'Open exports',
-                    style: TextStyle(color: TimelineColors.text),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          ..._finishedActions(l10n),
         ],
         const SizedBox(height: 16),
         _SettingRow(
-          label: 'Frame',
+          label: l10n.exportFrame,
           child: CupertinoSlidingSegmentedControl<TimelineAspect>(
             groupValue: project.aspect,
             backgroundColor: TimelineColors.fill,
@@ -453,7 +536,7 @@ class DeliverPanel extends StatelessWidget {
           ),
         ),
         _SettingRow(
-          label: 'Quality',
+          label: l10n.exportQuality,
           child: CupertinoSlidingSegmentedControl<TimelineQuality>(
             groupValue: project.quality,
             backgroundColor: TimelineColors.fill,
@@ -473,7 +556,7 @@ class DeliverPanel extends StatelessWidget {
           ),
         ),
         _SettingRow(
-          label: 'Frame rate',
+          label: l10n.frameRate,
           child: CupertinoSlidingSegmentedControl<int>(
             groupValue: project.frameRate,
             backgroundColor: TimelineColors.fill,
@@ -491,14 +574,17 @@ class DeliverPanel extends StatelessWidget {
           ),
         ),
         _SettingRow(
-          label: 'Fades',
+          label: l10n.exportFades,
           child: CupertinoSlidingSegmentedControl<double>(
             groupValue: project.transitionSeconds,
             backgroundColor: TimelineColors.fill,
             thumbColor: thumb,
             children: {
               for (final s in _fadeSeconds)
-                s: _segmentText('${s}s', enabled: !rendering),
+                s: _segmentText(
+                  secondsLabel(l10n, s).replaceAll(' ', ''),
+                  enabled: !rendering,
+                ),
             },
             disabledChildren: rendering ? _fadeSeconds.toSet() : const {},
             onValueChanged: (v) {

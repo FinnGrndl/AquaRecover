@@ -6,6 +6,8 @@ import '../../timeline_theme.dart';
 import 'tool_controls.dart';
 import '../../../../shared/widgets/mouse_drag_scroll.dart';
 import '../../../../shared/widgets/app_tooltip.dart';
+import '../../../../l10n/timeline_labels.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Edits the selected title: the text in a multi-line field (above the
 /// keyboard), a style, a colour, the alignment, and the size. Typing until
@@ -29,30 +31,23 @@ class TextPanel extends StatefulWidget {
   final DateTime? today;
 
   /// Text colours: white, sand, coral, yellow, aqua, black.
-  static const swatches = <(int, String)>[
-    (0xFFFFFFFF, 'White'),
-    (0xFFE8DCC0, 'Sand'),
-    (0xFFFF7F6B, 'Coral'),
-    (0xFFFFD60A, 'Yellow'),
-    (0xFF64D2FF, 'Aqua'),
-    (0xFF000000, 'Black'),
+  static List<(int, String)> swatchesIn(AppLocalizations l10n) => [
+    (0xFFFFFFFF, l10n.colorWhite),
+    (0xFFE8DCC0, l10n.colorSand),
+    (0xFFFF7F6B, l10n.colorCoral),
+    (0xFFFFD60A, l10n.colorYellow),
+    (0xFF64D2FF, l10n.colorAqua),
+    (0xFF000000, l10n.colorBlack),
   ];
 
-  static String styleLabel(TitleStyle style) => switch (style) {
-    TitleStyle.classic => 'Classic',
-    TitleStyle.boldBox => 'Bold box',
-    TitleStyle.outline => 'Outline',
-    TitleStyle.caption => 'Caption',
-    TitleStyle.diveStamp => 'Dive stamp',
-  };
+  static String styleLabel(AppLocalizations l10n, TitleStyle style) =>
+      style == TitleStyle.boldBox
+      ? l10n.titleStyleBoldBox
+      : style.labelIn(l10n);
 
-  static String dateLabel(DateTime date) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
-  }
+  /// The date a Dive stamp shows, such as "Oct 19, 2026" or "19.10.2026".
+  static String dateLabel(AppLocalizations l10n, DateTime date) =>
+      l10n.mediumDate(date);
 
   @override
   State<TextPanel> createState() => _TextPanelState();
@@ -120,10 +115,12 @@ class _TextPanelState extends State<TextPanel> {
     var text = title.text;
     if (style == TitleStyle.diveStamp &&
         !text.contains('\n') &&
-        (text.trim().isEmpty || text == 'Title')) {
+        (text.trim().isEmpty ||
+            text == 'Title' ||
+            text == context.l10n.defaultTitleText)) {
       text =
           '${_controller.project.name}\n'
-          '${TextPanel.dateLabel(widget.today ?? DateTime.now())}';
+          '${TextPanel.dateLabel(context.l10n, widget.today ?? DateTime.now())}';
       _text.text = text;
     }
     _update((t) => t.copyWith(style: style, text: text));
@@ -131,13 +128,14 @@ class _TextPanelState extends State<TextPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final overlay = _overlay;
     final title = overlay?.title;
     final header = ToolHeader(
-      title: 'Text',
+      title: l10n.toolText,
       trailing: ToolTextButton(
         key: const Key('timeline_text_done'),
-        label: 'Done',
+        label: l10n.done,
         bold: true,
         onPressed: () {
           _focus.unfocus();
@@ -148,7 +146,7 @@ class _TextPanelState extends State<TextPanel> {
     if (overlay == null || title == null) {
       return ToolPanelBody(
         header: header,
-        children: const [ToolEmptyNote('Select a title to edit it.')],
+        children: [ToolEmptyNote(l10n.selectTitleToEdit)],
       );
     }
     final size = _controller.titleSize(overlay);
@@ -164,7 +162,7 @@ class _TextPanelState extends State<TextPanel> {
           maxLines: 3,
           keyboardAppearance: Brightness.dark,
           textCapitalization: TextCapitalization.sentences,
-          placeholder: 'Title',
+          placeholder: l10n.defaultTitleText,
           placeholderStyle: const TextStyle(
             color: TimelineColors.secondaryText,
             fontSize: 17,
@@ -190,7 +188,7 @@ class _TextPanelState extends State<TextPanel> {
                     padding: const EdgeInsets.only(right: 6),
                     child: _StyleChip(
                       key: Key('timeline_title_style_${style.name}'),
-                      label: TextPanel.styleLabel(style),
+                      label: TextPanel.styleLabel(l10n, style),
                       selected: title.style == style,
                       onPressed: () => _setStyle(style),
                     ),
@@ -205,7 +203,7 @@ class _TextPanelState extends State<TextPanel> {
         Wrap(
           alignment: WrapAlignment.spaceBetween,
           children: [
-            for (final (color, name) in TextPanel.swatches)
+            for (final (color, name) in TextPanel.swatchesIn(l10n))
               _Swatch(
                 color: Color(color),
                 name: name,
@@ -217,10 +215,10 @@ class _TextPanelState extends State<TextPanel> {
         const SizedBox(height: 6),
         ToolSegmented<TitleAlign>(
           value: title.align,
-          options: const {
-            TitleAlign.left: 'Left',
-            TitleAlign.center: 'Center',
-            TitleAlign.right: 'Right',
+          options: {
+            TitleAlign.left: l10n.alignLeft,
+            TitleAlign.center: l10n.alignCenter,
+            TitleAlign.right: l10n.alignRight,
           },
           onChanged: (a) => _update((t) => t.copyWith(align: a)),
         ),
@@ -228,11 +226,11 @@ class _TextPanelState extends State<TextPanel> {
         ToolSlider(
           key: const Key('timeline_title_size'),
           controller: _controller,
-          label: 'Size',
+          label: l10n.titleSize,
           value: size.clamp(0.03, 0.2).toDouble(),
           min: 0.03,
           max: 0.2,
-          valueLabel: '${(size * 100).round()} % of height',
+          valueLabel: l10n.percentOfHeight((size * 100).round()),
           onChanged: (v) => _controller.setTitleSize(widget.overlayId, v),
         ),
       ],
@@ -323,7 +321,7 @@ class _Swatch extends StatelessWidget {
       child: Semantics(
         button: true,
         selected: selected,
-        label: '$name text',
+        label: context.l10n.swatchText(name),
         excludeSemantics: true,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,

@@ -4,6 +4,7 @@ import 'package:aqua_recover/core/media/media_inspection_service.dart';
 import 'package:aqua_recover/core/models/media_kind.dart';
 import 'package:aqua_recover/core/models/media_metadata.dart';
 import 'package:aqua_recover/core/persistence/export_library_service.dart';
+import 'package:aqua_recover/core/platform/share_service.dart';
 import 'package:aqua_recover/core/timeline/timeline_project.dart';
 import 'package:aqua_recover/core/timeline/timeline_project_store.dart';
 import 'package:aqua_recover/features/editor/editor_page.dart';
@@ -60,6 +61,13 @@ class _Library extends ExportLibraryService {
   final List<LocalExportItem> items;
   @override
   Future<List<LocalExportItem>> load() async => items;
+}
+
+/// Offers Share as on a phone, even on a Linux test machine.
+class _Share extends ShareService {
+  const _Share();
+  @override
+  bool get isAvailable => true;
 }
 
 class _LogStore extends DiveLogStore {
@@ -239,6 +247,21 @@ final _screens = <_Screen>[
     [],
   ),
   (
+    'library selection',
+    () => ExportLibraryPage(
+      service: _Library([
+        LocalExportItem(
+          path: _photo,
+          kind: MediaKind.photo,
+          sizeBytes: 1234,
+          modified: DateTime(2026, 5, 1),
+        ),
+      ]),
+      shareService: const _Share(),
+    ),
+    ['local_export_selection_mode', 'local_export_demo-underwater-source.jpg'],
+  ),
+  (
     'library detail',
     () => ExportDetailPage(
       item: LocalExportItem(
@@ -248,6 +271,7 @@ final _screens = <_Screen>[
         modified: DateTime(2026, 5, 1),
       ),
       service: const _Library([]),
+      shareService: const _Share(),
     ),
     [],
   ),

@@ -3,11 +3,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:image/image.dart' as img;
 import 'package:photo_manager/photo_manager.dart';
 
 import '../../core/logbook/dive_log.dart';
 import '../../core/logbook/media_matching.dart';
+import '../../core/media/capture_metadata.dart';
 import '../../core/media/media_classifier.dart';
 import '../../core/models/media_kind.dart';
 import '../../core/photo/photo_library_service.dart';
@@ -19,7 +19,8 @@ class LogbookMedia {
   const LogbookMedia();
 
   /// Photos and videos the person picks as files, with their capture time
-  /// from EXIF where a JPEG has it, else the file's modification time.
+  /// from EXIF or the video header where the file has one, else the file's
+  /// modification time.
   Future<List<MediaCandidate>> pickFiles() async {
     final paths = await pickTimelineMedia();
     final candidates = <MediaCandidate>[];
@@ -134,23 +135,6 @@ class LogbookMedia {
 String _decodeUtf8(Uint8List bytes) =>
     const Utf8Codec(allowMalformed: true).decode(bytes);
 
-Future<DateTime> _captureTime(String path) async {
-  final file = File(path);
-  final ext = MediaClassifier.extensionOf(path);
-  if (ext == 'jpg' || ext == 'jpeg') {
-    try {
-      final exif = img.decodeJpgExif(await file.readAsBytes());
-      final text = exif?.exifIfd['DateTimeOriginal']?.toString();
-      final match = RegExp(
-        r'(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})',
-      ).firstMatch(text ?? '');
-      if (match != null) {
-        final n = [for (var i = 1; i <= 6; i++) int.parse(match.group(i)!)];
-        return DateTime(n[0], n[1], n[2], n[3], n[4], n[5]);
-      }
-    } on Object {
-      // Fall back to the file date.
-    }
-  }
-  return file.lastModified();
-}
+Future<DateTime> _captureTime(String path) async =>
+    await CaptureMetadata.captureDateForFile(path) ??
+    await File(path).lastModified();

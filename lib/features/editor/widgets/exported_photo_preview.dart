@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 
+import '../../../l10n/l10n.dart';
+
 class ExportedPhotoPreview extends StatelessWidget {
   const ExportedPhotoPreview({
     super.key,
@@ -26,10 +28,10 @@ class ExportedPhotoPreview extends StatelessWidget {
             key: const Key('exported_photo_image'),
             fit: BoxFit.contain,
             cacheWidth: 1600,
-            errorBuilder: (_, _, _) => const Center(
+            errorBuilder: (_, _, _) => Center(
               child: Text(
-                'Exported photo preview unavailable.',
-                style: TextStyle(color: CupertinoColors.systemGrey),
+                context.l10n.exportedPhotoPreviewUnavailable,
+                style: const TextStyle(color: CupertinoColors.systemGrey),
               ),
             ),
           ),

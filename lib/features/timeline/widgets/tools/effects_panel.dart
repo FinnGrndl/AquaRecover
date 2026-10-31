@@ -5,6 +5,8 @@ import '../../timeline_controller.dart';
 import '../../timeline_theme.dart';
 import 'tool_controls.dart';
 import '../../../../shared/widgets/mouse_drag_scroll.dart';
+import '../../../../l10n/timeline_labels.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The built-in effects for the selected clip or overlay (or the clip under
 /// the playhead from the root toolbar): a category switcher, a row of tiles
@@ -66,31 +68,39 @@ class _EffectsPanelState extends State<EffectsPanel> {
     for (final e in effects) {
       if (e.type == _focused) focused = e;
     }
+    final l10n = context.l10n;
     final targetName = switch (target) {
       ClipSelection(:final id) =>
-        '${_controller.clipById(id)?.isVideo ?? false ? 'Clip' : 'Photo'} '
-            '${_controller.project.clips.indexWhere((c) => c.id == id) + 1}',
-      OverlaySelection() => selectionName(_controller),
+        _controller.clipById(id)?.isVideo ?? false
+            ? l10n.selectionClip(
+                _controller.project.clips.indexWhere((c) => c.id == id) + 1,
+              )
+            : l10n.selectionPhoto(
+                _controller.project.clips.indexWhere((c) => c.id == id) + 1,
+              ),
+      OverlaySelection() => selectionName(l10n, _controller),
       _ => null,
     };
     return ToolPanelBody(
       header: ToolHeader(
-        title: 'Effects',
+        title: l10n.toolEffects,
         subtitle: targetName == null
             ? null
             : effects.isEmpty
             ? targetName
-            : '$targetName · ${effects.length} on',
+            : l10n.effectsOnCount(targetName, effects.length),
       ),
       children: [
         if (target.isNone)
-          const ToolEmptyNote('Add a clip first, then give it an effect.')
+          ToolEmptyNote(l10n.addClipForEffect)
         else ...[
           ToolSegmented<EffectCategory>(
             value: category,
             options: {
               for (final c in categories)
-                c: c == EffectCategory.look ? 'Looks' : c.label,
+                c: c == EffectCategory.look
+                    ? l10n.effectCategoryLooks
+                    : c.labelIn(l10n),
             },
             onChanged: (c) => setState(() => _category = c),
           ),
@@ -113,7 +123,7 @@ class _EffectsPanelState extends State<EffectsPanel> {
             ToolSlider(
               key: const Key('timeline_effect_intensity'),
               controller: _controller,
-              label: '${focused.type.label} intensity',
+              label: l10n.effectIntensity(focused.type.labelIn(l10n)),
               value: focused.intensity,
               min: 0,
               max: 1,
@@ -124,7 +134,7 @@ class _EffectsPanelState extends State<EffectsPanel> {
             Row(
               children: [
                 ToolTextButton(
-                  label: 'Reset',
+                  label: l10n.reset,
                   onPressed: focused.intensity == focused.type.defaultIntensity
                       ? null
                       : () => _controller.setEffectIntensity(
@@ -135,7 +145,7 @@ class _EffectsPanelState extends State<EffectsPanel> {
                 const Spacer(),
                 ToolTextButton(
                   key: const Key('timeline_effect_remove'),
-                  label: 'Remove',
+                  label: l10n.remove,
                   destructive: true,
                   onPressed: () {
                     _controller.removeEffect(focused!.type);
@@ -145,11 +155,11 @@ class _EffectsPanelState extends State<EffectsPanel> {
               ],
             ),
           ] else
-            const Padding(
-              padding: EdgeInsets.only(top: 4),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
               child: Text(
-                'Tap an effect to add it. Tap it again to adjust or remove it.',
-                style: TextStyle(
+                l10n.effectTapHint,
+                style: const TextStyle(
                   color: TimelineColors.secondaryText,
                   fontSize: 12,
                 ),
@@ -166,12 +176,14 @@ class _EffectsPanelState extends State<EffectsPanel> {
       padding: const EdgeInsets.only(right: 4),
       child: ChoiceTile(
         key: Key('timeline_effect_${type.id}'),
-        label: type.label,
+        label: type.labelIn(context.l10n),
         selected: on,
         focused: isFocused,
         hint: on
-            ? (isFocused ? 'Removes the effect' : 'Shows its intensity')
-            : 'Adds the effect',
+            ? (isFocused
+                  ? context.l10n.effectHintRemoves
+                  : context.l10n.effectHintShowsIntensity)
+            : context.l10n.effectHintAdds,
         preview: _EffectPreview(type: type),
         onPressed: () => setState(() {
           if (!on) {
