@@ -3085,6 +3085,1493 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Only a confirmed export writes the finished file. Completed batch items then leave the queue.'**
   String get tourExportCallout;
+
+  /// No description provided for @effectCategoryLook.
+  ///
+  /// In en, this message translates to:
+  /// **'Look'**
+  String get effectCategoryLook;
+
+  /// No description provided for @effectCategoryLens.
+  ///
+  /// In en, this message translates to:
+  /// **'Lens'**
+  String get effectCategoryLens;
+
+  /// No description provided for @effectCategoryUnderwater.
+  ///
+  /// In en, this message translates to:
+  /// **'Underwater'**
+  String get effectCategoryUnderwater;
+
+  /// No description provided for @effectCategoryMotion.
+  ///
+  /// In en, this message translates to:
+  /// **'Motion'**
+  String get effectCategoryMotion;
+
+  /// No description provided for @effectMono.
+  ///
+  /// In en, this message translates to:
+  /// **'Mono'**
+  String get effectMono;
+
+  /// No description provided for @effectSepia.
+  ///
+  /// In en, this message translates to:
+  /// **'Sepia'**
+  String get effectSepia;
+
+  /// No description provided for @effectCyanotype.
+  ///
+  /// In en, this message translates to:
+  /// **'Cyanotype'**
+  String get effectCyanotype;
+
+  /// No description provided for @effectDeepBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Deep Blue'**
+  String get effectDeepBlue;
+
+  /// No description provided for @effectVivid.
+  ///
+  /// In en, this message translates to:
+  /// **'Vivid'**
+  String get effectVivid;
+
+  /// No description provided for @effectFaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Faded Film'**
+  String get effectFaded;
+
+  /// No description provided for @effectSoftFocus.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft Focus'**
+  String get effectSoftFocus;
+
+  /// No description provided for @effectClarity.
+  ///
+  /// In en, this message translates to:
+  /// **'Clarity'**
+  String get effectClarity;
+
+  /// No description provided for @effectGrain.
+  ///
+  /// In en, this message translates to:
+  /// **'Film Grain'**
+  String get effectGrain;
+
+  /// No description provided for @effectVignette.
+  ///
+  /// In en, this message translates to:
+  /// **'Vignette'**
+  String get effectVignette;
+
+  /// No description provided for @effectCinemaBars.
+  ///
+  /// In en, this message translates to:
+  /// **'Cinema Bars'**
+  String get effectCinemaBars;
+
+  /// No description provided for @effectSunRays.
+  ///
+  /// In en, this message translates to:
+  /// **'Sun Rays'**
+  String get effectSunRays;
+
+  /// No description provided for @effectCaustics.
+  ///
+  /// In en, this message translates to:
+  /// **'Caustics'**
+  String get effectCaustics;
+
+  /// No description provided for @effectStrobe.
+  ///
+  /// In en, this message translates to:
+  /// **'Strobe Flash'**
+  String get effectStrobe;
+
+  /// No description provided for @effectSwell.
+  ///
+  /// In en, this message translates to:
+  /// **'Swell'**
+  String get effectSwell;
+
+  /// No description provided for @effectDrift.
+  ///
+  /// In en, this message translates to:
+  /// **'Slow Drift'**
+  String get effectDrift;
+
+  /// No description provided for @aspectLandscape.
+  ///
+  /// In en, this message translates to:
+  /// **'Landscape 16:9'**
+  String get aspectLandscape;
+
+  /// No description provided for @aspectPortrait.
+  ///
+  /// In en, this message translates to:
+  /// **'Portrait 9:16'**
+  String get aspectPortrait;
+
+  /// No description provided for @aspectSquare.
+  ///
+  /// In en, this message translates to:
+  /// **'Square 1:1'**
+  String get aspectSquare;
+
+  /// No description provided for @aspectPortrait45.
+  ///
+  /// In en, this message translates to:
+  /// **'Portrait 4:5'**
+  String get aspectPortrait45;
+
+  /// No description provided for @fadeColorBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Black'**
+  String get fadeColorBlack;
+
+  /// No description provided for @fadeColorWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'White'**
+  String get fadeColorWhite;
+
+  /// No description provided for @fadeColorDeepBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Deep blue'**
+  String get fadeColorDeepBlue;
+
+  /// No description provided for @animationNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get animationNone;
+
+  /// No description provided for @animationFade.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade'**
+  String get animationFade;
+
+  /// No description provided for @animationSlideUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide up'**
+  String get animationSlideUp;
+
+  /// No description provided for @animationPop.
+  ///
+  /// In en, this message translates to:
+  /// **'Pop'**
+  String get animationPop;
+
+  /// No description provided for @titleStyleClassic.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic'**
+  String get titleStyleClassic;
+
+  /// No description provided for @titleStyleBox.
+  ///
+  /// In en, this message translates to:
+  /// **'Box'**
+  String get titleStyleBox;
+
+  /// No description provided for @titleStyleOutline.
+  ///
+  /// In en, this message translates to:
+  /// **'Outline'**
+  String get titleStyleOutline;
+
+  /// No description provided for @titleStyleCaption.
+  ///
+  /// In en, this message translates to:
+  /// **'Caption'**
+  String get titleStyleCaption;
+
+  /// No description provided for @titleStyleDiveStamp.
+  ///
+  /// In en, this message translates to:
+  /// **'Dive stamp'**
+  String get titleStyleDiveStamp;
+
+  /// No description provided for @audioRoleMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'Music'**
+  String get audioRoleMusic;
+
+  /// No description provided for @audioRoleVoiceover.
+  ///
+  /// In en, this message translates to:
+  /// **'Voiceover'**
+  String get audioRoleVoiceover;
+
+  /// No description provided for @audioRoleSound.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound'**
+  String get audioRoleSound;
+
+  /// No description provided for @audioRoleExtracted.
+  ///
+  /// In en, this message translates to:
+  /// **'Extracted audio'**
+  String get audioRoleExtracted;
+
+  /// No description provided for @selectionClip.
+  ///
+  /// In en, this message translates to:
+  /// **'Clip {index}'**
+  String selectionClip(int index);
+
+  /// No description provided for @selectionPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo {index}'**
+  String selectionPhoto(int index);
+
+  /// No description provided for @selectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get selectionTitle;
+
+  /// No description provided for @videoOverlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Video overlay'**
+  String get videoOverlay;
+
+  /// No description provided for @photoOverlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo overlay'**
+  String get photoOverlay;
+
+  /// No description provided for @soundFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound'**
+  String get soundFallback;
+
+  /// Text of a new title overlay in a movie.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get defaultTitleText;
+
+  /// No description provided for @extractedAudioName.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} audio'**
+  String extractedAudioName(String name);
+
+  /// No description provided for @someFilesSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Some files were skipped'**
+  String get someFilesSkipped;
+
+  /// No description provided for @filesNotOnTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 file cannot go on a timeline (RAW video or unknown type).} other{{count} files cannot go on a timeline (RAW video or unknown type).}}'**
+  String filesNotOnTimeline(int count);
+
+  /// No description provided for @cannotAddOverlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Can’t add this overlay'**
+  String get cannotAddOverlay;
+
+  /// No description provided for @cannotAddOverlayBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a photo or clip in a format AquaRecover can read. RAW video cannot go on a timeline.'**
+  String get cannotAddOverlayBody;
+
+  /// No description provided for @cannotReplaceClip.
+  ///
+  /// In en, this message translates to:
+  /// **'Can’t replace this clip'**
+  String get cannotReplaceClip;
+
+  /// No description provided for @cannotReplaceClipBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a photo or clip in a format AquaRecover can read.'**
+  String get cannotReplaceClipBody;
+
+  /// No description provided for @nothingToExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to export'**
+  String get nothingToExport;
+
+  /// No description provided for @nothingToExportBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least one photo or clip first.'**
+  String get nothingToExportBody;
+
+  /// No description provided for @movieSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Movie saved to your AquaRecover exports.'**
+  String get movieSaved;
+
+  /// No description provided for @renderCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Render cancelled.'**
+  String get renderCancelled;
+
+  /// No description provided for @savedToPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to Photos.'**
+  String get savedToPhotos;
+
+  /// No description provided for @notSavedToPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Not saved to Photos'**
+  String get notSavedToPhotos;
+
+  /// No description provided for @backendNoteAndroid.
+  ///
+  /// In en, this message translates to:
+  /// **'fades render as dips to black'**
+  String get backendNoteAndroid;
+
+  /// No description provided for @backendNoteNoFfmpeg.
+  ///
+  /// In en, this message translates to:
+  /// **'needs ffmpeg on this computer'**
+  String get backendNoteNoFfmpeg;
+
+  /// No description provided for @movieName.
+  ///
+  /// In en, this message translates to:
+  /// **'Movie name'**
+  String get movieName;
+
+  /// No description provided for @rename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get rename;
+
+  /// No description provided for @cannotSplitHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Can’t split here'**
+  String get cannotSplitHere;
+
+  /// No description provided for @cannotSplitHereBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Move the playhead inside the item, away from its first and last frames, then split.'**
+  String get cannotSplitHereBody;
+
+  /// No description provided for @toolSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Split'**
+  String get toolSplit;
+
+  /// No description provided for @toolDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate'**
+  String get toolDuplicate;
+
+  /// No description provided for @toolDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get toolDelete;
+
+  /// No description provided for @toolEffects.
+  ///
+  /// In en, this message translates to:
+  /// **'Effects'**
+  String get toolEffects;
+
+  /// No description provided for @toolColorGrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get toolColorGrade;
+
+  /// No description provided for @toolFade.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade'**
+  String get toolFade;
+
+  /// No description provided for @toolSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get toolSpeed;
+
+  /// No description provided for @toolVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume'**
+  String get toolVolume;
+
+  /// No description provided for @toolDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get toolDuration;
+
+  /// No description provided for @toolOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Opacity'**
+  String get toolOpacity;
+
+  /// No description provided for @toolAnimate.
+  ///
+  /// In en, this message translates to:
+  /// **'Animate'**
+  String get toolAnimate;
+
+  /// No description provided for @toolLayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Layer'**
+  String get toolLayer;
+
+  /// No description provided for @toolEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get toolEdit;
+
+  /// No description provided for @toolAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get toolAudio;
+
+  /// No description provided for @toolText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get toolText;
+
+  /// No description provided for @toolOverlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlay'**
+  String get toolOverlay;
+
+  /// No description provided for @toolFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Format'**
+  String get toolFormat;
+
+  /// No description provided for @toolMotion.
+  ///
+  /// In en, this message translates to:
+  /// **'Motion'**
+  String get toolMotion;
+
+  /// No description provided for @toolMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get toolMore;
+
+  /// No description provided for @toolTransition.
+  ///
+  /// In en, this message translates to:
+  /// **'Transition'**
+  String get toolTransition;
+
+  /// No description provided for @movieTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Movie tools'**
+  String get movieTools;
+
+  /// No description provided for @itemTools.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} tools'**
+  String itemTools(String name);
+
+  /// No description provided for @noClipsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No clips yet · {aspect}'**
+  String noClipsYet(String aspect);
+
+  /// No description provided for @movieSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item · {duration} · {aspect}} other{{count} items · {duration} · {aspect}}}'**
+  String movieSummary(int count, Object aspect, Object duration);
+
+  /// No description provided for @exportMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'Export movie'**
+  String get exportMovie;
+
+  /// No description provided for @startWithBestShots.
+  ///
+  /// In en, this message translates to:
+  /// **'Start with your best shots'**
+  String get startWithBestShots;
+
+  /// No description provided for @startWithBestShotsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos and clips play in the order you add them.'**
+  String get startWithBestShotsBody;
+
+  /// No description provided for @addPhotosAndClips.
+  ///
+  /// In en, this message translates to:
+  /// **'Add photos and clips'**
+  String get addPhotosAndClips;
+
+  /// No description provided for @playheadOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Playhead {position} of {duration}'**
+  String playheadOf(String position, String duration);
+
+  /// No description provided for @zoomOutTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out timeline'**
+  String get zoomOutTimeline;
+
+  /// No description provided for @zoomInTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in timeline'**
+  String get zoomInTimeline;
+
+  /// No description provided for @playPauseShortcut.
+  ///
+  /// In en, this message translates to:
+  /// **'{action} (Space)'**
+  String playPauseShortcut(String action);
+
+  /// A length in seconds; value is already formatted.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} s'**
+  String secondsValue(String value);
+
+  /// A playback speed factor; value is already formatted.
+  ///
+  /// In en, this message translates to:
+  /// **'{value}×'**
+  String speedValue(String value);
+
+  /// No description provided for @musicFromFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Music from Files'**
+  String get musicFromFiles;
+
+  /// No description provided for @audioFormatsDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'MP3, M4A, AAC, WAV, or AIFF'**
+  String get audioFormatsDetail;
+
+  /// No description provided for @extractAudioFromClip.
+  ///
+  /// In en, this message translates to:
+  /// **'Extract Audio from Clip'**
+  String get extractAudioFromClip;
+
+  /// No description provided for @putPlayheadOnVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Put the playhead on a video clip'**
+  String get putPlayheadOnVideo;
+
+  /// No description provided for @clipGoesSilent.
+  ///
+  /// In en, this message translates to:
+  /// **'Clip {index} goes silent; its sound gets a lane'**
+  String clipGoesSilent(int index);
+
+  /// No description provided for @protectedMusicNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Music from Apple Music and other protected tracks can’t be used.'**
+  String get protectedMusicNote;
+
+  /// No description provided for @effectsOnCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · {count} on'**
+  String effectsOnCount(String name, int count);
+
+  /// No description provided for @addClipForEffect.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a clip first, then give it an effect.'**
+  String get addClipForEffect;
+
+  /// No description provided for @effectCategoryLooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Looks'**
+  String get effectCategoryLooks;
+
+  /// No description provided for @effectIntensity.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} intensity'**
+  String effectIntensity(String name);
+
+  /// No description provided for @remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get remove;
+
+  /// No description provided for @effectTapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap an effect to add it. Tap it again to adjust or remove it.'**
+  String get effectTapHint;
+
+  /// No description provided for @effectHintRemoves.
+  ///
+  /// In en, this message translates to:
+  /// **'Removes the effect'**
+  String get effectHintRemoves;
+
+  /// No description provided for @effectHintShowsIntensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows its intensity'**
+  String get effectHintShowsIntensity;
+
+  /// No description provided for @effectHintAdds.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds the effect'**
+  String get effectHintAdds;
+
+  /// No description provided for @selectItemToFade.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an item to fade it.'**
+  String get selectItemToFade;
+
+  /// No description provided for @fadeIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade in'**
+  String get fadeIn;
+
+  /// No description provided for @fadeOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade out'**
+  String get fadeOut;
+
+  /// No description provided for @fadeColorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get fadeColorLabel;
+
+  /// No description provided for @formatUseLandscape.
+  ///
+  /// In en, this message translates to:
+  /// **'TV, YouTube, and computers'**
+  String get formatUseLandscape;
+
+  /// No description provided for @formatUsePortrait.
+  ///
+  /// In en, this message translates to:
+  /// **'Stories, Reels, and TikTok'**
+  String get formatUsePortrait;
+
+  /// No description provided for @formatUseSquare.
+  ///
+  /// In en, this message translates to:
+  /// **'Feeds that crop to a square'**
+  String get formatUseSquare;
+
+  /// No description provided for @formatUsePortrait45.
+  ///
+  /// In en, this message translates to:
+  /// **'Portrait feed posts'**
+  String get formatUsePortrait45;
+
+  /// No description provided for @formatSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{aspect} · {width} × {height}'**
+  String formatSummary(String aspect, int width, int height);
+
+  /// No description provided for @moveEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Move Earlier'**
+  String get moveEarlier;
+
+  /// No description provided for @moveLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Move Later'**
+  String get moveLater;
+
+  /// No description provided for @trimStartToPlayhead.
+  ///
+  /// In en, this message translates to:
+  /// **'Trim Start to Playhead'**
+  String get trimStartToPlayhead;
+
+  /// No description provided for @trimEndToPlayhead.
+  ///
+  /// In en, this message translates to:
+  /// **'Trim End to Playhead'**
+  String get trimEndToPlayhead;
+
+  /// No description provided for @cannotSetStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Can’t set the start'**
+  String get cannotSetStart;
+
+  /// No description provided for @cannotSetStartBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Put the playhead inside the selected clip to set its start.'**
+  String get cannotSetStartBody;
+
+  /// No description provided for @cannotSetEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Can’t set the end'**
+  String get cannotSetEnd;
+
+  /// No description provided for @cannotSetEndBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Put the playhead inside the selected clip to set its end.'**
+  String get cannotSetEndBody;
+
+  /// No description provided for @replaceEllipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace…'**
+  String get replaceEllipsis;
+
+  /// No description provided for @replaceDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeps the grade, effects, and fades'**
+  String get replaceDetail;
+
+  /// No description provided for @extractAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Extract Audio'**
+  String get extractAudio;
+
+  /// No description provided for @extractAudioDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Moves the sound to its own lane'**
+  String get extractAudioDetail;
+
+  /// No description provided for @selectPhotoForZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a photo to give it a slow zoom.'**
+  String get selectPhotoForZoom;
+
+  /// No description provided for @motionStill.
+  ///
+  /// In en, this message translates to:
+  /// **'Still'**
+  String get motionStill;
+
+  /// No description provided for @motionZoomIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get motionZoomIn;
+
+  /// No description provided for @motionZoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get motionZoomOut;
+
+  /// No description provided for @motionDriftHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For a drifting, swaying camera, try Slow Drift and Swell in Effects › Motion.'**
+  String get motionDriftHint;
+
+  /// No description provided for @selectOverlayForOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an overlay to change its opacity.'**
+  String get selectOverlayForOpacity;
+
+  /// No description provided for @animation.
+  ///
+  /// In en, this message translates to:
+  /// **'Animation'**
+  String get animation;
+
+  /// No description provided for @selectOverlayToAnimate.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an overlay or title to animate it.'**
+  String get selectOverlayToAnimate;
+
+  /// No description provided for @animationIn.
+  ///
+  /// In en, this message translates to:
+  /// **'In'**
+  String get animationIn;
+
+  /// No description provided for @animationOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Out'**
+  String get animationOut;
+
+  /// No description provided for @animationDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Each animation takes {seconds} s.'**
+  String animationDuration(String seconds);
+
+  /// No description provided for @layerOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{layer} of {count}'**
+  String layerOf(int layer, int count);
+
+  /// No description provided for @selectOverlayOrTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an overlay or title.'**
+  String get selectOverlayOrTitle;
+
+  /// No description provided for @bringForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Bring Forward'**
+  String get bringForward;
+
+  /// No description provided for @bringForwardDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows in front of the layer above'**
+  String get bringForwardDetail;
+
+  /// No description provided for @sendBackward.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Backward'**
+  String get sendBackward;
+
+  /// No description provided for @sendBackwardDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows behind the layer below'**
+  String get sendBackwardDetail;
+
+  /// No description provided for @selectVideoForSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a video clip to change its speed.'**
+  String get selectVideoForSpeed;
+
+  /// No description provided for @speedPitchNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound keeps its pitch. Length on the timeline changes with speed.'**
+  String get speedPitchNote;
+
+  /// No description provided for @selectPhotoForDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a photo or title to change its length.'**
+  String get selectPhotoForDuration;
+
+  /// No description provided for @lengthOnScreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Length on screen'**
+  String get lengthOnScreen;
+
+  /// No description provided for @halfSecondShorter.
+  ///
+  /// In en, this message translates to:
+  /// **'Half a second shorter'**
+  String get halfSecondShorter;
+
+  /// No description provided for @halfSecondLonger.
+  ///
+  /// In en, this message translates to:
+  /// **'Half a second longer'**
+  String get halfSecondLonger;
+
+  /// No description provided for @colorWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'White'**
+  String get colorWhite;
+
+  /// No description provided for @colorSand.
+  ///
+  /// In en, this message translates to:
+  /// **'Sand'**
+  String get colorSand;
+
+  /// No description provided for @colorCoral.
+  ///
+  /// In en, this message translates to:
+  /// **'Coral'**
+  String get colorCoral;
+
+  /// No description provided for @colorYellow.
+  ///
+  /// In en, this message translates to:
+  /// **'Yellow'**
+  String get colorYellow;
+
+  /// No description provided for @colorAqua.
+  ///
+  /// In en, this message translates to:
+  /// **'Aqua'**
+  String get colorAqua;
+
+  /// No description provided for @colorBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Black'**
+  String get colorBlack;
+
+  /// No description provided for @titleStyleBoldBox.
+  ///
+  /// In en, this message translates to:
+  /// **'Bold box'**
+  String get titleStyleBoldBox;
+
+  /// No description provided for @selectTitleToEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a title to edit it.'**
+  String get selectTitleToEdit;
+
+  /// No description provided for @alignLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get alignLeft;
+
+  /// No description provided for @alignCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get alignCenter;
+
+  /// No description provided for @alignRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Right'**
+  String get alignRight;
+
+  /// No description provided for @titleSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get titleSize;
+
+  /// No description provided for @percentOfHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent} % of height'**
+  String percentOfHeight(int percent);
+
+  /// No description provided for @swatchText.
+  ///
+  /// In en, this message translates to:
+  /// **'{color} text'**
+  String swatchText(String color);
+
+  /// No description provided for @transitionCut.
+  ///
+  /// In en, this message translates to:
+  /// **'Cut'**
+  String get transitionCut;
+
+  /// No description provided for @transitionCrossfade.
+  ///
+  /// In en, this message translates to:
+  /// **'Crossfade'**
+  String get transitionCrossfade;
+
+  /// No description provided for @transitionDipBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Dip to black'**
+  String get transitionDipBlack;
+
+  /// No description provided for @transitionDipWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'Dip to white'**
+  String get transitionDipWhite;
+
+  /// No description provided for @clipsRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Clips {first}–{second}'**
+  String clipsRange(int first, int second);
+
+  /// No description provided for @tapBetweenClips.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the button between two clips.'**
+  String get tapBetweenClips;
+
+  /// No description provided for @transitionLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Length of every transition'**
+  String get transitionLength;
+
+  /// No description provided for @applyTransitionToAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply {transition} to All'**
+  String applyTransitionToAll(String transition);
+
+  /// No description provided for @noSoundNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos and titles have no sound.'**
+  String get noSoundNote;
+
+  /// No description provided for @volumeLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Level'**
+  String get volumeLevel;
+
+  /// No description provided for @muted.
+  ///
+  /// In en, this message translates to:
+  /// **'Muted'**
+  String get muted;
+
+  /// No description provided for @mute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute'**
+  String get mute;
+
+  /// No description provided for @gradeStrength.
+  ///
+  /// In en, this message translates to:
+  /// **'Strength'**
+  String get gradeStrength;
+
+  /// No description provided for @gradeRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery'**
+  String get gradeRecovery;
+
+  /// No description provided for @gradeRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get gradeRed;
+
+  /// No description provided for @gradeBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance'**
+  String get gradeBalance;
+
+  /// No description provided for @gradeTemp.
+  ///
+  /// In en, this message translates to:
+  /// **'Temp'**
+  String get gradeTemp;
+
+  /// No description provided for @gradeHaze.
+  ///
+  /// In en, this message translates to:
+  /// **'Haze'**
+  String get gradeHaze;
+
+  /// No description provided for @gradeApplyToAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to All'**
+  String get gradeApplyToAll;
+
+  /// No description provided for @selectToGrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a clip or overlay to grade it.'**
+  String get selectToGrade;
+
+  /// No description provided for @saveToPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Photos'**
+  String get saveToPhotos;
+
+  /// No description provided for @shareTheMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'Share the movie'**
+  String get shareTheMovie;
+
+  /// No description provided for @openExports.
+  ///
+  /// In en, this message translates to:
+  /// **'Open exports'**
+  String get openExports;
+
+  /// No description provided for @movieExportSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{width} × {height} · {duration} · H.264 MP4'**
+  String movieExportSummary(int width, int height, String duration);
+
+  /// No description provided for @cancelWithProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel · {percent}%'**
+  String cancelWithProgress(int percent);
+
+  /// No description provided for @exportFrame.
+  ///
+  /// In en, this message translates to:
+  /// **'Frame'**
+  String get exportFrame;
+
+  /// No description provided for @exportQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality'**
+  String get exportQuality;
+
+  /// No description provided for @exportFades.
+  ///
+  /// In en, this message translates to:
+  /// **'Fades'**
+  String get exportFades;
+
+  /// No description provided for @allTools.
+  ///
+  /// In en, this message translates to:
+  /// **'All tools'**
+  String get allTools;
+
+  /// No description provided for @addText.
+  ///
+  /// In en, this message translates to:
+  /// **'Add text'**
+  String get addText;
+
+  /// No description provided for @addOverlayHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a photo or video overlay'**
+  String get addOverlayHint;
+
+  /// No description provided for @addMusicOrSound.
+  ///
+  /// In en, this message translates to:
+  /// **'Add music or sound'**
+  String get addMusicOrSound;
+
+  /// No description provided for @timelineLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Timeline'**
+  String get timelineLabel;
+
+  /// No description provided for @zoomIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get zoomIn;
+
+  /// No description provided for @zoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get zoomOut;
+
+  /// No description provided for @trimStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Trim start'**
+  String get trimStart;
+
+  /// No description provided for @trimEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Trim end'**
+  String get trimEnd;
+
+  /// No description provided for @dragSideways.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag sideways'**
+  String get dragSideways;
+
+  /// No description provided for @overlayLayerN.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlay layer {index}'**
+  String overlayLayerN(int index);
+
+  /// No description provided for @audioLaneN.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio lane {index}'**
+  String audioLaneN(int index);
+
+  /// No description provided for @unmuteClipAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute clip audio'**
+  String get unmuteClipAudio;
+
+  /// No description provided for @muteClipAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute clip audio'**
+  String get muteClipAudio;
+
+  /// No description provided for @mainTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Main track'**
+  String get mainTrack;
+
+  /// No description provided for @overlayFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlay'**
+  String get overlayFallback;
+
+  /// No description provided for @timelineItemDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'{kind} {name}, starts at {start}, {seconds} seconds'**
+  String timelineItemDescription(
+    String kind,
+    String name,
+    String start,
+    String seconds,
+  );
+
+  /// No description provided for @transitionNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} transition'**
+  String transitionNamed(String name);
+
+  /// No description provided for @addTransition.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a transition'**
+  String get addTransition;
+
+  /// No description provided for @transitionBeforeClip.
+  ///
+  /// In en, this message translates to:
+  /// **'Transition before clip {index}'**
+  String transitionBeforeClip(int index);
+
+  /// No description provided for @clipSpeedSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'{speed}x speed'**
+  String clipSpeedSemantics(String speed);
+
+  /// No description provided for @clipEffectsSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 effect} other{{count} effects}}'**
+  String clipEffectsSemantics(int count);
+
+  /// No description provided for @touchAndHoldToMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Touch and hold to move'**
+  String get touchAndHoldToMove;
+
+  /// A new movie's name; date is the month and day, such as Oct 11.
+  ///
+  /// In en, this message translates to:
+  /// **'Dive, {date}'**
+  String defaultMovieName(String date);
+
+  /// No description provided for @deleteNamedQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{name}”?'**
+  String deleteNamedQuestion(String name);
+
+  /// No description provided for @deleteMovieBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the movie project is removed. Your photos, clips, and exported movies stay.'**
+  String get deleteMovieBody;
+
+  /// No description provided for @madeOnThisDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Made on this device'**
+  String get madeOnThisDevice;
+
+  /// No description provided for @movieCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 movie} other{{count} movies}}'**
+  String movieCount(int count);
+
+  /// No description provided for @newMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'New movie'**
+  String get newMovie;
+
+  /// No description provided for @turnDiveIntoMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn a dive into a movie'**
+  String get turnDiveIntoMovie;
+
+  /// No description provided for @turnDiveIntoMovieBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Line up photos and clips, give each the color it needs, and export a movie without leaving this device.'**
+  String get turnDiveIntoMovieBody;
+
+  /// No description provided for @recent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get recent;
+
+  /// No description provided for @swipeToDeleteMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe left or touch and hold a movie to delete it.'**
+  String get swipeToDeleteMovie;
+
+  /// No description provided for @open.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get open;
+
+  /// No description provided for @titleQuoted.
+  ///
+  /// In en, this message translates to:
+  /// **'Title “{text}”'**
+  String titleQuoted(String text);
+
+  /// No description provided for @selectedOnCanvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected {name} on the canvas'**
+  String selectedOnCanvas(String name);
+
+  /// No description provided for @movieCanvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Movie canvas'**
+  String get movieCanvas;
+
+  /// No description provided for @canvasSelectedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to move, pinch to resize, turn two fingers to rotate'**
+  String get canvasSelectedHint;
+
+  /// No description provided for @canvasHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to select the clip or overlay you see'**
+  String get canvasHint;
+
+  /// No description provided for @moveLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Move left'**
+  String get moveLeft;
+
+  /// No description provided for @moveRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Move right'**
+  String get moveRight;
+
+  /// No description provided for @moveUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get moveUp;
+
+  /// No description provided for @moveDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get moveDown;
+
+  /// No description provided for @makeLarger.
+  ///
+  /// In en, this message translates to:
+  /// **'Make larger'**
+  String get makeLarger;
+
+  /// No description provided for @makeSmaller.
+  ///
+  /// In en, this message translates to:
+  /// **'Make smaller'**
+  String get makeSmaller;
+
+  /// No description provided for @rotateClockwise.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotate clockwise'**
+  String get rotateClockwise;
 }
 
 class _AppLocalizationsDelegate

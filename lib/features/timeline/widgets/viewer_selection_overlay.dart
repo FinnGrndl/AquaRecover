@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/timeline/timeline_project.dart';
 import '../timeline_controller.dart';
+import '../../../l10n/l10n.dart';
 
 /// The selection frame and gestures over the movie viewer's canvas: tap an
 /// overlay or title to select it, drag to move it, pinch to resize, and turn
@@ -274,31 +275,30 @@ class _ViewerSelectionOverlayState extends State<ViewerSelectionOverlay> {
         final selected = _controller.selectedOverlay;
         final show = selected != null && _visible(selected);
         final rect = show ? _rect(selected) : null;
+        final l10n = context.l10n;
         final name = selected?.title != null
-            ? 'Title “${selected!.title!.text.replaceAll('\n', ' ')}”'
+            ? l10n.titleQuoted(selected!.title!.text.replaceAll('\n', ' '))
             : selected?.isVideo ?? false
-            ? 'Video overlay'
-            : 'Photo overlay';
+            ? l10n.videoOverlay
+            : l10n.photoOverlay;
         return Semantics(
-          label: show ? 'Selected $name on the canvas' : 'Movie canvas',
-          hint: show
-              ? 'Drag to move, pinch to resize, turn two fingers to rotate'
-              : 'Tap to select the clip or overlay you see',
+          label: show ? l10n.selectedOnCanvas(name) : l10n.movieCanvas,
+          hint: show ? l10n.canvasSelectedHint : l10n.canvasHint,
           customSemanticsActions: show
               ? {
-                  const CustomSemanticsAction(label: 'Move left'): () =>
+                  CustomSemanticsAction(label: l10n.moveLeft): () =>
                       _nudge(dx: -.05),
-                  const CustomSemanticsAction(label: 'Move right'): () =>
+                  CustomSemanticsAction(label: l10n.moveRight): () =>
                       _nudge(dx: .05),
-                  const CustomSemanticsAction(label: 'Move up'): () =>
+                  CustomSemanticsAction(label: l10n.moveUp): () =>
                       _nudge(dy: -.05),
-                  const CustomSemanticsAction(label: 'Move down'): () =>
+                  CustomSemanticsAction(label: l10n.moveDown): () =>
                       _nudge(dy: .05),
-                  const CustomSemanticsAction(label: 'Make larger'): () =>
+                  CustomSemanticsAction(label: l10n.makeLarger): () =>
                       _nudge(scale: 1.1),
-                  const CustomSemanticsAction(label: 'Make smaller'): () =>
+                  CustomSemanticsAction(label: l10n.makeSmaller): () =>
                       _nudge(scale: 1 / 1.1),
-                  const CustomSemanticsAction(label: 'Rotate clockwise'): () =>
+                  CustomSemanticsAction(label: l10n.rotateClockwise): () =>
                       _nudge(turn: 15),
                 }
               : null,

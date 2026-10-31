@@ -1148,5 +1148,536 @@
       }
     }
   },
-  "tourExportCallout": "Only a confirmed export writes the finished file. Completed batch items then leave the queue."
+  "tourExportCallout": "Only a confirmed export writes the finished file. Completed batch items then leave the queue.",
+  "effectCategoryLook": "Look",
+  "effectCategoryLens": "Lens",
+  "effectCategoryUnderwater": "Underwater",
+  "effectCategoryMotion": "Motion",
+  "effectMono": "Mono",
+  "effectSepia": "Sepia",
+  "effectCyanotype": "Cyanotype",
+  "effectDeepBlue": "Deep Blue",
+  "effectVivid": "Vivid",
+  "effectFaded": "Faded Film",
+  "effectSoftFocus": "Soft Focus",
+  "effectClarity": "Clarity",
+  "effectGrain": "Film Grain",
+  "effectVignette": "Vignette",
+  "effectCinemaBars": "Cinema Bars",
+  "effectSunRays": "Sun Rays",
+  "effectCaustics": "Caustics",
+  "effectStrobe": "Strobe Flash",
+  "effectSwell": "Swell",
+  "effectDrift": "Slow Drift",
+  "aspectLandscape": "Landscape 16:9",
+  "aspectPortrait": "Portrait 9:16",
+  "aspectSquare": "Square 1:1",
+  "aspectPortrait45": "Portrait 4:5",
+  "fadeColorBlack": "Black",
+  "fadeColorWhite": "White",
+  "fadeColorDeepBlue": "Deep blue",
+  "animationNone": "None",
+  "animationFade": "Fade",
+  "animationSlideUp": "Slide up",
+  "animationPop": "Pop",
+  "titleStyleClassic": "Classic",
+  "titleStyleBox": "Box",
+  "titleStyleOutline": "Outline",
+  "titleStyleCaption": "Caption",
+  "titleStyleDiveStamp": "Dive stamp",
+  "audioRoleMusic": "Music",
+  "audioRoleVoiceover": "Voiceover",
+  "audioRoleSound": "Sound",
+  "audioRoleExtracted": "Extracted audio",
+  "selectionClip": "Clip {index}",
+  "@selectionClip": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "selectionPhoto": "Photo {index}",
+  "@selectionPhoto": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "selectionTitle": "Title",
+  "videoOverlay": "Video overlay",
+  "photoOverlay": "Photo overlay",
+  "soundFallback": "Sound",
+  "defaultTitleText": "Title",
+  "@defaultTitleText": {
+    "description": "Text of a new title overlay in a movie."
+  },
+  "extractedAudioName": "{name} audio",
+  "@extractedAudioName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "someFilesSkipped": "Some files were skipped",
+  "filesNotOnTimeline": "{count, plural, =1{1 file cannot go on a timeline (RAW video or unknown type).} other{{count} files cannot go on a timeline (RAW video or unknown type).}}",
+  "@filesNotOnTimeline": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cannotAddOverlay": "Can’t add this overlay",
+  "cannotAddOverlayBody": "Pick a photo or clip in a format AquaRecover can read. RAW video cannot go on a timeline.",
+  "cannotReplaceClip": "Can’t replace this clip",
+  "cannotReplaceClipBody": "Pick a photo or clip in a format AquaRecover can read.",
+  "nothingToExport": "Nothing to export",
+  "nothingToExportBody": "Add at least one photo or clip first.",
+  "movieSaved": "Movie saved to your AquaRecover exports.",
+  "renderCancelled": "Render cancelled.",
+  "savedToPhotos": "Saved to Photos.",
+  "notSavedToPhotos": "Not saved to Photos",
+  "backendNoteAndroid": "fades render as dips to black",
+  "backendNoteNoFfmpeg": "needs ffmpeg on this computer",
+  "movieName": "Movie name",
+  "rename": "Rename",
+  "cannotSplitHere": "Can’t split here",
+  "cannotSplitHereBody": "Move the playhead inside the item, away from its first and last frames, then split.",
+  "toolSplit": "Split",
+  "toolDuplicate": "Duplicate",
+  "toolDelete": "Delete",
+  "toolEffects": "Effects",
+  "toolColorGrade": "Color",
+  "toolFade": "Fade",
+  "toolSpeed": "Speed",
+  "toolVolume": "Volume",
+  "toolDuration": "Duration",
+  "toolOpacity": "Opacity",
+  "toolAnimate": "Animate",
+  "toolLayer": "Layer",
+  "toolEdit": "Edit",
+  "toolAudio": "Audio",
+  "toolText": "Text",
+  "toolOverlay": "Overlay",
+  "toolFormat": "Format",
+  "toolMotion": "Motion",
+  "toolMore": "More",
+  "toolTransition": "Transition",
+  "movieTools": "Movie tools",
+  "itemTools": "{name} tools",
+  "@itemTools": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "noClipsYet": "No clips yet · {aspect}",
+  "@noClipsYet": {
+    "placeholders": {
+      "aspect": {
+        "type": "String"
+      }
+    }
+  },
+  "movieSummary": "{count, plural, =1{1 item · {duration} · {aspect}} other{{count} items · {duration} · {aspect}}}",
+  "@movieSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exportMovie": "Export movie",
+  "startWithBestShots": "Start with your best shots",
+  "startWithBestShotsBody": "Photos and clips play in the order you add them.",
+  "addPhotosAndClips": "Add photos and clips",
+  "playheadOf": "Playhead {position} of {duration}",
+  "@playheadOf": {
+    "placeholders": {
+      "position": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "zoomOutTimeline": "Zoom out timeline",
+  "zoomInTimeline": "Zoom in timeline",
+  "playPauseShortcut": "{action} (Space)",
+  "@playPauseShortcut": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "secondsValue": "{value} s",
+  "@secondsValue": {
+    "description": "A length in seconds; value is already formatted.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "speedValue": "{value}×",
+  "@speedValue": {
+    "description": "A playback speed factor; value is already formatted.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "musicFromFiles": "Music from Files",
+  "audioFormatsDetail": "MP3, M4A, AAC, WAV, or AIFF",
+  "extractAudioFromClip": "Extract Audio from Clip",
+  "putPlayheadOnVideo": "Put the playhead on a video clip",
+  "clipGoesSilent": "Clip {index} goes silent; its sound gets a lane",
+  "@clipGoesSilent": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "protectedMusicNote": "Music from Apple Music and other protected tracks can’t be used.",
+  "effectsOnCount": "{name} · {count} on",
+  "@effectsOnCount": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "addClipForEffect": "Add a clip first, then give it an effect.",
+  "effectCategoryLooks": "Looks",
+  "effectIntensity": "{name} intensity",
+  "@effectIntensity": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "remove": "Remove",
+  "effectTapHint": "Tap an effect to add it. Tap it again to adjust or remove it.",
+  "effectHintRemoves": "Removes the effect",
+  "effectHintShowsIntensity": "Shows its intensity",
+  "effectHintAdds": "Adds the effect",
+  "selectItemToFade": "Select an item to fade it.",
+  "fadeIn": "Fade in",
+  "fadeOut": "Fade out",
+  "fadeColorLabel": "Color",
+  "formatUseLandscape": "TV, YouTube, and computers",
+  "formatUsePortrait": "Stories, Reels, and TikTok",
+  "formatUseSquare": "Feeds that crop to a square",
+  "formatUsePortrait45": "Portrait feed posts",
+  "formatSummary": "{aspect} · {width} × {height}",
+  "@formatSummary": {
+    "placeholders": {
+      "aspect": {
+        "type": "String"
+      },
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
+    }
+  },
+  "moveEarlier": "Move Earlier",
+  "moveLater": "Move Later",
+  "trimStartToPlayhead": "Trim Start to Playhead",
+  "trimEndToPlayhead": "Trim End to Playhead",
+  "cannotSetStart": "Can’t set the start",
+  "cannotSetStartBody": "Put the playhead inside the selected clip to set its start.",
+  "cannotSetEnd": "Can’t set the end",
+  "cannotSetEndBody": "Put the playhead inside the selected clip to set its end.",
+  "replaceEllipsis": "Replace…",
+  "replaceDetail": "Keeps the grade, effects, and fades",
+  "extractAudio": "Extract Audio",
+  "extractAudioDetail": "Moves the sound to its own lane",
+  "selectPhotoForZoom": "Select a photo to give it a slow zoom.",
+  "motionStill": "Still",
+  "motionZoomIn": "Zoom in",
+  "motionZoomOut": "Zoom out",
+  "motionDriftHint": "For a drifting, swaying camera, try Slow Drift and Swell in Effects › Motion.",
+  "selectOverlayForOpacity": "Select an overlay to change its opacity.",
+  "animation": "Animation",
+  "selectOverlayToAnimate": "Select an overlay or title to animate it.",
+  "animationIn": "In",
+  "animationOut": "Out",
+  "animationDuration": "Each animation takes {seconds} s.",
+  "@animationDuration": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "layerOf": "{layer} of {count}",
+  "@layerOf": {
+    "placeholders": {
+      "layer": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectOverlayOrTitle": "Select an overlay or title.",
+  "bringForward": "Bring Forward",
+  "bringForwardDetail": "Shows in front of the layer above",
+  "sendBackward": "Send Backward",
+  "sendBackwardDetail": "Shows behind the layer below",
+  "selectVideoForSpeed": "Select a video clip to change its speed.",
+  "speedPitchNote": "Sound keeps its pitch. Length on the timeline changes with speed.",
+  "selectPhotoForDuration": "Select a photo or title to change its length.",
+  "lengthOnScreen": "Length on screen",
+  "halfSecondShorter": "Half a second shorter",
+  "halfSecondLonger": "Half a second longer",
+  "colorWhite": "White",
+  "colorSand": "Sand",
+  "colorCoral": "Coral",
+  "colorYellow": "Yellow",
+  "colorAqua": "Aqua",
+  "colorBlack": "Black",
+  "titleStyleBoldBox": "Bold box",
+  "selectTitleToEdit": "Select a title to edit it.",
+  "alignLeft": "Left",
+  "alignCenter": "Center",
+  "alignRight": "Right",
+  "titleSize": "Size",
+  "percentOfHeight": "{percent} % of height",
+  "@percentOfHeight": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "swatchText": "{color} text",
+  "@swatchText": {
+    "placeholders": {
+      "color": {
+        "type": "String"
+      }
+    }
+  },
+  "transitionCut": "Cut",
+  "transitionCrossfade": "Crossfade",
+  "transitionDipBlack": "Dip to black",
+  "transitionDipWhite": "Dip to white",
+  "clipsRange": "Clips {first}–{second}",
+  "@clipsRange": {
+    "placeholders": {
+      "first": {
+        "type": "int"
+      },
+      "second": {
+        "type": "int"
+      }
+    }
+  },
+  "tapBetweenClips": "Tap the button between two clips.",
+  "transitionLength": "Length of every transition",
+  "applyTransitionToAll": "Apply {transition} to All",
+  "@applyTransitionToAll": {
+    "placeholders": {
+      "transition": {
+        "type": "String"
+      }
+    }
+  },
+  "noSoundNote": "Photos and titles have no sound.",
+  "volumeLevel": "Level",
+  "muted": "Muted",
+  "mute": "Mute",
+  "gradeStrength": "Strength",
+  "gradeRecovery": "Recovery",
+  "gradeRed": "Red",
+  "gradeBalance": "Balance",
+  "gradeTemp": "Temp",
+  "gradeHaze": "Haze",
+  "gradeApplyToAll": "Apply to All",
+  "selectToGrade": "Select a clip or overlay to grade it.",
+  "saveToPhotos": "Save to Photos",
+  "shareTheMovie": "Share the movie",
+  "openExports": "Open exports",
+  "movieExportSummary": "{width} × {height} · {duration} · H.264 MP4",
+  "@movieExportSummary": {
+    "placeholders": {
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "cancelWithProgress": "Cancel · {percent}%",
+  "@cancelWithProgress": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "exportFrame": "Frame",
+  "exportQuality": "Quality",
+  "exportFades": "Fades",
+  "allTools": "All tools",
+  "addText": "Add text",
+  "addOverlayHint": "Add a photo or video overlay",
+  "addMusicOrSound": "Add music or sound",
+  "timelineLabel": "Timeline",
+  "zoomIn": "Zoom in",
+  "zoomOut": "Zoom out",
+  "trimStart": "Trim start",
+  "trimEnd": "Trim end",
+  "dragSideways": "Drag sideways",
+  "overlayLayerN": "Overlay layer {index}",
+  "@overlayLayerN": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "audioLaneN": "Audio lane {index}",
+  "@audioLaneN": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "unmuteClipAudio": "Unmute clip audio",
+  "muteClipAudio": "Mute clip audio",
+  "mainTrack": "Main track",
+  "overlayFallback": "Overlay",
+  "timelineItemDescription": "{kind} {name}, starts at {start}, {seconds} seconds",
+  "@timelineItemDescription": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "transitionNamed": "{name} transition",
+  "@transitionNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addTransition": "Add a transition",
+  "transitionBeforeClip": "Transition before clip {index}",
+  "@transitionBeforeClip": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "clipSpeedSemantics": "{speed}x speed",
+  "@clipSpeedSemantics": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "clipEffectsSemantics": "{count, plural, =1{1 effect} other{{count} effects}}",
+  "@clipEffectsSemantics": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "touchAndHoldToMove": "Touch and hold to move",
+  "defaultMovieName": "Dive, {date}",
+  "@defaultMovieName": {
+    "description": "A new movie's name; date is the month and day, such as Oct 11.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteNamedQuestion": "Delete “{name}”?",
+  "@deleteNamedQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteMovieBody": "Only the movie project is removed. Your photos, clips, and exported movies stay.",
+  "madeOnThisDevice": "Made on this device",
+  "movieCount": "{count, plural, =1{1 movie} other{{count} movies}}",
+  "@movieCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "newMovie": "New movie",
+  "turnDiveIntoMovie": "Turn a dive into a movie",
+  "turnDiveIntoMovieBody": "Line up photos and clips, give each the color it needs, and export a movie without leaving this device.",
+  "recent": "Recent",
+  "swipeToDeleteMovie": "Swipe left or touch and hold a movie to delete it.",
+  "open": "Open",
+  "titleQuoted": "Title “{text}”",
+  "@titleQuoted": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "selectedOnCanvas": "Selected {name} on the canvas",
+  "@selectedOnCanvas": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "movieCanvas": "Movie canvas",
+  "canvasSelectedHint": "Drag to move, pinch to resize, turn two fingers to rotate",
+  "canvasHint": "Tap to select the clip or overlay you see",
+  "moveLeft": "Move left",
+  "moveRight": "Move right",
+  "moveUp": "Move up",
+  "moveDown": "Move down",
+  "makeLarger": "Make larger",
+  "makeSmaller": "Make smaller",
+  "rotateClockwise": "Rotate clockwise"
 }

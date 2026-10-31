@@ -4,6 +4,8 @@ import '../../../../core/timeline/timeline_project.dart';
 import '../../timeline_controller.dart';
 import '../../timeline_theme.dart';
 import 'tool_controls.dart';
+import '../../../../l10n/timeline_labels.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The movie's frame shape.
 class FormatPanel extends StatelessWidget {
@@ -11,19 +13,21 @@ class FormatPanel extends StatelessWidget {
 
   final TimelineController controller;
 
-  static String use(TimelineAspect aspect) => switch (aspect) {
-    TimelineAspect.landscape => 'TV, YouTube, and computers',
-    TimelineAspect.portrait => 'Stories, Reels, and TikTok',
-    TimelineAspect.square => 'Feeds that crop to a square',
-    TimelineAspect.vertical45 => 'Portrait feed posts',
-  };
+  static String use(AppLocalizations l10n, TimelineAspect aspect) =>
+      switch (aspect) {
+        TimelineAspect.landscape => l10n.formatUseLandscape,
+        TimelineAspect.portrait => l10n.formatUsePortrait,
+        TimelineAspect.square => l10n.formatUseSquare,
+        TimelineAspect.vertical45 => l10n.formatUsePortrait45,
+      };
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final aspect = controller.project.aspect;
     final (:width, :height) = controller.project.outputSize;
     return ToolPanelBody(
-      header: const ToolHeader(title: 'Format'),
+      header: ToolHeader(title: l10n.toolFormat),
       children: [
         ToolSegmented<TimelineAspect>(
           key: const Key('timeline_format_aspect'),
@@ -36,7 +40,7 @@ class FormatPanel extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          '${aspect.label} · $width × $height',
+          l10n.formatSummary(aspect.labelIn(l10n), width, height),
           style: const TextStyle(
             color: TimelineColors.text,
             fontSize: 15,
@@ -45,7 +49,7 @@ class FormatPanel extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          use(aspect),
+          use(l10n, aspect),
           style: const TextStyle(
             color: TimelineColors.secondaryText,
             fontSize: 13,

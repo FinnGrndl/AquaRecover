@@ -1897,4 +1897,872 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get tourExportCallout =>
       'Nur ein bestätigter Export schreibt die fertige Datei. Fertige Stapelobjekte verlassen danach die Warteschlange.';
+
+  @override
+  String get effectCategoryLook => 'Look';
+
+  @override
+  String get effectCategoryLens => 'Objektiv';
+
+  @override
+  String get effectCategoryUnderwater => 'Unterwasser';
+
+  @override
+  String get effectCategoryMotion => 'Bewegung';
+
+  @override
+  String get effectMono => 'Mono';
+
+  @override
+  String get effectSepia => 'Sepia';
+
+  @override
+  String get effectCyanotype => 'Cyanotypie';
+
+  @override
+  String get effectDeepBlue => 'Tiefblau';
+
+  @override
+  String get effectVivid => 'Lebendig';
+
+  @override
+  String get effectFaded => 'Verblasster Film';
+
+  @override
+  String get effectSoftFocus => 'Weichzeichner';
+
+  @override
+  String get effectClarity => 'Klarheit';
+
+  @override
+  String get effectGrain => 'Filmkorn';
+
+  @override
+  String get effectVignette => 'Vignette';
+
+  @override
+  String get effectCinemaBars => 'Kinobalken';
+
+  @override
+  String get effectSunRays => 'Sonnenstrahlen';
+
+  @override
+  String get effectCaustics => 'Lichtnetz';
+
+  @override
+  String get effectStrobe => 'Blitzlicht';
+
+  @override
+  String get effectSwell => 'Dünung';
+
+  @override
+  String get effectDrift => 'Langsames Treiben';
+
+  @override
+  String get aspectLandscape => 'Querformat 16:9';
+
+  @override
+  String get aspectPortrait => 'Hochformat 9:16';
+
+  @override
+  String get aspectSquare => 'Quadrat 1:1';
+
+  @override
+  String get aspectPortrait45 => 'Hochformat 4:5';
+
+  @override
+  String get fadeColorBlack => 'Schwarz';
+
+  @override
+  String get fadeColorWhite => 'Weiß';
+
+  @override
+  String get fadeColorDeepBlue => 'Tiefblau';
+
+  @override
+  String get animationNone => 'Ohne';
+
+  @override
+  String get animationFade => 'Einblenden';
+
+  @override
+  String get animationSlideUp => 'Hochgleiten';
+
+  @override
+  String get animationPop => 'Aufploppen';
+
+  @override
+  String get titleStyleClassic => 'Klassisch';
+
+  @override
+  String get titleStyleBox => 'Box';
+
+  @override
+  String get titleStyleOutline => 'Kontur';
+
+  @override
+  String get titleStyleCaption => 'Untertitel';
+
+  @override
+  String get titleStyleDiveStamp => 'Tauchstempel';
+
+  @override
+  String get audioRoleMusic => 'Musik';
+
+  @override
+  String get audioRoleVoiceover => 'Voiceover';
+
+  @override
+  String get audioRoleSound => 'Geräusch';
+
+  @override
+  String get audioRoleExtracted => 'Extrahierter Ton';
+
+  @override
+  String selectionClip(int index) {
+    return 'Clip $index';
+  }
+
+  @override
+  String selectionPhoto(int index) {
+    return 'Foto $index';
+  }
+
+  @override
+  String get selectionTitle => 'Titel';
+
+  @override
+  String get videoOverlay => 'Video-Overlay';
+
+  @override
+  String get photoOverlay => 'Foto-Overlay';
+
+  @override
+  String get soundFallback => 'Ton';
+
+  @override
+  String get defaultTitleText => 'Titel';
+
+  @override
+  String extractedAudioName(String name) {
+    return 'Ton von $name';
+  }
+
+  @override
+  String get someFilesSkipped => 'Einige Dateien wurden übersprungen';
+
+  @override
+  String filesNotOnTimeline(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count Dateien können nicht in einen Film (RAW-Video oder unbekannter Typ).',
+      one: '1 Datei kann nicht in einen Film (RAW-Video oder unbekannter Typ).',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get cannotAddOverlay => 'Overlay kann nicht hinzugefügt werden';
+
+  @override
+  String get cannotAddOverlayBody =>
+      'Wähle ein Foto oder einen Clip in einem Format, das AquaRecover lesen kann. RAW-Videos können nicht in einen Film.';
+
+  @override
+  String get cannotReplaceClip => 'Clip kann nicht ersetzt werden';
+
+  @override
+  String get cannotReplaceClipBody =>
+      'Wähle ein Foto oder einen Clip in einem Format, das AquaRecover lesen kann.';
+
+  @override
+  String get nothingToExport => 'Nichts zu exportieren';
+
+  @override
+  String get nothingToExportBody =>
+      'Füge zuerst mindestens ein Foto oder einen Clip hinzu.';
+
+  @override
+  String get movieSaved => 'Film in deinen AquaRecover-Exporten gespeichert.';
+
+  @override
+  String get renderCancelled => 'Rendern abgebrochen.';
+
+  @override
+  String get savedToPhotos => 'In Fotos gesichert.';
+
+  @override
+  String get notSavedToPhotos => 'Nicht in Fotos gesichert';
+
+  @override
+  String get backendNoteAndroid =>
+      'Überblendungen werden als Abblenden auf Schwarz gerendert';
+
+  @override
+  String get backendNoteNoFfmpeg => 'benötigt ffmpeg auf diesem Computer';
+
+  @override
+  String get movieName => 'Filmname';
+
+  @override
+  String get rename => 'Umbenennen';
+
+  @override
+  String get cannotSplitHere => 'Teilen hier nicht möglich';
+
+  @override
+  String get cannotSplitHereBody =>
+      'Bewege die Abspielposition in das Objekt, weg vom ersten und letzten Bild, und teile dann.';
+
+  @override
+  String get toolSplit => 'Teilen';
+
+  @override
+  String get toolDuplicate => 'Duplizieren';
+
+  @override
+  String get toolDelete => 'Löschen';
+
+  @override
+  String get toolEffects => 'Effekte';
+
+  @override
+  String get toolColorGrade => 'Farbe';
+
+  @override
+  String get toolFade => 'Blende';
+
+  @override
+  String get toolSpeed => 'Tempo';
+
+  @override
+  String get toolVolume => 'Lautstärke';
+
+  @override
+  String get toolDuration => 'Dauer';
+
+  @override
+  String get toolOpacity => 'Deckkraft';
+
+  @override
+  String get toolAnimate => 'Animation';
+
+  @override
+  String get toolLayer => 'Ebene';
+
+  @override
+  String get toolEdit => 'Bearbeiten';
+
+  @override
+  String get toolAudio => 'Audio';
+
+  @override
+  String get toolText => 'Text';
+
+  @override
+  String get toolOverlay => 'Overlay';
+
+  @override
+  String get toolFormat => 'Format';
+
+  @override
+  String get toolMotion => 'Bewegung';
+
+  @override
+  String get toolMore => 'Mehr';
+
+  @override
+  String get toolTransition => 'Übergang';
+
+  @override
+  String get movieTools => 'Filmwerkzeuge';
+
+  @override
+  String itemTools(String name) {
+    return 'Werkzeuge: $name';
+  }
+
+  @override
+  String noClipsYet(String aspect) {
+    return 'Noch keine Clips · $aspect';
+  }
+
+  @override
+  String movieSummary(int count, Object aspect, Object duration) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Objekte · $duration · $aspect',
+      one: '1 Objekt · $duration · $aspect',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get exportMovie => 'Film exportieren';
+
+  @override
+  String get startWithBestShots => 'Beginne mit deinen besten Aufnahmen';
+
+  @override
+  String get startWithBestShotsBody =>
+      'Fotos und Clips laufen in der Reihenfolge ab, in der du sie hinzufügst.';
+
+  @override
+  String get addPhotosAndClips => 'Fotos und Clips hinzufügen';
+
+  @override
+  String playheadOf(String position, String duration) {
+    return 'Abspielposition $position von $duration';
+  }
+
+  @override
+  String get zoomOutTimeline => 'Zeitleiste verkleinern';
+
+  @override
+  String get zoomInTimeline => 'Zeitleiste vergrößern';
+
+  @override
+  String playPauseShortcut(String action) {
+    return '$action (Leertaste)';
+  }
+
+  @override
+  String secondsValue(String value) {
+    return '$value s';
+  }
+
+  @override
+  String speedValue(String value) {
+    return '$value×';
+  }
+
+  @override
+  String get musicFromFiles => 'Musik aus „Dateien“';
+
+  @override
+  String get audioFormatsDetail => 'MP3, M4A, AAC, WAV oder AIFF';
+
+  @override
+  String get extractAudioFromClip => 'Ton aus Clip extrahieren';
+
+  @override
+  String get putPlayheadOnVideo =>
+      'Setze die Abspielposition auf einen Videoclip';
+
+  @override
+  String clipGoesSilent(int index) {
+    return 'Clip $index wird stumm, sein Ton bekommt eine eigene Spur';
+  }
+
+  @override
+  String get protectedMusicNote =>
+      'Musik aus Apple Music und andere geschützte Titel können nicht verwendet werden.';
+
+  @override
+  String effectsOnCount(String name, int count) {
+    return '$name · $count aktiv';
+  }
+
+  @override
+  String get addClipForEffect =>
+      'Füge zuerst einen Clip hinzu und gib ihm dann einen Effekt.';
+
+  @override
+  String get effectCategoryLooks => 'Looks';
+
+  @override
+  String effectIntensity(String name) {
+    return 'Intensität: $name';
+  }
+
+  @override
+  String get remove => 'Entfernen';
+
+  @override
+  String get effectTapHint =>
+      'Tippe auf einen Effekt, um ihn hinzuzufügen. Tippe erneut, um ihn anzupassen oder zu entfernen.';
+
+  @override
+  String get effectHintRemoves => 'Entfernt den Effekt';
+
+  @override
+  String get effectHintShowsIntensity => 'Zeigt die Intensität';
+
+  @override
+  String get effectHintAdds => 'Fügt den Effekt hinzu';
+
+  @override
+  String get selectItemToFade =>
+      'Wähle ein Objekt aus, um es ein- oder auszublenden.';
+
+  @override
+  String get fadeIn => 'Einblenden';
+
+  @override
+  String get fadeOut => 'Ausblenden';
+
+  @override
+  String get fadeColorLabel => 'Farbe';
+
+  @override
+  String get formatUseLandscape => 'TV, YouTube und Computer';
+
+  @override
+  String get formatUsePortrait => 'Storys, Reels und TikTok';
+
+  @override
+  String get formatUseSquare => 'Feeds, die quadratisch zuschneiden';
+
+  @override
+  String get formatUsePortrait45 => 'Hochformat-Beiträge im Feed';
+
+  @override
+  String formatSummary(String aspect, int width, int height) {
+    return '$aspect · $width × $height';
+  }
+
+  @override
+  String get moveEarlier => 'Nach vorne';
+
+  @override
+  String get moveLater => 'Nach hinten';
+
+  @override
+  String get trimStartToPlayhead => 'Anfang bis Abspielposition kürzen';
+
+  @override
+  String get trimEndToPlayhead => 'Ende ab Abspielposition kürzen';
+
+  @override
+  String get cannotSetStart => 'Anfang kann nicht gesetzt werden';
+
+  @override
+  String get cannotSetStartBody =>
+      'Setze die Abspielposition in den ausgewählten Clip, um seinen Anfang festzulegen.';
+
+  @override
+  String get cannotSetEnd => 'Ende kann nicht gesetzt werden';
+
+  @override
+  String get cannotSetEndBody =>
+      'Setze die Abspielposition in den ausgewählten Clip, um sein Ende festzulegen.';
+
+  @override
+  String get replaceEllipsis => 'Ersetzen …';
+
+  @override
+  String get replaceDetail => 'Behält Farbkorrektur, Effekte und Blenden';
+
+  @override
+  String get extractAudio => 'Ton extrahieren';
+
+  @override
+  String get extractAudioDetail => 'Verschiebt den Ton auf eine eigene Spur';
+
+  @override
+  String get selectPhotoForZoom =>
+      'Wähle ein Foto aus, um ihm einen langsamen Zoom zu geben.';
+
+  @override
+  String get motionStill => 'Statisch';
+
+  @override
+  String get motionZoomIn => 'Einzoomen';
+
+  @override
+  String get motionZoomOut => 'Auszoomen';
+
+  @override
+  String get motionDriftHint =>
+      'Für eine treibende, schwankende Kamera probiere „Langsames Treiben“ und „Dünung“ unter Effekte › Bewegung.';
+
+  @override
+  String get selectOverlayForOpacity =>
+      'Wähle ein Overlay aus, um seine Deckkraft zu ändern.';
+
+  @override
+  String get animation => 'Animation';
+
+  @override
+  String get selectOverlayToAnimate =>
+      'Wähle ein Overlay oder einen Titel aus, um es zu animieren.';
+
+  @override
+  String get animationIn => 'Ein';
+
+  @override
+  String get animationOut => 'Aus';
+
+  @override
+  String animationDuration(String seconds) {
+    return 'Jede Animation dauert $seconds s.';
+  }
+
+  @override
+  String layerOf(int layer, int count) {
+    return '$layer von $count';
+  }
+
+  @override
+  String get selectOverlayOrTitle => 'Wähle ein Overlay oder einen Titel aus.';
+
+  @override
+  String get bringForward => 'Nach vorne bringen';
+
+  @override
+  String get bringForwardDetail => 'Erscheint vor der Ebene darüber';
+
+  @override
+  String get sendBackward => 'Nach hinten stellen';
+
+  @override
+  String get sendBackwardDetail => 'Erscheint hinter der Ebene darunter';
+
+  @override
+  String get selectVideoForSpeed =>
+      'Wähle einen Videoclip aus, um sein Tempo zu ändern.';
+
+  @override
+  String get speedPitchNote =>
+      'Der Ton behält seine Tonhöhe. Die Länge in der Zeitleiste ändert sich mit dem Tempo.';
+
+  @override
+  String get selectPhotoForDuration =>
+      'Wähle ein Foto oder einen Titel aus, um die Länge zu ändern.';
+
+  @override
+  String get lengthOnScreen => 'Anzeigedauer';
+
+  @override
+  String get halfSecondShorter => 'Eine halbe Sekunde kürzer';
+
+  @override
+  String get halfSecondLonger => 'Eine halbe Sekunde länger';
+
+  @override
+  String get colorWhite => 'Weiß';
+
+  @override
+  String get colorSand => 'Sand';
+
+  @override
+  String get colorCoral => 'Koralle';
+
+  @override
+  String get colorYellow => 'Gelb';
+
+  @override
+  String get colorAqua => 'Aqua';
+
+  @override
+  String get colorBlack => 'Schwarz';
+
+  @override
+  String get titleStyleBoldBox => 'Fetter Kasten';
+
+  @override
+  String get selectTitleToEdit =>
+      'Wähle einen Titel aus, um ihn zu bearbeiten.';
+
+  @override
+  String get alignLeft => 'Links';
+
+  @override
+  String get alignCenter => 'Mitte';
+
+  @override
+  String get alignRight => 'Rechts';
+
+  @override
+  String get titleSize => 'Größe';
+
+  @override
+  String percentOfHeight(int percent) {
+    return '$percent % der Höhe';
+  }
+
+  @override
+  String swatchText(String color) {
+    return 'Text in $color';
+  }
+
+  @override
+  String get transitionCut => 'Schnitt';
+
+  @override
+  String get transitionCrossfade => 'Überblenden';
+
+  @override
+  String get transitionDipBlack => 'Über Schwarz';
+
+  @override
+  String get transitionDipWhite => 'Über Weiß';
+
+  @override
+  String clipsRange(int first, int second) {
+    return 'Clips $first–$second';
+  }
+
+  @override
+  String get tapBetweenClips => 'Tippe auf die Taste zwischen zwei Clips.';
+
+  @override
+  String get transitionLength => 'Länge aller Übergänge';
+
+  @override
+  String applyTransitionToAll(String transition) {
+    return '„$transition“ auf alle anwenden';
+  }
+
+  @override
+  String get noSoundNote => 'Fotos und Titel haben keinen Ton.';
+
+  @override
+  String get volumeLevel => 'Pegel';
+
+  @override
+  String get muted => 'Stumm';
+
+  @override
+  String get mute => 'Stumm';
+
+  @override
+  String get gradeStrength => 'Stärke';
+
+  @override
+  String get gradeRecovery => 'Korrektur';
+
+  @override
+  String get gradeRed => 'Rot';
+
+  @override
+  String get gradeBalance => 'Abgleich';
+
+  @override
+  String get gradeTemp => 'Temp.';
+
+  @override
+  String get gradeHaze => 'Dunst';
+
+  @override
+  String get gradeApplyToAll => 'Auf alle anwenden';
+
+  @override
+  String get selectToGrade =>
+      'Wähle einen Clip oder ein Overlay aus, um die Farbe anzupassen.';
+
+  @override
+  String get saveToPhotos => 'In Fotos sichern';
+
+  @override
+  String get shareTheMovie => 'Film teilen';
+
+  @override
+  String get openExports => 'Exporte öffnen';
+
+  @override
+  String movieExportSummary(int width, int height, String duration) {
+    return '$width × $height · $duration · H.264 MP4';
+  }
+
+  @override
+  String cancelWithProgress(int percent) {
+    return 'Abbrechen · $percent %';
+  }
+
+  @override
+  String get exportFrame => 'Format';
+
+  @override
+  String get exportQuality => 'Qualität';
+
+  @override
+  String get exportFades => 'Blenden';
+
+  @override
+  String get allTools => 'Alle Werkzeuge';
+
+  @override
+  String get addText => 'Text hinzufügen';
+
+  @override
+  String get addOverlayHint => 'Foto- oder Video-Overlay hinzufügen';
+
+  @override
+  String get addMusicOrSound => 'Musik oder Ton hinzufügen';
+
+  @override
+  String get timelineLabel => 'Zeitleiste';
+
+  @override
+  String get zoomIn => 'Vergrößern';
+
+  @override
+  String get zoomOut => 'Verkleinern';
+
+  @override
+  String get trimStart => 'Anfang kürzen';
+
+  @override
+  String get trimEnd => 'Ende kürzen';
+
+  @override
+  String get dragSideways => 'Seitwärts ziehen';
+
+  @override
+  String overlayLayerN(int index) {
+    return 'Overlay-Ebene $index';
+  }
+
+  @override
+  String audioLaneN(int index) {
+    return 'Tonspur $index';
+  }
+
+  @override
+  String get unmuteClipAudio => 'Clipton einschalten';
+
+  @override
+  String get muteClipAudio => 'Clipton stummschalten';
+
+  @override
+  String get mainTrack => 'Hauptspur';
+
+  @override
+  String get overlayFallback => 'Overlay';
+
+  @override
+  String timelineItemDescription(
+    String kind,
+    String name,
+    String start,
+    String seconds,
+  ) {
+    return '$kind $name, beginnt bei $start, $seconds Sekunden';
+  }
+
+  @override
+  String transitionNamed(String name) {
+    return 'Übergang: $name';
+  }
+
+  @override
+  String get addTransition => 'Übergang hinzufügen';
+
+  @override
+  String transitionBeforeClip(int index) {
+    return 'Übergang vor Clip $index';
+  }
+
+  @override
+  String clipSpeedSemantics(String speed) {
+    return '$speed-fache Geschwindigkeit';
+  }
+
+  @override
+  String clipEffectsSemantics(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Effekte',
+      one: '1 Effekt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get touchAndHoldToMove => 'Halten zum Verschieben';
+
+  @override
+  String defaultMovieName(String date) {
+    return 'Tauchgang, $date';
+  }
+
+  @override
+  String deleteNamedQuestion(String name) {
+    return '„$name“ löschen?';
+  }
+
+  @override
+  String get deleteMovieBody =>
+      'Nur das Filmprojekt wird entfernt. Deine Fotos, Clips und exportierten Filme bleiben erhalten.';
+
+  @override
+  String get madeOnThisDevice => 'Auf diesem Gerät erstellt';
+
+  @override
+  String movieCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Filme',
+      one: '1 Film',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get newMovie => 'Neuer Film';
+
+  @override
+  String get turnDiveIntoMovie => 'Mach aus einem Tauchgang einen Film';
+
+  @override
+  String get turnDiveIntoMovieBody =>
+      'Reihe Fotos und Clips aneinander, gib jedem die passende Farbe und exportiere einen Film, ohne dieses Gerät zu verlassen.';
+
+  @override
+  String get recent => 'Zuletzt';
+
+  @override
+  String get swipeToDeleteMovie =>
+      'Streiche nach links oder halte einen Film gedrückt, um ihn zu löschen.';
+
+  @override
+  String get open => 'Öffnen';
+
+  @override
+  String titleQuoted(String text) {
+    return 'Titel „$text“';
+  }
+
+  @override
+  String selectedOnCanvas(String name) {
+    return '$name auf der Leinwand ausgewählt';
+  }
+
+  @override
+  String get movieCanvas => 'Filmleinwand';
+
+  @override
+  String get canvasSelectedHint =>
+      'Ziehen zum Verschieben, Auf- und Zuziehen zum Skalieren, mit zwei Fingern drehen';
+
+  @override
+  String get canvasHint =>
+      'Tippe, um den sichtbaren Clip oder das Overlay auszuwählen';
+
+  @override
+  String get moveLeft => 'Nach links';
+
+  @override
+  String get moveRight => 'Nach rechts';
+
+  @override
+  String get moveUp => 'Nach oben';
+
+  @override
+  String get moveDown => 'Nach unten';
+
+  @override
+  String get makeLarger => 'Vergrößern';
+
+  @override
+  String get makeSmaller => 'Verkleinern';
+
+  @override
+  String get rotateClockwise => 'Im Uhrzeigersinn drehen';
 }

@@ -13,6 +13,8 @@ import '../timeline_theme.dart';
 import 'tools/transition_panel.dart';
 import '../../../shared/widgets/app_tooltip.dart';
 import '../../../shared/widgets/mouse_drag_scroll.dart';
+import '../../../l10n/timeline_labels.dart';
+import '../../../l10n/l10n.dart';
 
 /// Pixels per second of the timeline, shared by the strip and the zoom
 /// buttons in the transport row.
@@ -557,10 +559,11 @@ class _TimelineStripState extends State<TimelineStrip> {
                 OverlayKind.video => CupertinoIcons.film,
                 OverlayKind.image => CupertinoIcons.photo,
               },
-              label: _overlayLabel(overlay),
+              label: _overlayLabel(context.l10n, overlay),
               semanticLabel: _describe(
-                _overlayKindName(overlay),
-                _overlayLabel(overlay),
+                context.l10n,
+                _overlayKindName(context.l10n, overlay),
+                _overlayLabel(context.l10n, overlay),
                 start,
                 overlay.duration,
               ),
@@ -610,7 +613,8 @@ class _TimelineStripState extends State<TimelineStrip> {
                   : CupertinoIcons.music_note,
               label: name,
               semanticLabel: _describe(
-                audio.role.label,
+                context.l10n,
+                audio.role.labelIn(context.l10n),
                 name,
                 start,
                 audio.duration,
@@ -665,16 +669,16 @@ class _TimelineStripState extends State<TimelineStrip> {
             _AddLaneButton(
               key: const Key('timeline_add_text'),
               icon: CupertinoIcons.textformat,
-              label: 'Text',
-              semanticLabel: 'Add text',
+              label: context.l10n.toolText,
+              semanticLabel: context.l10n.addText,
               onPressed: widget.onAddText,
             ),
             const SizedBox(width: 8),
             _AddLaneButton(
               key: const Key('timeline_add_overlay'),
               icon: CupertinoIcons.square_on_square,
-              label: 'Overlay',
-              semanticLabel: 'Add a photo or video overlay',
+              label: context.l10n.toolOverlay,
+              semanticLabel: context.l10n.addOverlayHint,
               onPressed: widget.onAddOverlay,
             ),
           ]),
@@ -684,8 +688,8 @@ class _TimelineStripState extends State<TimelineStrip> {
             _AddLaneButton(
               key: const Key('timeline_add_audio'),
               icon: CupertinoIcons.music_note,
-              label: 'Audio',
-              semanticLabel: 'Add music or sound',
+              label: context.l10n.toolAudio,
+              semanticLabel: context.l10n.addMusicOrSound,
               onPressed: widget.onAddAudio,
             ),
           ]),
@@ -700,10 +704,10 @@ class _TimelineStripState extends State<TimelineStrip> {
           width: 44,
           height: 44,
           child: AppTooltip(
-            message: 'Add photos and clips',
+            message: context.l10n.addPhotosAndClips,
             child: Semantics(
               button: true,
-              label: 'Add photos and clips',
+              label: context.l10n.addPhotosAndClips,
               excludeSemantics: true,
               child: CupertinoButton(
                 key: const Key('timeline_add'),
@@ -773,10 +777,10 @@ class _TimelineStripState extends State<TimelineStrip> {
       },
       child: Semantics(
         container: true,
-        label: 'Timeline',
+        label: context.l10n.timelineLabel,
         customSemanticsActions: {
-          const CustomSemanticsAction(label: 'Zoom in'): _zoom.zoomIn,
-          const CustomSemanticsAction(label: 'Zoom out'): _zoom.zoomOut,
+          CustomSemanticsAction(label: context.l10n.zoomIn): _zoom.zoomIn,
+          CustomSemanticsAction(label: context.l10n.zoomOut): _zoom.zoomOut,
         },
         child: SizedBox(
           height: height,
@@ -875,8 +879,8 @@ class _TimelineStripState extends State<TimelineStrip> {
         top: top + height / 2 - hitHeight / 2,
         height: hitHeight,
         child: Semantics(
-          label: atStart ? 'Trim start' : 'Trim end',
-          hint: 'Drag sideways',
+          label: atStart ? context.l10n.trimStart : context.l10n.trimEnd,
+          hint: context.l10n.dragSideways,
           child: RawGestureDetector(
             behavior: HitTestBehavior.opaque,
             gestures: {
@@ -935,14 +939,14 @@ class _TimelineStripState extends State<TimelineStrip> {
               _overlayTop(lane0),
               _overlayH,
               CupertinoIcons.square_on_square,
-              'Overlay layer ${lane0 + 1}',
+              context.l10n.overlayLayerN(lane0 + 1),
             ),
           for (var lane0 = 0; lane0 < audios; lane0++)
             lane(
               _audioTop(lane0),
               _audioH,
               CupertinoIcons.music_note,
-              'Audio lane ${lane0 + 1}',
+              context.l10n.audioLaneN(lane0 + 1),
             ),
         ],
         Positioned(
@@ -952,11 +956,13 @@ class _TimelineStripState extends State<TimelineStrip> {
           height: 44,
           child: hasVideo
               ? AppTooltip(
-                  message: muted ? 'Unmute clip audio' : 'Mute clip audio',
+                  message: muted
+                      ? context.l10n.unmuteClipAudio
+                      : context.l10n.muteClipAudio,
                   child: Semantics(
                     button: true,
                     toggled: muted,
-                    label: 'Mute clip audio',
+                    label: context.l10n.muteClipAudio,
                     excludeSemantics: true,
                     child: CupertinoButton(
                       key: const Key('timeline_mute_clips'),
@@ -986,7 +992,7 @@ class _TimelineStripState extends State<TimelineStrip> {
                   ),
                 )
               : Semantics(
-                  label: 'Main track',
+                  label: context.l10n.mainTrack,
                   child: const Icon(
                     CupertinoIcons.film,
                     size: 15,
@@ -998,30 +1004,39 @@ class _TimelineStripState extends State<TimelineStrip> {
     );
   }
 
-  static String _overlayKindName(TimelineOverlay overlay) =>
-      switch (overlay.kind) {
-        OverlayKind.text => 'Title',
-        OverlayKind.video => 'Video overlay',
-        OverlayKind.image => 'Photo overlay',
-      };
+  static String _overlayKindName(
+    AppLocalizations l10n,
+    TimelineOverlay overlay,
+  ) => switch (overlay.kind) {
+    OverlayKind.text => l10n.selectionTitle,
+    OverlayKind.video => l10n.videoOverlay,
+    OverlayKind.image => l10n.photoOverlay,
+  };
 
-  static String _overlayLabel(TimelineOverlay overlay) {
+  static String _overlayLabel(AppLocalizations l10n, TimelineOverlay overlay) {
     final title = overlay.title;
     if (title != null) {
       final text = title.text.split('\n').first.trim();
-      return text.isEmpty ? 'Title' : text;
+      return text.isEmpty ? l10n.selectionTitle : text;
     }
-    return p.basenameWithoutExtension(overlay.path ?? 'Overlay');
+    final path = overlay.path;
+    return path == null
+        ? l10n.overlayFallback
+        : p.basenameWithoutExtension(path);
   }
 
   static String _describe(
+    AppLocalizations l10n,
     String kind,
     String name,
     double start,
     double duration,
-  ) =>
-      '$kind $name, starts at ${formatTimecode(start)}, '
-      '${duration.toStringAsFixed(1)} seconds';
+  ) => l10n.timelineItemDescription(
+    kind,
+    name,
+    formatTimecode(start),
+    l10n.decimal(duration),
+  );
 }
 
 class _TrimHandle extends StatelessWidget {
@@ -1071,17 +1086,18 @@ class _JunctionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final set = transition != ClipTransition.cut;
     final filled = set || active;
     return AppTooltip(
       message: set
-          ? '${TransitionPanel.labelOf(transition)} transition'
-          : 'Add a transition',
+          ? l10n.transitionNamed(TransitionPanel.labelOf(l10n, transition))
+          : l10n.addTransition,
       child: Semantics(
         button: true,
         selected: active,
-        label: 'Transition before clip ${index + 1}',
-        value: TransitionPanel.labelOf(transition),
+        label: l10n.transitionBeforeClip(index + 1),
+        value: TransitionPanel.labelOf(l10n, transition),
         excludeSemantics: true,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -1247,15 +1263,20 @@ class _ClipTile extends StatelessWidget {
         ? TimelineColors.videoClip
         : TimelineColors.photoClip;
     final speed = clip.playbackSpeed;
+    final l10n = context.l10n;
     return Semantics(
       button: true,
       selected: selected,
-      label:
-          '${clip.isVideo ? 'Clip' : 'Photo'} ${entry.index + 1}, '
-          '${formatTimecode(clip.duration)}'
-          '${speed != 1 ? ', ${speed}x speed' : ''}'
-          '${clip.effects.isEmpty ? '' : ', ${clip.effects.length} effects'}',
-      hint: 'Touch and hold to move',
+      label: [
+        clip.isVideo
+            ? l10n.selectionClip(entry.index + 1)
+            : l10n.selectionPhoto(entry.index + 1),
+        formatTimecode(clip.duration),
+        if (speed != 1) l10n.clipSpeedSemantics(l10n.compactDecimal(speed)),
+        if (clip.effects.isNotEmpty)
+          l10n.clipEffectsSemantics(clip.effects.length),
+      ].join(', '),
+      hint: l10n.touchAndHoldToMove,
       excludeSemantics: true,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 1),
@@ -1333,7 +1354,7 @@ class _ClipTile extends StatelessWidget {
                       if (speed != 1) ...[
                         const SizedBox(width: 3),
                         Text(
-                          '${speed.toStringAsFixed(speed == speed.roundToDouble() ? 0 : 2).replaceFirst(RegExp(r'0$'), '')}×',
+                          l10n.speedValue(l10n.compactDecimal(speed)),
                           style: const TextStyle(
                             color: TimelineColors.text,
                             fontSize: 11,

@@ -1873,4 +1873,862 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get tourExportCallout =>
       'Only a confirmed export writes the finished file. Completed batch items then leave the queue.';
+
+  @override
+  String get effectCategoryLook => 'Look';
+
+  @override
+  String get effectCategoryLens => 'Lens';
+
+  @override
+  String get effectCategoryUnderwater => 'Underwater';
+
+  @override
+  String get effectCategoryMotion => 'Motion';
+
+  @override
+  String get effectMono => 'Mono';
+
+  @override
+  String get effectSepia => 'Sepia';
+
+  @override
+  String get effectCyanotype => 'Cyanotype';
+
+  @override
+  String get effectDeepBlue => 'Deep Blue';
+
+  @override
+  String get effectVivid => 'Vivid';
+
+  @override
+  String get effectFaded => 'Faded Film';
+
+  @override
+  String get effectSoftFocus => 'Soft Focus';
+
+  @override
+  String get effectClarity => 'Clarity';
+
+  @override
+  String get effectGrain => 'Film Grain';
+
+  @override
+  String get effectVignette => 'Vignette';
+
+  @override
+  String get effectCinemaBars => 'Cinema Bars';
+
+  @override
+  String get effectSunRays => 'Sun Rays';
+
+  @override
+  String get effectCaustics => 'Caustics';
+
+  @override
+  String get effectStrobe => 'Strobe Flash';
+
+  @override
+  String get effectSwell => 'Swell';
+
+  @override
+  String get effectDrift => 'Slow Drift';
+
+  @override
+  String get aspectLandscape => 'Landscape 16:9';
+
+  @override
+  String get aspectPortrait => 'Portrait 9:16';
+
+  @override
+  String get aspectSquare => 'Square 1:1';
+
+  @override
+  String get aspectPortrait45 => 'Portrait 4:5';
+
+  @override
+  String get fadeColorBlack => 'Black';
+
+  @override
+  String get fadeColorWhite => 'White';
+
+  @override
+  String get fadeColorDeepBlue => 'Deep blue';
+
+  @override
+  String get animationNone => 'None';
+
+  @override
+  String get animationFade => 'Fade';
+
+  @override
+  String get animationSlideUp => 'Slide up';
+
+  @override
+  String get animationPop => 'Pop';
+
+  @override
+  String get titleStyleClassic => 'Classic';
+
+  @override
+  String get titleStyleBox => 'Box';
+
+  @override
+  String get titleStyleOutline => 'Outline';
+
+  @override
+  String get titleStyleCaption => 'Caption';
+
+  @override
+  String get titleStyleDiveStamp => 'Dive stamp';
+
+  @override
+  String get audioRoleMusic => 'Music';
+
+  @override
+  String get audioRoleVoiceover => 'Voiceover';
+
+  @override
+  String get audioRoleSound => 'Sound';
+
+  @override
+  String get audioRoleExtracted => 'Extracted audio';
+
+  @override
+  String selectionClip(int index) {
+    return 'Clip $index';
+  }
+
+  @override
+  String selectionPhoto(int index) {
+    return 'Photo $index';
+  }
+
+  @override
+  String get selectionTitle => 'Title';
+
+  @override
+  String get videoOverlay => 'Video overlay';
+
+  @override
+  String get photoOverlay => 'Photo overlay';
+
+  @override
+  String get soundFallback => 'Sound';
+
+  @override
+  String get defaultTitleText => 'Title';
+
+  @override
+  String extractedAudioName(String name) {
+    return '$name audio';
+  }
+
+  @override
+  String get someFilesSkipped => 'Some files were skipped';
+
+  @override
+  String filesNotOnTimeline(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count files cannot go on a timeline (RAW video or unknown type).',
+      one: '1 file cannot go on a timeline (RAW video or unknown type).',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get cannotAddOverlay => 'Can’t add this overlay';
+
+  @override
+  String get cannotAddOverlayBody =>
+      'Pick a photo or clip in a format AquaRecover can read. RAW video cannot go on a timeline.';
+
+  @override
+  String get cannotReplaceClip => 'Can’t replace this clip';
+
+  @override
+  String get cannotReplaceClipBody =>
+      'Pick a photo or clip in a format AquaRecover can read.';
+
+  @override
+  String get nothingToExport => 'Nothing to export';
+
+  @override
+  String get nothingToExportBody => 'Add at least one photo or clip first.';
+
+  @override
+  String get movieSaved => 'Movie saved to your AquaRecover exports.';
+
+  @override
+  String get renderCancelled => 'Render cancelled.';
+
+  @override
+  String get savedToPhotos => 'Saved to Photos.';
+
+  @override
+  String get notSavedToPhotos => 'Not saved to Photos';
+
+  @override
+  String get backendNoteAndroid => 'fades render as dips to black';
+
+  @override
+  String get backendNoteNoFfmpeg => 'needs ffmpeg on this computer';
+
+  @override
+  String get movieName => 'Movie name';
+
+  @override
+  String get rename => 'Rename';
+
+  @override
+  String get cannotSplitHere => 'Can’t split here';
+
+  @override
+  String get cannotSplitHereBody =>
+      'Move the playhead inside the item, away from its first and last frames, then split.';
+
+  @override
+  String get toolSplit => 'Split';
+
+  @override
+  String get toolDuplicate => 'Duplicate';
+
+  @override
+  String get toolDelete => 'Delete';
+
+  @override
+  String get toolEffects => 'Effects';
+
+  @override
+  String get toolColorGrade => 'Color';
+
+  @override
+  String get toolFade => 'Fade';
+
+  @override
+  String get toolSpeed => 'Speed';
+
+  @override
+  String get toolVolume => 'Volume';
+
+  @override
+  String get toolDuration => 'Duration';
+
+  @override
+  String get toolOpacity => 'Opacity';
+
+  @override
+  String get toolAnimate => 'Animate';
+
+  @override
+  String get toolLayer => 'Layer';
+
+  @override
+  String get toolEdit => 'Edit';
+
+  @override
+  String get toolAudio => 'Audio';
+
+  @override
+  String get toolText => 'Text';
+
+  @override
+  String get toolOverlay => 'Overlay';
+
+  @override
+  String get toolFormat => 'Format';
+
+  @override
+  String get toolMotion => 'Motion';
+
+  @override
+  String get toolMore => 'More';
+
+  @override
+  String get toolTransition => 'Transition';
+
+  @override
+  String get movieTools => 'Movie tools';
+
+  @override
+  String itemTools(String name) {
+    return '$name tools';
+  }
+
+  @override
+  String noClipsYet(String aspect) {
+    return 'No clips yet · $aspect';
+  }
+
+  @override
+  String movieSummary(int count, Object aspect, Object duration) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items · $duration · $aspect',
+      one: '1 item · $duration · $aspect',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get exportMovie => 'Export movie';
+
+  @override
+  String get startWithBestShots => 'Start with your best shots';
+
+  @override
+  String get startWithBestShotsBody =>
+      'Photos and clips play in the order you add them.';
+
+  @override
+  String get addPhotosAndClips => 'Add photos and clips';
+
+  @override
+  String playheadOf(String position, String duration) {
+    return 'Playhead $position of $duration';
+  }
+
+  @override
+  String get zoomOutTimeline => 'Zoom out timeline';
+
+  @override
+  String get zoomInTimeline => 'Zoom in timeline';
+
+  @override
+  String playPauseShortcut(String action) {
+    return '$action (Space)';
+  }
+
+  @override
+  String secondsValue(String value) {
+    return '$value s';
+  }
+
+  @override
+  String speedValue(String value) {
+    return '$value×';
+  }
+
+  @override
+  String get musicFromFiles => 'Music from Files';
+
+  @override
+  String get audioFormatsDetail => 'MP3, M4A, AAC, WAV, or AIFF';
+
+  @override
+  String get extractAudioFromClip => 'Extract Audio from Clip';
+
+  @override
+  String get putPlayheadOnVideo => 'Put the playhead on a video clip';
+
+  @override
+  String clipGoesSilent(int index) {
+    return 'Clip $index goes silent; its sound gets a lane';
+  }
+
+  @override
+  String get protectedMusicNote =>
+      'Music from Apple Music and other protected tracks can’t be used.';
+
+  @override
+  String effectsOnCount(String name, int count) {
+    return '$name · $count on';
+  }
+
+  @override
+  String get addClipForEffect => 'Add a clip first, then give it an effect.';
+
+  @override
+  String get effectCategoryLooks => 'Looks';
+
+  @override
+  String effectIntensity(String name) {
+    return '$name intensity';
+  }
+
+  @override
+  String get remove => 'Remove';
+
+  @override
+  String get effectTapHint =>
+      'Tap an effect to add it. Tap it again to adjust or remove it.';
+
+  @override
+  String get effectHintRemoves => 'Removes the effect';
+
+  @override
+  String get effectHintShowsIntensity => 'Shows its intensity';
+
+  @override
+  String get effectHintAdds => 'Adds the effect';
+
+  @override
+  String get selectItemToFade => 'Select an item to fade it.';
+
+  @override
+  String get fadeIn => 'Fade in';
+
+  @override
+  String get fadeOut => 'Fade out';
+
+  @override
+  String get fadeColorLabel => 'Color';
+
+  @override
+  String get formatUseLandscape => 'TV, YouTube, and computers';
+
+  @override
+  String get formatUsePortrait => 'Stories, Reels, and TikTok';
+
+  @override
+  String get formatUseSquare => 'Feeds that crop to a square';
+
+  @override
+  String get formatUsePortrait45 => 'Portrait feed posts';
+
+  @override
+  String formatSummary(String aspect, int width, int height) {
+    return '$aspect · $width × $height';
+  }
+
+  @override
+  String get moveEarlier => 'Move Earlier';
+
+  @override
+  String get moveLater => 'Move Later';
+
+  @override
+  String get trimStartToPlayhead => 'Trim Start to Playhead';
+
+  @override
+  String get trimEndToPlayhead => 'Trim End to Playhead';
+
+  @override
+  String get cannotSetStart => 'Can’t set the start';
+
+  @override
+  String get cannotSetStartBody =>
+      'Put the playhead inside the selected clip to set its start.';
+
+  @override
+  String get cannotSetEnd => 'Can’t set the end';
+
+  @override
+  String get cannotSetEndBody =>
+      'Put the playhead inside the selected clip to set its end.';
+
+  @override
+  String get replaceEllipsis => 'Replace…';
+
+  @override
+  String get replaceDetail => 'Keeps the grade, effects, and fades';
+
+  @override
+  String get extractAudio => 'Extract Audio';
+
+  @override
+  String get extractAudioDetail => 'Moves the sound to its own lane';
+
+  @override
+  String get selectPhotoForZoom => 'Select a photo to give it a slow zoom.';
+
+  @override
+  String get motionStill => 'Still';
+
+  @override
+  String get motionZoomIn => 'Zoom in';
+
+  @override
+  String get motionZoomOut => 'Zoom out';
+
+  @override
+  String get motionDriftHint =>
+      'For a drifting, swaying camera, try Slow Drift and Swell in Effects › Motion.';
+
+  @override
+  String get selectOverlayForOpacity =>
+      'Select an overlay to change its opacity.';
+
+  @override
+  String get animation => 'Animation';
+
+  @override
+  String get selectOverlayToAnimate =>
+      'Select an overlay or title to animate it.';
+
+  @override
+  String get animationIn => 'In';
+
+  @override
+  String get animationOut => 'Out';
+
+  @override
+  String animationDuration(String seconds) {
+    return 'Each animation takes $seconds s.';
+  }
+
+  @override
+  String layerOf(int layer, int count) {
+    return '$layer of $count';
+  }
+
+  @override
+  String get selectOverlayOrTitle => 'Select an overlay or title.';
+
+  @override
+  String get bringForward => 'Bring Forward';
+
+  @override
+  String get bringForwardDetail => 'Shows in front of the layer above';
+
+  @override
+  String get sendBackward => 'Send Backward';
+
+  @override
+  String get sendBackwardDetail => 'Shows behind the layer below';
+
+  @override
+  String get selectVideoForSpeed => 'Select a video clip to change its speed.';
+
+  @override
+  String get speedPitchNote =>
+      'Sound keeps its pitch. Length on the timeline changes with speed.';
+
+  @override
+  String get selectPhotoForDuration =>
+      'Select a photo or title to change its length.';
+
+  @override
+  String get lengthOnScreen => 'Length on screen';
+
+  @override
+  String get halfSecondShorter => 'Half a second shorter';
+
+  @override
+  String get halfSecondLonger => 'Half a second longer';
+
+  @override
+  String get colorWhite => 'White';
+
+  @override
+  String get colorSand => 'Sand';
+
+  @override
+  String get colorCoral => 'Coral';
+
+  @override
+  String get colorYellow => 'Yellow';
+
+  @override
+  String get colorAqua => 'Aqua';
+
+  @override
+  String get colorBlack => 'Black';
+
+  @override
+  String get titleStyleBoldBox => 'Bold box';
+
+  @override
+  String get selectTitleToEdit => 'Select a title to edit it.';
+
+  @override
+  String get alignLeft => 'Left';
+
+  @override
+  String get alignCenter => 'Center';
+
+  @override
+  String get alignRight => 'Right';
+
+  @override
+  String get titleSize => 'Size';
+
+  @override
+  String percentOfHeight(int percent) {
+    return '$percent % of height';
+  }
+
+  @override
+  String swatchText(String color) {
+    return '$color text';
+  }
+
+  @override
+  String get transitionCut => 'Cut';
+
+  @override
+  String get transitionCrossfade => 'Crossfade';
+
+  @override
+  String get transitionDipBlack => 'Dip to black';
+
+  @override
+  String get transitionDipWhite => 'Dip to white';
+
+  @override
+  String clipsRange(int first, int second) {
+    return 'Clips $first–$second';
+  }
+
+  @override
+  String get tapBetweenClips => 'Tap the button between two clips.';
+
+  @override
+  String get transitionLength => 'Length of every transition';
+
+  @override
+  String applyTransitionToAll(String transition) {
+    return 'Apply $transition to All';
+  }
+
+  @override
+  String get noSoundNote => 'Photos and titles have no sound.';
+
+  @override
+  String get volumeLevel => 'Level';
+
+  @override
+  String get muted => 'Muted';
+
+  @override
+  String get mute => 'Mute';
+
+  @override
+  String get gradeStrength => 'Strength';
+
+  @override
+  String get gradeRecovery => 'Recovery';
+
+  @override
+  String get gradeRed => 'Red';
+
+  @override
+  String get gradeBalance => 'Balance';
+
+  @override
+  String get gradeTemp => 'Temp';
+
+  @override
+  String get gradeHaze => 'Haze';
+
+  @override
+  String get gradeApplyToAll => 'Apply to All';
+
+  @override
+  String get selectToGrade => 'Select a clip or overlay to grade it.';
+
+  @override
+  String get saveToPhotos => 'Save to Photos';
+
+  @override
+  String get shareTheMovie => 'Share the movie';
+
+  @override
+  String get openExports => 'Open exports';
+
+  @override
+  String movieExportSummary(int width, int height, String duration) {
+    return '$width × $height · $duration · H.264 MP4';
+  }
+
+  @override
+  String cancelWithProgress(int percent) {
+    return 'Cancel · $percent%';
+  }
+
+  @override
+  String get exportFrame => 'Frame';
+
+  @override
+  String get exportQuality => 'Quality';
+
+  @override
+  String get exportFades => 'Fades';
+
+  @override
+  String get allTools => 'All tools';
+
+  @override
+  String get addText => 'Add text';
+
+  @override
+  String get addOverlayHint => 'Add a photo or video overlay';
+
+  @override
+  String get addMusicOrSound => 'Add music or sound';
+
+  @override
+  String get timelineLabel => 'Timeline';
+
+  @override
+  String get zoomIn => 'Zoom in';
+
+  @override
+  String get zoomOut => 'Zoom out';
+
+  @override
+  String get trimStart => 'Trim start';
+
+  @override
+  String get trimEnd => 'Trim end';
+
+  @override
+  String get dragSideways => 'Drag sideways';
+
+  @override
+  String overlayLayerN(int index) {
+    return 'Overlay layer $index';
+  }
+
+  @override
+  String audioLaneN(int index) {
+    return 'Audio lane $index';
+  }
+
+  @override
+  String get unmuteClipAudio => 'Unmute clip audio';
+
+  @override
+  String get muteClipAudio => 'Mute clip audio';
+
+  @override
+  String get mainTrack => 'Main track';
+
+  @override
+  String get overlayFallback => 'Overlay';
+
+  @override
+  String timelineItemDescription(
+    String kind,
+    String name,
+    String start,
+    String seconds,
+  ) {
+    return '$kind $name, starts at $start, $seconds seconds';
+  }
+
+  @override
+  String transitionNamed(String name) {
+    return '$name transition';
+  }
+
+  @override
+  String get addTransition => 'Add a transition';
+
+  @override
+  String transitionBeforeClip(int index) {
+    return 'Transition before clip $index';
+  }
+
+  @override
+  String clipSpeedSemantics(String speed) {
+    return '${speed}x speed';
+  }
+
+  @override
+  String clipEffectsSemantics(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count effects',
+      one: '1 effect',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get touchAndHoldToMove => 'Touch and hold to move';
+
+  @override
+  String defaultMovieName(String date) {
+    return 'Dive, $date';
+  }
+
+  @override
+  String deleteNamedQuestion(String name) {
+    return 'Delete “$name”?';
+  }
+
+  @override
+  String get deleteMovieBody =>
+      'Only the movie project is removed. Your photos, clips, and exported movies stay.';
+
+  @override
+  String get madeOnThisDevice => 'Made on this device';
+
+  @override
+  String movieCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count movies',
+      one: '1 movie',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get newMovie => 'New movie';
+
+  @override
+  String get turnDiveIntoMovie => 'Turn a dive into a movie';
+
+  @override
+  String get turnDiveIntoMovieBody =>
+      'Line up photos and clips, give each the color it needs, and export a movie without leaving this device.';
+
+  @override
+  String get recent => 'Recent';
+
+  @override
+  String get swipeToDeleteMovie =>
+      'Swipe left or touch and hold a movie to delete it.';
+
+  @override
+  String get open => 'Open';
+
+  @override
+  String titleQuoted(String text) {
+    return 'Title “$text”';
+  }
+
+  @override
+  String selectedOnCanvas(String name) {
+    return 'Selected $name on the canvas';
+  }
+
+  @override
+  String get movieCanvas => 'Movie canvas';
+
+  @override
+  String get canvasSelectedHint =>
+      'Drag to move, pinch to resize, turn two fingers to rotate';
+
+  @override
+  String get canvasHint => 'Tap to select the clip or overlay you see';
+
+  @override
+  String get moveLeft => 'Move left';
+
+  @override
+  String get moveRight => 'Move right';
+
+  @override
+  String get moveUp => 'Move up';
+
+  @override
+  String get moveDown => 'Move down';
+
+  @override
+  String get makeLarger => 'Make larger';
+
+  @override
+  String get makeSmaller => 'Make smaller';
+
+  @override
+  String get rotateClockwise => 'Rotate clockwise';
 }

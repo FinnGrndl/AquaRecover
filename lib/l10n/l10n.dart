@@ -8,6 +8,9 @@ export 'app_localizations.dart';
 
 final AppLocalizations _english = AppLocalizationsEn();
 
+/// The English strings, for defaults outside a widget tree.
+AppLocalizations get englishL10n => _english;
+
 extension AppLocalizationsContext on BuildContext {
   /// The strings for the device language.
   ///
@@ -36,6 +39,11 @@ extension AppFormats on AppLocalizations {
         locale: localeName,
         decimalDigits: digits,
       ).format(value);
+
+  /// [value] with up to three decimals and no trailing zeros, such as 1.5
+  /// or 1,5.
+  String compactDecimal(num value) =>
+      NumberFormat.decimalPattern(localeName).format(value);
 
   /// [meters] as a depth, such as "18.4 m" or "18,4 m".
   String depthValue(double meters, {int digits = 1}) =>
