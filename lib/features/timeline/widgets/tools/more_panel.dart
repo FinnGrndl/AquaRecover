@@ -80,7 +80,7 @@ class MorePanel extends StatelessWidget {
           label: l10n.extractAudio,
           detail: l10n.extractAudioDetail,
           onPressed: clip != null && clip.isVideo
-              ? () => controller.extractAudio()
+              ? () => controller.extractAudio(nameOf: l10n.extractedAudioName)
               : null,
         ),
       ],

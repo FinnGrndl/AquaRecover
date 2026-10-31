@@ -2164,7 +2164,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String movieSummary(int count, Object aspect, Object duration) {
+  String movieSummary(int count, String duration, String aspect) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,

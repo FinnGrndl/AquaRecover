@@ -3816,7 +3816,7 @@ class _EditorPageState extends State<EditorPage> {
       editStates: _editStates,
       videoDurations: _videoDurations,
       id: TimelineProjectsPage.newProjectId(),
-      name: TimelineProjectsPage.defaultName(DateTime.now()),
+      name: TimelineProjectsPage.defaultName(DateTime.now(), context.l10n),
     );
     await TimelineProjectsPage.open(context, project);
   }

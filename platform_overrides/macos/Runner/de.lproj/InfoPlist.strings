@@ -1,0 +1,3 @@
+/* Permission prompts shown by macOS. */
+"NSPhotoLibraryUsageDescription" = "AquaRecover importiert ausgewählte Tauchfotos und -videos, um sie direkt auf dem Gerät zu korrigieren.";
+"NSPhotoLibraryAddUsageDescription" = "AquaRecover kann korrigierte Exporte in deiner Mediathek sichern.";

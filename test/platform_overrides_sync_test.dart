@@ -10,11 +10,18 @@ void main() {
   for (final platform in ['ios', 'macos']) {
     test('$platform runner matches platform_overrides', () {
       final overrides = Directory('platform_overrides/$platform/Runner');
-      final files = overrides.listSync().whereType<File>().toList();
+      final files = overrides
+          .listSync(recursive: true)
+          .whereType<File>()
+          .toList();
       expect(files, isNotEmpty);
       for (final file in files) {
         final runnerCopy = File(
-          p.join(platform, 'Runner', p.basename(file.path)),
+          p.join(
+            platform,
+            'Runner',
+            p.relative(file.path, from: overrides.path),
+          ),
         );
         expect(
           runnerCopy.existsSync(),
@@ -49,6 +56,50 @@ void main() {
       }
     });
   }
+
+  for (final platform in ['ios', 'macos']) {
+    test('$platform bundle is localized in every app language', () {
+      final project = File(
+        '$platform/Runner.xcodeproj/project.pbxproj',
+      ).readAsStringSync();
+      final plist = File('$platform/Runner/Info.plist').readAsStringSync();
+      expect(project, contains('/* InfoPlist.strings in Resources */'));
+      expect(plist, contains('<key>CFBundleLocalizations</key>'));
+      final english = _strings(
+        File('$platform/Runner/en.lproj/InfoPlist.strings'),
+      );
+      expect(english, isNotEmpty);
+      for (final language in _appLanguages) {
+        expect(project, contains('path = $language.lproj/InfoPlist.strings;'));
+        expect(
+          RegExp(r'knownRegions = \(([^)]*)\);').firstMatch(project)![1],
+          contains('\t$language,\n'),
+        );
+        expect(plist, contains('<string>$language</string>'));
+        final strings = _strings(
+          File('$platform/Runner/$language.lproj/InfoPlist.strings'),
+        );
+        expect(strings.keys, english.keys, reason: '$language.lproj keys');
+      }
+      // English matches the Info.plist the strings replace.
+      for (final MapEntry(:key, :value) in english.entries) {
+        expect(plist, contains('<key>$key</key>\n\t<string>$value</string>'));
+      }
+    });
+  }
+
+  test('android lists every app language for per-app language settings', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+    expect(manifest, contains('android:localeConfig="@xml/locales_config"'));
+    final config = File(
+      'android/app/src/main/res/xml/locales_config.xml',
+    ).readAsStringSync();
+    for (final language in _appLanguages) {
+      expect(config, contains('<locale android:name="$language" />'));
+    }
+  });
 
   test('android runner matches platform_overrides', () {
     const package = 'app/src/main/kotlin/io/github/finngrndl/aquarecover';
@@ -85,3 +136,22 @@ void main() {
     );
   }
 }
+
+/// The languages in lib/l10n, which the native bundles must list too.
+List<String> get _appLanguages =>
+    Directory('lib/l10n')
+        .listSync()
+        .map((entry) => p.basename(entry.path))
+        .map((name) => RegExp(r'^app_(\w+)\.arb$').firstMatch(name)?[1])
+        .whereType<String>()
+        .toList()
+      ..sort();
+
+/// The `"key" = "value";` pairs of an Apple `.strings` file.
+Map<String, String> _strings(File file) => {
+  for (final match in RegExp(
+    r'^"([^"]+)" = "((?:[^"\\]|\\.)*)";$',
+    multiLine: true,
+  ).allMatches(file.readAsStringSync()))
+    match[1]!: match[2]!,
+};

@@ -38,7 +38,9 @@ class AudioAddPanel extends StatelessWidget {
           detail: source == null
               ? l10n.putPlayheadOnVideo
               : l10n.clipGoesSilent(source.index + 1),
-          onPressed: source == null ? null : () => controller.extractAudio(),
+          onPressed: source == null
+              ? null
+              : () => controller.extractAudio(nameOf: l10n.extractedAudioName),
         ),
         const SizedBox(height: 8),
         Text(

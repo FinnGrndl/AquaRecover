@@ -3624,7 +3624,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 item · {duration} · {aspect}} other{{count} items · {duration} · {aspect}}}'**
-  String movieSummary(int count, Object aspect, Object duration);
+  String movieSummary(int count, String duration, String aspect);
 
   /// No description provided for @exportMovie.
   ///

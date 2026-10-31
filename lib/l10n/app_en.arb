@@ -1288,6 +1288,12 @@
     "placeholders": {
       "count": {
         "type": "int"
+      },
+      "duration": {
+        "type": "String"
+      },
+      "aspect": {
+        "type": "String"
       }
     }
   },
