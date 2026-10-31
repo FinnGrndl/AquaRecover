@@ -187,19 +187,23 @@ class _ExportLibraryPageState extends State<ExportLibraryPage> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          CupertinoButton(
-            key: const Key('delete_all_local_exports'),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            minimumSize: const Size(
-              kMinInteractiveDimensionCupertino,
-              kMinInteractiveDimensionCupertino,
-            ),
-            onPressed: _busy
-                ? null
-                : () => _confirmDelete(_items, deleteAll: true),
-            child: Text(
-              context.l10n.deleteAll,
-              style: const TextStyle(color: CupertinoColors.destructiveRed),
+          Flexible(
+            child: CupertinoButton(
+              key: const Key('delete_all_local_exports'),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(
+                kMinInteractiveDimensionCupertino,
+                kMinInteractiveDimensionCupertino,
+              ),
+              onPressed: _busy
+                  ? null
+                  : () => _confirmDelete(_items, deleteAll: true),
+              child: Text(
+                context.l10n.deleteAll,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: CupertinoColors.destructiveRed),
+              ),
             ),
           ),
         ],

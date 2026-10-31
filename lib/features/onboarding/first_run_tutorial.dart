@@ -107,6 +107,15 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
   }
 
   Widget _header(BuildContext context) {
+    // Like a navigation bar, the header stops growing at large text sizes
+    // so a long Skip label keeps the title in view.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.3,
+      child: _headerRow(context),
+    );
+  }
+
+  Widget _headerRow(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 10, 10, 2),
       child: Row(
@@ -132,12 +141,18 @@ class _FirstRunTutorialState extends State<FirstRunTutorial> {
               ),
             ),
           ),
-          CupertinoButton(
-            key: const Key('tutorial_skip'),
-            minimumSize: const Size(44, 44),
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(context.l10n.skip),
+          Flexible(
+            child: CupertinoButton(
+              key: const Key('tutorial_skip'),
+              minimumSize: const Size(44, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                context.l10n.skip,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ),
         ],
       ),
