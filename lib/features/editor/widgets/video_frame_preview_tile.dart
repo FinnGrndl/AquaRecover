@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/models/restoration_settings.dart';
+import '../../../l10n/l10n.dart';
 import 'gpu_preview_filter.dart';
 
 class VideoFramePreviewTile extends StatefulWidget {
@@ -12,7 +13,7 @@ class VideoFramePreviewTile extends StatefulWidget {
     super.key,
     required this.path,
     this.settings,
-    this.caption = 'Representative frame',
+    this.caption,
     this.position,
     this.onDurationKnown,
     this.showCaption = true,
@@ -20,7 +21,7 @@ class VideoFramePreviewTile extends StatefulWidget {
 
   final String path;
   final RestorationSettings? settings;
-  final String caption;
+  final String? caption;
   final Duration? position;
 
   /// Reports the video's duration once it is open, or [Duration.zero] when
@@ -153,13 +154,13 @@ class _VideoFramePreviewTileState extends State<VideoFramePreviewTile> {
         if (snapshot.hasError || !controller.value.isInitialized) {
           // Light text: the tile sits on black, and on Windows, which has
           // no video_player, this is what people see.
-          return const Center(
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               child: Text(
-                'Video frame preview unavailable.',
+                context.l10n.videoFramePreviewUnavailable,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xb8ffffff)),
+                style: const TextStyle(color: Color(0xb8ffffff)),
               ),
             ),
           );
@@ -199,7 +200,8 @@ class _VideoFramePreviewTileState extends State<VideoFramePreviewTile> {
   String _caption(Duration duration) {
     final frame = _format(_framePosition);
     final total = duration == Duration.zero ? null : _format(duration);
-    return total == null ? widget.caption : '${widget.caption} $frame / $total';
+    final caption = widget.caption ?? context.l10n.representativeFrame;
+    return total == null ? caption : '$caption $frame / $total';
   }
 
   String _format(Duration duration) {

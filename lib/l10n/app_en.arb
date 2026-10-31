@@ -1,0 +1,1689 @@
+{
+  "@@locale": "en",
+  "appTitle": "AquaRecover",
+  "@appTitle": {
+    "description": "App name. Not translated."
+  },
+  "cancel": "Cancel",
+  "ok": "OK",
+  "done": "Done",
+  "apply": "Apply",
+  "edit": "Edit",
+  "delete": "Delete",
+  "share": "Share",
+  "undo": "Undo",
+  "redo": "Redo",
+  "change": "Change",
+  "manage": "Manage",
+  "optional": "Optional",
+  "preview": "Preview",
+  "original": "Original",
+  "selected": "Selected",
+  "status": "Status",
+  "libraryBack": "Library",
+  "@libraryBack": {
+    "description": "Back button from the editor to the start screen."
+  },
+  "exportAction": "Export",
+  "@exportAction": {
+    "description": "Button that starts an export."
+  },
+  "exportTitle": "Export",
+  "@exportTitle": {
+    "description": "Title of the export screen."
+  },
+  "exportAll": "Export all",
+  "exportingEllipsis": "Exporting...",
+  "exportingShort": "Exporting",
+  "@exportingShort": {
+    "description": "Short progress label in a narrow button."
+  },
+  "licenses": "Licenses",
+  "movies": "Movies",
+  "diveLogbook": "Dive logbook",
+  "localExports": "Local exports",
+  "aboutApp": "About AquaRecover",
+  "quickTour": "Quick Tour",
+  "aboutBody": "Version {version}\\n\\nOn-device underwater color recovery for photos, RAW stills, videos, LUTs, and local exports.",
+  "@aboutBody": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationPhotos": "Photos",
+  "@destinationPhotos": {
+    "description": "The Photos app as an export destination."
+  },
+  "destinationFiles": "Files",
+  "@destinationFiles": {
+    "description": "The Files app or file system as an export destination."
+  },
+  "presetNone": "None",
+  "presetAuto": "Auto",
+  "presetNatural": "Natural",
+  "presetVivid": "Vivid reef",
+  "presetDeep": "Deep dive",
+  "presetMacro": "Macro",
+  "presetShallow": "Shallow",
+  "presetGreenWater": "Green water",
+  "presetRedFilter": "Red filter",
+  "presetArtificialLight": "Artificial light",
+  "presetNoneHelp": "Leaves the image unchanged.",
+  "presetAutoHelp": "Balanced one-tap correction for common blue-green water.",
+  "presetNaturalHelp": "Lower contrast and saturation for a documentary look.",
+  "presetVividHelp": "Extra contrast and color for reef scenes.",
+  "presetDeepHelp": "Stronger red recovery for deeper dives.",
+  "presetMacroHelp": "More local detail for close subjects.",
+  "presetShallowHelp": "Gentle correction for snorkeling and sunlit shallow water.",
+  "presetGreenWaterHelp": "Counters green plankton-rich water without overdoing magenta.",
+  "presetRedFilterHelp": "Compensates footage shot with a red dive filter.",
+  "presetArtificialLightHelp": "Protects highlights from torches and strobes.",
+  "mediaKindPhoto": "Photo",
+  "mediaKindRawPhoto": "RAW photo",
+  "mediaKindVideo": "Video",
+  "mediaKindRawVideo": "RAW video",
+  "jobStatusReady": "Ready",
+  "jobStatusProcessing": "Processing",
+  "jobStatusComplete": "Complete",
+  "jobStatusFailed": "Failed",
+  "beforeAfterSideBySide": "Side by side",
+  "beforeAfterSplit": "Split",
+  "exportPresetSocial": "Social",
+  "exportPresetArchive": "Archive",
+  "exportPresetProEdit": "Pro edit",
+  "lutNone": "None",
+  "lutCoralWarm": "Coral Warm",
+  "lutBlueWater": "Blue Water",
+  "lutGreenWater": "Green Water",
+  "lutCustomCube": "Custom .cube",
+  "cropOriginal": "Original",
+  "cropFree": "Free",
+  "cropSquare": "Square",
+  "workflowImport": "Import",
+  "workflowEdit": "Edit",
+  "workflowExport": "Export",
+  "toolPresets": "Presets",
+  "toolAdjust": "Adjust",
+  "toolCrop": "Crop",
+  "toolColor": "Color",
+  "toolDetails": "Details",
+  "toolLut": "LUT",
+  "toolVideo": "Video",
+  "toolPresetsSubtitle": "Starting profile and strength",
+  "toolAdjustSubtitle": "All image adjustments",
+  "toolCropSubtitle": "Crop, rotate, and flip",
+  "toolColorSubtitle": "Water cast and color balance",
+  "toolDetailsSubtitle": "Haze, clarity, and sharpening",
+  "toolLutSubtitle": "Look-up table and vignette",
+  "toolVideoSubtitle": "Preview frame and trim",
+  "adjRecovery": "Water correction",
+  "adjRecoveryHelp": "Controls the underwater cast-recovery stage only. It strengthens color recovery and local neutralization, but does not scale exposure, contrast, saturation, or sharpening.",
+  "adjContrastStretch": "Contrast stretch",
+  "adjContrastStretchHelp": "Expands the measured dark-to-bright range. High values can make murky scenes punchier but may clip detail.",
+  "adjContrast": "Contrast",
+  "adjContrastHelp": "Changes separation around the midtones without re-running the underwater color recovery.",
+  "adjGamma": "Gamma",
+  "adjGammaHelp": "Moves midtone brightness while keeping the black and white endpoints mostly fixed.",
+  "adjBrightness": "Brightness",
+  "adjBrightnessHelp": "Adds or removes a uniform amount of light after the main correction.",
+  "adjExposure": "Exposure",
+  "adjExposureHelp": "Multiplies scene brightness like a small exposure adjustment. It affects shadows and highlights together.",
+  "adjHighlights": "Highlights",
+  "adjHighlightsHelp": "Brightens or darkens the lightest parts while protecting the rest of the tonal range.",
+  "adjShadows": "Shadows",
+  "adjShadowsHelp": "Opens or deepens darker areas without applying a full-image brightness change.",
+  "adjBlackPoint": "Black point",
+  "adjBlackPointHelp": "Deepens the darkest tones. Increase carefully to avoid losing shadow detail.",
+  "adjTemperature": "Temperature",
+  "adjTemperatureHelp": "Final warm-cool trim after the water correction. The white balance picker sets it from a tap.",
+  "adjTint": "Tint",
+  "adjTintHelp": "Final green-magenta trim. Positive values remove a leftover green cast.",
+  "adjRedRecovery": "Red recovery",
+  "adjRedRecoveryHelp": "Targets warm colors absorbed by water. Its result is multiplied by Water correction, so both controls work together.",
+  "adjAutoWhiteBalance": "Auto white balance",
+  "adjAutoWhiteBalanceHelp": "Balances the average red, green, and blue levels within safe bounds. Lower it when intentional lighting should stay warm or cool.",
+  "adjSaturation": "Saturation",
+  "adjSaturationHelp": "Changes the intensity of all colors equally. High values can exaggerate color noise and water tint.",
+  "adjVibrance": "Vibrance",
+  "adjVibranceHelp": "Boosts muted colors more than colors that are already strong.",
+  "adjHue": "Hue",
+  "adjHueHelp": "Small hue rotations help match strobes, filters, and water type.",
+  "adjHighlightProtection": "Highlight protection",
+  "adjHighlightProtectionHelp": "Reduces correction in the brightest areas to preserve strobes, the sun, and reflective equipment.",
+  "adjHazeReduction": "Haze reduction",
+  "adjHazeReductionHelp": "Reduces blue-green veil and increases separation in low-contrast water.",
+  "adjClarity": "Clarity",
+  "adjClarityHelp": "Adds local midtone contrast to reveal texture. It is gentler than sharpening edges directly.",
+  "adjSharpness": "Sharpness",
+  "adjSharpnessHelp": "Strengthens fine edges during export. Too much can emphasize noise or compression artifacts.",
+  "adjVignette": "Vignette",
+  "adjVignetteHelp": "Darkens the image edges to guide attention toward the center.",
+  "compareEdited": "Edited",
+  "compareOriginal": "Original",
+  "compareSplit": "Split",
+  "previewFitLabel": "Fit",
+  "previewFillLabel": "Fill",
+  "previewFillAction": "Fill preview area",
+  "previewFitAction": "Fit entire image",
+  "startTagline": "Private, on-device restoration",
+  "importHeroTitle": "Restore underwater color",
+  "importHeroTitleQueue": "Add or open media",
+  "importHeroBody": "Choose one photo or video to edit. Select several to prepare one batch, then export everything with one confirmation.",
+  "importHeroBodyQueue": "Add more items to the queue or continue with the selected image.",
+  "chooseFromPhotos": "Choose from Photos",
+  "importFiles": "Import Files",
+  "makeMovie": "{count, plural, =1{Make a movie} other{Make a movie from {count} items}}",
+  "@makeMovie": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "editSelected": "Edit selected",
+  "showEditedPreview": "Show edited preview",
+  "showSplitPreview": "Show split preview",
+  "previewFitHint": "{action}. Pinch with two fingers to inspect details; double-tap to reset zoom.",
+  "@previewFitHint": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewExport": "Review export",
+  "previousItem": "Previous item",
+  "nextItem": "Next item",
+  "selectionPosition": "Selection {current}/{total}",
+  "@selectionPosition": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "itemPosition": "{current} of {total} - {name}",
+  "@itemPosition": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "queueReadyCount": "{count} ready",
+  "@queueReadyCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queueProcessingCount": "{count} processing",
+  "@queueProcessingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queueFailedCount": "{count} failed",
+  "@queueFailedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "copyEditsTooltip": "Copy this photo’s edits",
+  "copiedEdits": "{count, plural, =1{Copied edits to 1 photo.} other{Copied edits to {count} photos.}}",
+  "@copiedEdits": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "applyEditsToAllTitle": "Apply edits to all photos?",
+  "applyEditsToAllBody": "This photo’s edits will be applied to all other photos in the queue.",
+  "whiteBalance": "White balance",
+  "manualAdjustments": "Manual adjustments",
+  "videoExportUnavailable": "Video export unavailable",
+  "backToEdit": "Back to edit",
+  "noMediaSelected": "No media selected",
+  "noMediaSelectedBody": "Choose a local photo or video to begin.",
+  "goToImport": "Go to import",
+  "importedVideo": "Imported video",
+  "importedPhoto": "Imported photo",
+  "lutNamed": "LUT {name}",
+  "@lutNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "retrySelected": "Retry selected",
+  "exportingSelected": "Exporting selected...",
+  "exportedStatus": "Exported",
+  "exportSelected": "Export selected",
+  "batchExport": "Batch export",
+  "selectedItem": "Selected item",
+  "noItemSelected": "No item selected",
+  "videoFrameHelp": "Choose the frame used in the editor and export preview. This does not change the exported video timeline.",
+  "previewFrame": "Preview frame",
+  "framePreviewUnavailable": "Frame preview is not available for this video on this device.",
+  "preparingVideoTimeline": "Preparing video timeline…",
+  "trimVideo": "Trim video",
+  "startSeconds": "Start seconds",
+  "endSeconds": "End seconds",
+  "rawVideoSummary": "RAW video: {width}x{height} {fps}fps {format}",
+  "@rawVideoSummary": {
+    "placeholders": {
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      },
+      "fps": {
+        "type": "String"
+      },
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "importCubeLut": "Import .cube LUT",
+  "lutIntensity": "LUT intensity",
+  "exportSettings": "Export settings",
+  "exportSettingsSubtitle": "Format, quality, and destination",
+  "keepInApp": "Keep in AquaRecover",
+  "addToPhotos": "Add to Photos",
+  "exportToFiles": "Export to Files",
+  "destinationsHelpWithPhotos": "Choose one or more destinations. Photos and Files exports do not appear under Local Exports unless a local copy is enabled.",
+  "destinationsHelp": "Choose one or more destinations. Files exports do not appear under Local Exports unless a local copy is enabled.",
+  "jpegQuality": "JPEG quality",
+  "stripMetadata": "Strip metadata",
+  "keepVideoAudio": "Keep video audio",
+  "beforeAfterImage": "Before/After image",
+  "beforeAfterImageHelp": "Export each photo as one image showing the original and the restored version",
+  "beforeAfterSplitHelp": "Split: original on the left half, restored on the right",
+  "beforeAfterSideBySideHelp": "Side by side: landscape photos are stacked, portrait photos sit next to each other",
+  "beforeAfterLabels": "Before and After labels",
+  "beforeAfterLabelsHelp": "Show small Before and After labels on the image",
+  "beforeLabel": "Before",
+  "@beforeLabel": {
+    "description": "Label burned into the exported before/after image."
+  },
+  "afterLabel": "After",
+  "@afterLabel": {
+    "description": "Label burned into the exported before/after image."
+  },
+  "queue": "Queue",
+  "itemsSelected": "{count, plural, =1{1 item selected} other{{count} items selected}}",
+  "@itemsSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noMediaImported": "No media imported.",
+  "editItem": "Edit {name}",
+  "@editItem": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "removeFromQueue": "Remove from queue",
+  "removeItemFromQueue": "Remove {name} from queue",
+  "@removeItemFromQueue": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "workingLocally": "Working locally",
+  "idle": "Idle",
+  "exportContinuesInBackground": "The export can continue if you switch apps. Return to AquaRecover to check its progress.",
+  "statusReady": "Ready.",
+  "statusNoFileSelected": "No file selected.",
+  "statusNoPhotosImported": "No local Photos items were imported.",
+  "photosImportFailedStatus": "Photos import failed: {error}",
+  "@photosImportFailedStatus": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "photosImportFailed": "Photos import failed",
+  "itemsSkippedTitle": "Some items were skipped",
+  "itemsSkippedBody": "{count, plural, =1{1 selected item could not be copied from Photos.} other{{count} selected items could not be copied from Photos.}} Items stored only in iCloud must be downloaded in Photos first.",
+  "@itemsSkippedBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "waitingForPhotos": "Waiting for your Photos selection...",
+  "loadedLut": "Loaded LUT {name}.",
+  "@loadedLut": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "inspectingMedia": "Inspecting imported media...",
+  "inspectingMediaProgress": "Inspecting imported media... {done}/{total}",
+  "@inspectingMediaProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "noSupportedMedia": "No supported readable media files found.",
+  "importedCount": "{count, plural, =1{Imported 1 item} other{Imported {count} items}}",
+  "@importedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importedSkipped": ", skipped {count} unsupported",
+  "@importedSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importNothingSaved": "Nothing is saved until you confirm export.",
+  "preparingExport": "Preparing export...",
+  "failedStatus": "Failed: {message}",
+  "@failedStatus": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "exportFailed": "Export failed",
+  "exportCompleteEmpty": "Export complete. The queue is empty.",
+  "exportCompleteRemaining": "{count, plural, =1{Export complete. 1 item remaining.} other{Export complete. {count} items remaining.}}",
+  "@exportCompleteRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exportingAllMedia": "Exporting all selected media...",
+  "queueCancelled": "Queue cancelled.",
+  "batchFinished": "Batch export finished: {count} exported and removed",
+  "@batchFinished": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "batchFinishedFailed": ", {count} failed",
+  "@batchFinishedFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exportingItem": "Exporting {name} on this device...",
+  "@exportingItem": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chooseFilesFolderFirst": "Choose a Files export folder before exporting.",
+  "exportedTo": "Exported {file} to {destinations}.",
+  "@exportedTo": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      },
+      "destinations": {
+        "type": "String"
+      }
+    }
+  },
+  "trimStartNotNumber": "Trim start must be a number of seconds.",
+  "trimEndNotNumber": "Trim end must be a number of seconds.",
+  "trimStartNegative": "Trim start must be zero or greater.",
+  "trimStartTooLate": "Trim start must be less than 24 hours.",
+  "trimEndBeforeStart": "Trim end must be after trim start.",
+  "trimEndTooLate": "Trim end must be less than 24 hours.",
+  "removedFromQueue": "Removed {name} from the queue.",
+  "@removedFromQueue": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotCancelExport": "This export cannot be cancelled safely. It will finish shortly.",
+  "cancelRequested": "Cancel requested.",
+  "chooseExportFolder": "Choose export folder",
+  "exportFolderUnavailable": "The selected export folder is unavailable.",
+  "folderUnavailable": "Folder unavailable",
+  "folderUnavailableBody": "AquaRecover could not use the selected folder. {error}",
+  "@folderUnavailableBody": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "shareExportedTooltip": "{count, plural, =1{Share the exported file} other{Share all {count} exported files}}",
+  "@shareExportedTooltip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shareExportsButton": "{count, plural, =1{Share} other{Share all {count}}}",
+  "@shareExportsButton": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "videoUnavailableBuild": "Video export is not available in this build. Photo recovery remains available.",
+  "videoUnavailableIos": "Native iOS video export is missing from this build. Rebuild the iOS runner or run the bootstrap script, then try again.",
+  "videoUnavailableMacos": "Native macOS video export is missing from this build. Rebuild the macOS runner or run the bootstrap script, then try again.",
+  "videoRawNeedsFfmpeg": "RAW video export needs an ffmpeg command-line binary, which a sandboxed macOS app cannot launch. Standard MP4 and MOV clips export natively.",
+  "videoWindowsNeedsFfmpeg": "Video export on Windows needs ffmpeg. Install it (for example with \"winget install ffmpeg\"), restart AquaRecover, and try again. Photo recovery remains available.",
+  "photosPermissionDenied": "Photos permission was not granted.",
+  "timelineEmptyError": "Add at least one photo or clip to the timeline.",
+  "tapValueToAdjust": "Tap a value to adjust it",
+  "reset": "Reset",
+  "resetItem": "Reset {name}",
+  "@resetItem": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "openSourceLicenses": "Open-source licenses",
+  "licensesLoadFailed": "The license list could not be loaded.",
+  "licensesIntro": "AquaRecover {version} includes the following software. Select a component to read its license text.",
+  "@licensesIntro": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "noOtherPhotosInBatch": "There are no other photos in this batch.",
+  "copyEdits": "Copy edits",
+  "copyEditsSubtitle": "Choose the photos that should use these values.",
+  "copyFrom": "Copy from",
+  "selectItem": "Select {name}",
+  "@selectItem": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deselectItem": "Deselect {name}",
+  "@deselectItem": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "applyToAll": "Apply to all",
+  "applyToCount": "Apply to {count}",
+  "@applyToCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "freeformRatio": "Freeform ratio",
+  "rotateLeft": "Rotate left",
+  "rotateRight": "Rotate right",
+  "flipHorizontally": "Flip horizontally",
+  "flipVertically": "Flip vertically",
+  "resetCrop": "Reset crop",
+  "straighten": "Straighten",
+  "openToolsNamed": "Open {tool} tools",
+  "@openToolsNamed": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "collapseToolsNamed": "Collapse {tool} tools",
+  "@collapseToolsNamed": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "openTool": "Open {tool}",
+  "@openTool": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "toolsNamed": "{tool} tools",
+  "@toolsNamed": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "collapseItem": "Collapse {name}",
+  "@collapseItem": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editingTools": "Editing tools",
+  "framePreview": "Frame preview",
+  "representativeFrame": "Representative frame",
+  "framePreviewUnavailableFormat": "Frame preview unavailable for this format",
+  "previewGeneratedDuringExport": "Preview generated during export",
+  "compareModeFrame": "{mode} frame",
+  "@compareModeFrame": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "exportedPhotoPreviewUnavailable": "Exported photo preview unavailable.",
+  "renameHint": "Rename",
+  "previewUnavailableFormat": "Preview unavailable for this format.",
+  "cropArea": "Crop area",
+  "cropAreaHint": "Drag an edge or corner to crop. Drag inside to move the crop and pinch to resize it.",
+  "moveCropLeft": "Move crop left",
+  "moveCropRight": "Move crop right",
+  "moveCropUp": "Move crop up",
+  "moveCropDown": "Move crop down",
+  "photoUnreadable": "This photo could not be read.",
+  "whiteBalanceSubtitle": "Tap something white or grey",
+  "whiteBalanceValues": "Temperature {temperature}  ·  Tint {tint}",
+  "@whiteBalanceValues": {
+    "placeholders": {
+      "temperature": {
+        "type": "String"
+      },
+      "tint": {
+        "type": "String"
+      }
+    }
+  },
+  "whiteBalanceTip": "Sand, a slate, or a tank work well. Drag to compare spots.",
+  "photosTitle": "Photos",
+  "importCount": "Import {count}",
+  "@importCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "openSystemSettings": "Open System Settings",
+  "tryAgain": "Try again",
+  "noPhotosOrVideos": "No photos or videos found.",
+  "noneDownloadedFromPhotos": "None of the selected Photos items could be downloaded. Open them in Photos first, then try again.",
+  "itemsNotDownloaded": "{count, plural, =1{1 selected item could not be downloaded from Photos.} other{{count} selected items could not be downloaded from Photos.}} {remaining, plural, =1{The remaining 1 will be imported.} other{The remaining {remaining} will be imported.}}",
+  "@itemsNotDownloaded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "remaining": {
+        "type": "int"
+      }
+    }
+  },
+  "continueAction": "Continue",
+  "photosAccessDenied": "Photos access is turned off. Allow AquaRecover to access your photo library in System Settings, then try again.",
+  "photosAccessRestricted": "Photos access is restricted by the system or device settings.",
+  "photosAccessNotDetermined": "Photos access has not been granted yet. Try again to show the system permission request.",
+  "photosAccessAvailable": "Photos access is available.",
+  "photosItemNotLocal": "The selected Photos item is not available locally. Open it in Photos to download the original from iCloud, then import it again.",
+  "photosItemUnreadable": "The selected Photos item could not be read from local storage. Choose another item or download the original first.",
+  "photosPickerFailed": "The Photos picker failed.",
+  "presetStrength": "Preset strength",
+  "presetStrengthNoneHelp": "None leaves the image unchanged. Choose another preset to adjust its strength.",
+  "presetStrengthHelp": "Scales the selected preset while keeping later manual adjustments.",
+  "presetSummary": "{preset}: {help}",
+  "@presetSummary": {
+    "placeholders": {
+      "preset": {
+        "type": "String"
+      },
+      "help": {
+        "type": "String"
+      }
+    }
+  },
+  "waterBlue": "Blue water",
+  "waterGreen": "Green water",
+  "waterNeutral": "Little color cast",
+  "suggestionSemantics": "{water}. Suggested {preset} at {strength} percent.",
+  "@suggestionSemantics": {
+    "placeholders": {
+      "water": {
+        "type": "String"
+      },
+      "preset": {
+        "type": "String"
+      },
+      "strength": {
+        "type": "int"
+      }
+    }
+  },
+  "suggestionTitle": "{water}: {preset} {strength}%",
+  "@suggestionTitle": {
+    "placeholders": {
+      "water": {
+        "type": "String"
+      },
+      "preset": {
+        "type": "String"
+      },
+      "strength": {
+        "type": "int"
+      }
+    }
+  },
+  "applied": "Applied",
+  "presetChipSemantics": "{preset} preset",
+  "@presetChipSemantics": {
+    "placeholders": {
+      "preset": {
+        "type": "String"
+      }
+    }
+  },
+  "presetChipSuggestedSemantics": "{preset} preset, suggested",
+  "@presetChipSuggestedSemantics": {
+    "placeholders": {
+      "preset": {
+        "type": "String"
+      }
+    }
+  },
+  "reasonArtificialLight": "Colors are close to neutral and highlights clip, which is typical for strobe or video-light shots.",
+  "reasonRedFilter": "Red is mostly present but slightly low, as with a red dive filter.",
+  "reasonNatural": "Little red is missing, so only a gentle correction.",
+  "reasonGreenWater": "Green dominates blue (blue/green {ratio}), typical for plankton-rich or lake water.",
+  "@reasonGreenWater": {
+    "placeholders": {
+      "ratio": {
+        "type": "String"
+      }
+    }
+  },
+  "reasonDeep": "Almost no red remains and the scene is dark, which points to depth.",
+  "reasonShallow": "Bright, moderately blue scene, typical for shallow water.",
+  "reasonAuto": "Typical blue water cast; the balanced default fits.",
+  "queueLocked": "Queue changes are locked until the current export finishes.",
+  "noSelectedMedia": "No selected media.",
+  "selection": "Selection",
+  "itemsInQueue": "{count, plural, =1{1 item in the queue} other{{count} items in the queue}}",
+  "@itemsInQueue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "itemWithStatus": "{name}, {status}",
+  "@itemWithStatus": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "rawVideoSettings": "RAW video settings",
+  "width": "Width",
+  "height": "Height",
+  "frameRate": "Frame rate",
+  "rawVideoNumbersRequired": "Enter whole numbers for width and height and a number for the frame rate.",
+  "rawVideoTooSmall": "RAW video dimensions are too small.",
+  "rawVideoTooLarge": "RAW video dimensions must be at most {max}x{max}.",
+  "@rawVideoTooLarge": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "rawVideoTooManyPixels": "RAW video frames are too large. Maximum is {max} pixels per frame.",
+  "@rawVideoTooManyPixels": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "rawVideoFrameRateRange": "Frame rate must be between {min} and {max} fps.",
+  "@rawVideoFrameRateRange": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "renderingPreview": "Rendering preview",
+  "previewUnavailable": "Preview unavailable",
+  "videoFramePreviewUnavailable": "Video frame preview unavailable.",
+  "videoPreviewUnavailable": "Video preview unavailable.",
+  "play": "Play",
+  "pause": "Pause",
+  "metersValue": "{value} m",
+  "@metersValue": {
+    "description": "A depth in meters; value is already formatted.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "celsiusValue": "{value} °C",
+  "@celsiusValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "minutesValue": "{count} min",
+  "@minutesValue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "logbook": "Logbook",
+  "back": "Back",
+  "importAndExport": "Import and export",
+  "addDive": "Add dive",
+  "dives": "Dives",
+  "map": "Map",
+  "noDivesYet": "No dives yet",
+  "noDivesYetBody": "Import a UDDF log from your dive computer or Subsurface, or add a dive by hand. Your logbook stays on this device.",
+  "importLog": "Import log",
+  "linkedMediaCount": "{count, plural, =1{1 linked media item} other{{count} linked media}}",
+  "@linkedMediaCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noSitePositions": "No dive site has a position yet. Add latitude and longitude to a dive to see it here.",
+  "diveSite": "Dive site",
+  "diveCount": "{count, plural, =1{1 dive} other{{count} dives}}",
+  "@diveCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importUddfLog": "Import UDDF log",
+  "linkPhotosByTime": "Link photos by capture time",
+  "exportGpx": "Export GPX",
+  "exportUddf": "Export UDDF",
+  "exportGeoJson": "Export GeoJSON",
+  "logImported": "Log imported",
+  "logImportedBody": "{count, plural, =0{Every dive in this log is already in your logbook.} =1{1 new dive was added.} other{{count} new dives were added.}}",
+  "@logImportedBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cannotImportFile": "Can’t import this file",
+  "noDiveTimes": "No dive times",
+  "noDiveTimesBody": "Dives need a start time and duration to match photos.",
+  "photosLinked": "Photos linked",
+  "photosLinkedBody": "{count, plural, =0{No new photos or videos were taken during your dives.} other{{count} photos and videos were linked to their dives.}}",
+  "@photosLinkedBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cannotReadPhotoLibrary": "Can’t read the photo library",
+  "editDive": "Edit dive",
+  "newDive": "New dive",
+  "save": "Save",
+  "diveNumber": "Number",
+  "site": "Site",
+  "latitude": "Latitude",
+  "longitude": "Longitude",
+  "maxDepthMeters": "Max depth (m)",
+  "durationMinutes": "Duration (min)",
+  "waterTemperatureCelsius": "Water temperature (°C)",
+  "buddy": "Buddy",
+  "notes": "Notes",
+  "deleteDive": "Delete dive",
+  "dateAndTime": "Date and time",
+  "dateAndTimeValue": "Date and time, {date}",
+  "@dateAndTimeValue": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "checkPosition": "Check the position",
+  "checkPositionBody": "Enter both latitude (−90 to 90) and longitude (−180 to 180) in decimal degrees, or leave both empty.",
+  "deleteDiveTitle": "Delete this dive?",
+  "deleteDiveBody": "Its photos and videos stay where they are; only the log entry is removed.",
+  "date": "Date",
+  "notSet": "Not set",
+  "position": "Position",
+  "maxDepth": "Max depth",
+  "duration": "Duration",
+  "waterTemperature": "Water temperature",
+  "profile": "Profile",
+  "depthReadings": "{count, plural, =1{1 depth reading} other{{count} depth readings}}",
+  "@depthReadings": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosAndVideos": "Photos and videos",
+  "nothingLinked": "Nothing linked yet. Linked media stays where it is; the logbook never copies it.",
+  "makeMovieFromDive": "Make a movie from this dive",
+  "addPhotosAndVideos": "Add photos and videos",
+  "findInPhotos": "Find in Photos",
+  "mediaDepthSuffix": ", {depth} deep",
+  "@mediaDepthSuffix": {
+    "placeholders": {
+      "depth": {
+        "type": "String"
+      }
+    }
+  },
+  "removeFromDive": "Remove from dive",
+  "somethingWentWrong": "Something went wrong",
+  "diveMediaLinkedBody": "{count, plural, =0{No new photos or videos from this dive were found.} =1{1 photo or video was linked.} other{{count} photos and videos were linked.}}",
+  "@diveMediaLinkedBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mediaNotFound": "Media not found",
+  "mediaNotFoundBody": "None of the linked photos or videos can be opened. They may have been moved or deleted.",
+  "diveSiteNamed": "Dive site {name}",
+  "@diveSiteNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "osmAttributionSemantics": "Map data © OpenStreetMap contributors. Show license.",
+  "osmAttribution": "© OpenStreetMap contributors",
+  "diveTitleUnnamed": "Dive",
+  "diveTitleNumber": "Dive {number}",
+  "@diveTitleNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "diveTitleNumberSite": "#{number} {site}",
+  "@diveTitleNumberSite": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "site": {
+        "type": "String"
+      }
+    }
+  },
+  "coordinatePair": "{latitude}, {longitude}",
+  "@coordinatePair": {
+    "placeholders": {
+      "latitude": {
+        "type": "String"
+      },
+      "longitude": {
+        "type": "String"
+      }
+    }
+  },
+  "localExportsTitle": "Local Exports",
+  "select": "Select",
+  "exportsLoadFailed": "Exports could not be loaded.",
+  "noLocalExports": "No local exports yet.",
+  "selectedCount": "{count} selected",
+  "@selectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deselectAll": "Deselect all",
+  "selectAll": "Select all",
+  "localExportCount": "{count, plural, =1{1 local export} other{{count} local exports}}",
+  "@localExportCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteAll": "Delete all",
+  "deleteCount": "Delete {count}",
+  "@deleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shareSelectedExports": "{count, plural, =1{Share the selected export} other{Share the selected exports}}",
+  "@shareSelectedExports": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shareCount": "Share {count}",
+  "@shareCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteAllExportsTitle": "Delete all local exports?",
+  "deleteExportsTitle": "{count, plural, =1{Delete 1 export?} other{Delete {count} exports?}}",
+  "@deleteExportsTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteExportsBody": "The local files and their settings sidecars will be deleted. Imported originals and copies in Photos are not affected.",
+  "someExportsNotDeleted": "Some exports could not be deleted",
+  "someExportsNotDeletedBody": "{failures} of {count} files may have been moved or are currently unavailable.",
+  "@someExportsNotDeletedBody": {
+    "placeholders": {
+      "failures": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shareExport": "Share export",
+  "deleteExport": "Delete export",
+  "previewUnavailableShort": "Preview unavailable.",
+  "deleteExportTitle": "Delete local export?",
+  "deleteExportBody": "The local file and its settings sidecar will be deleted. The imported original and any copy in Photos are not affected.",
+  "exportNotDeleted": "Export could not be deleted",
+  "exportNotDeletedBody": "The file may have been moved or is currently unavailable.",
+  "couldNotShare": "Could not share",
+  "shareSheetUnavailable": "The share sheet could not be opened on this device. The export is still in Local Exports.",
+  "exportedFileGone": "The exported file is no longer available. It may have been deleted from Local Exports.",
+  "exportedFilesGone": "The exported files are no longer available. They may have been deleted from Local Exports.",
+  "previewSize": "Preview size",
+  "dragToResizePreview": "Drag to resize preview",
+  "resetPreviewSize": "Reset preview size",
+  "appIconLabel": "AquaRecover app icon",
+  "skip": "Skip",
+  "tourWelcomeTitle": "Restore color with a clear workflow",
+  "tourWelcomeBody": "AquaRecover keeps the process simple: choose media, refine the result, then decide where to export it.",
+  "tourImportTitle": "One photo or a complete batch",
+  "tourImportBody": "A single selection opens in the editor. Select several items and they stay together in a queue you can review at any time.",
+  "tourEditTitle": "Edit, inspect, and compare",
+  "tourEditBody": "Start with a preset, then fine-tune adjustments, crop, and LUT. Tap a value bubble to adjust it; Reset restores the preset value.",
+  "tourExportTitle": "You choose when and where to save",
+  "tourExportBody": "Importing and editing never create a saved copy. On export, choose one or more destinations for the finished media.",
+  "previousPage": "Previous page",
+  "startEditing": "Start editing",
+  "next": "Next",
+  "tutorialPageOf": "Tutorial page {page} of {count}",
+  "@tutorialPageOf": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "onDevicePrivacy": "Your media is processed on this device. AquaRecover does not upload it to a service.",
+  "onePhoto": "One photo",
+  "batch": "Batch",
+  "tourOnePhotoHint": "The photo opens directly in the editor.",
+  "tourBatchHint": "Three items are ready in one editable queue.",
+  "tourPresetsHint": "Choose a starting look.",
+  "tourAdjustHint": "Fine-tune each value.",
+  "tourCropHint": "Crop, rotate, and flip.",
+  "tourLutHint": "Apply a finishing LUT.",
+  "originalSlashEdited": "Original / Edited",
+  "tourCompareHint": "Try Split, or press and hold the preview for the original.",
+  "editorToolNamed": "{tool} editor tool",
+  "@editorToolNamed": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "exportDestinationNamed": "{destination} export destination",
+  "@exportDestinationNamed": {
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "tourExportCallout": "Only a confirmed export writes the finished file. Completed batch items then leave the queue.",
+  "effectCategoryLook": "Look",
+  "effectCategoryLens": "Lens",
+  "effectCategoryUnderwater": "Underwater",
+  "effectCategoryMotion": "Motion",
+  "effectMono": "Mono",
+  "effectSepia": "Sepia",
+  "effectCyanotype": "Cyanotype",
+  "effectDeepBlue": "Deep Blue",
+  "effectVivid": "Vivid",
+  "effectFaded": "Faded Film",
+  "effectSoftFocus": "Soft Focus",
+  "effectClarity": "Clarity",
+  "effectGrain": "Film Grain",
+  "effectVignette": "Vignette",
+  "effectCinemaBars": "Cinema Bars",
+  "effectSunRays": "Sun Rays",
+  "effectCaustics": "Caustics",
+  "effectStrobe": "Strobe Flash",
+  "effectSwell": "Swell",
+  "effectDrift": "Slow Drift",
+  "aspectLandscape": "Landscape 16:9",
+  "aspectPortrait": "Portrait 9:16",
+  "aspectSquare": "Square 1:1",
+  "aspectPortrait45": "Portrait 4:5",
+  "fadeColorBlack": "Black",
+  "fadeColorWhite": "White",
+  "fadeColorDeepBlue": "Deep blue",
+  "animationNone": "None",
+  "animationFade": "Fade",
+  "animationSlideUp": "Slide up",
+  "animationPop": "Pop",
+  "titleStyleClassic": "Classic",
+  "titleStyleBox": "Box",
+  "titleStyleOutline": "Outline",
+  "titleStyleCaption": "Caption",
+  "titleStyleDiveStamp": "Dive stamp",
+  "audioRoleMusic": "Music",
+  "audioRoleVoiceover": "Voiceover",
+  "audioRoleSound": "Sound",
+  "audioRoleExtracted": "Extracted audio",
+  "selectionClip": "Clip {index}",
+  "@selectionClip": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "selectionPhoto": "Photo {index}",
+  "@selectionPhoto": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "selectionTitle": "Title",
+  "videoOverlay": "Video overlay",
+  "photoOverlay": "Photo overlay",
+  "soundFallback": "Sound",
+  "defaultTitleText": "Title",
+  "@defaultTitleText": {
+    "description": "Text of a new title overlay in a movie."
+  },
+  "extractedAudioName": "{name} audio",
+  "@extractedAudioName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "someFilesSkipped": "Some files were skipped",
+  "filesNotOnTimeline": "{count, plural, =1{1 file cannot go on a timeline (RAW video or unknown type).} other{{count} files cannot go on a timeline (RAW video or unknown type).}}",
+  "@filesNotOnTimeline": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cannotAddOverlay": "Can’t add this overlay",
+  "cannotAddOverlayBody": "Pick a photo or clip in a format AquaRecover can read. RAW video cannot go on a timeline.",
+  "cannotReplaceClip": "Can’t replace this clip",
+  "cannotReplaceClipBody": "Pick a photo or clip in a format AquaRecover can read.",
+  "nothingToExport": "Nothing to export",
+  "nothingToExportBody": "Add at least one photo or clip first.",
+  "movieSaved": "Movie saved to your AquaRecover exports.",
+  "renderCancelled": "Render cancelled.",
+  "savedToPhotos": "Saved to Photos.",
+  "notSavedToPhotos": "Not saved to Photos",
+  "backendNoteAndroid": "fades render as dips to black",
+  "backendNoteNoFfmpeg": "needs ffmpeg on this computer",
+  "movieName": "Movie name",
+  "rename": "Rename",
+  "cannotSplitHere": "Can’t split here",
+  "cannotSplitHereBody": "Move the playhead inside the item, away from its first and last frames, then split.",
+  "toolSplit": "Split",
+  "toolDuplicate": "Duplicate",
+  "toolDelete": "Delete",
+  "toolEffects": "Effects",
+  "toolColorGrade": "Color",
+  "toolFade": "Fade",
+  "toolSpeed": "Speed",
+  "toolVolume": "Volume",
+  "toolDuration": "Duration",
+  "toolOpacity": "Opacity",
+  "toolAnimate": "Animate",
+  "toolLayer": "Layer",
+  "toolEdit": "Edit",
+  "toolAudio": "Audio",
+  "toolText": "Text",
+  "toolOverlay": "Overlay",
+  "toolFormat": "Format",
+  "toolMotion": "Motion",
+  "toolMore": "More",
+  "toolTransition": "Transition",
+  "movieTools": "Movie tools",
+  "itemTools": "{name} tools",
+  "@itemTools": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "noClipsYet": "No clips yet · {aspect}",
+  "@noClipsYet": {
+    "placeholders": {
+      "aspect": {
+        "type": "String"
+      }
+    }
+  },
+  "movieSummary": "{count, plural, =1{1 item · {duration} · {aspect}} other{{count} items · {duration} · {aspect}}}",
+  "@movieSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "duration": {
+        "type": "String"
+      },
+      "aspect": {
+        "type": "String"
+      }
+    }
+  },
+  "exportMovie": "Export movie",
+  "startWithBestShots": "Start with your best shots",
+  "startWithBestShotsBody": "Photos and clips play in the order you add them.",
+  "addPhotosAndClips": "Add photos and clips",
+  "playheadOf": "Playhead {position} of {duration}",
+  "@playheadOf": {
+    "placeholders": {
+      "position": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "zoomOutTimeline": "Zoom out timeline",
+  "zoomInTimeline": "Zoom in timeline",
+  "playPauseShortcut": "{action} (Space)",
+  "@playPauseShortcut": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "secondsValue": "{value} s",
+  "@secondsValue": {
+    "description": "A length in seconds; value is already formatted.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "speedValue": "{value}×",
+  "@speedValue": {
+    "description": "A playback speed factor; value is already formatted.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "musicFromFiles": "Music from Files",
+  "audioFormatsDetail": "MP3, M4A, AAC, WAV, or AIFF",
+  "extractAudioFromClip": "Extract Audio from Clip",
+  "putPlayheadOnVideo": "Put the playhead on a video clip",
+  "clipGoesSilent": "Clip {index} goes silent; its sound gets a lane",
+  "@clipGoesSilent": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "protectedMusicNote": "Music from Apple Music and other protected tracks can’t be used.",
+  "effectsOnCount": "{name} · {count} on",
+  "@effectsOnCount": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "addClipForEffect": "Add a clip first, then give it an effect.",
+  "effectCategoryLooks": "Looks",
+  "effectIntensity": "{name} intensity",
+  "@effectIntensity": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "remove": "Remove",
+  "effectTapHint": "Tap an effect to add it. Tap it again to adjust or remove it.",
+  "effectHintRemoves": "Removes the effect",
+  "effectHintShowsIntensity": "Shows its intensity",
+  "effectHintAdds": "Adds the effect",
+  "selectItemToFade": "Select an item to fade it.",
+  "fadeIn": "Fade in",
+  "fadeOut": "Fade out",
+  "fadeColorLabel": "Color",
+  "formatUseLandscape": "TV, YouTube, and computers",
+  "formatUsePortrait": "Stories, Reels, and TikTok",
+  "formatUseSquare": "Feeds that crop to a square",
+  "formatUsePortrait45": "Portrait feed posts",
+  "formatSummary": "{aspect} · {width} × {height}",
+  "@formatSummary": {
+    "placeholders": {
+      "aspect": {
+        "type": "String"
+      },
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
+    }
+  },
+  "moveEarlier": "Move Earlier",
+  "moveLater": "Move Later",
+  "trimStartToPlayhead": "Trim Start to Playhead",
+  "trimEndToPlayhead": "Trim End to Playhead",
+  "cannotSetStart": "Can’t set the start",
+  "cannotSetStartBody": "Put the playhead inside the selected clip to set its start.",
+  "cannotSetEnd": "Can’t set the end",
+  "cannotSetEndBody": "Put the playhead inside the selected clip to set its end.",
+  "replaceEllipsis": "Replace…",
+  "replaceDetail": "Keeps the grade, effects, and fades",
+  "extractAudio": "Extract Audio",
+  "extractAudioDetail": "Moves the sound to its own lane",
+  "selectPhotoForZoom": "Select a photo to give it a slow zoom.",
+  "motionStill": "Still",
+  "motionZoomIn": "Zoom in",
+  "motionZoomOut": "Zoom out",
+  "motionDriftHint": "For a drifting, swaying camera, try Slow Drift and Swell in Effects › Motion.",
+  "selectOverlayForOpacity": "Select an overlay to change its opacity.",
+  "animation": "Animation",
+  "selectOverlayToAnimate": "Select an overlay or title to animate it.",
+  "animationIn": "In",
+  "animationOut": "Out",
+  "animationDuration": "Each animation takes {seconds} s.",
+  "@animationDuration": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "layerOf": "{layer} of {count}",
+  "@layerOf": {
+    "placeholders": {
+      "layer": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectOverlayOrTitle": "Select an overlay or title.",
+  "bringForward": "Bring Forward",
+  "bringForwardDetail": "Shows in front of the layer above",
+  "sendBackward": "Send Backward",
+  "sendBackwardDetail": "Shows behind the layer below",
+  "selectVideoForSpeed": "Select a video clip to change its speed.",
+  "speedPitchNote": "Sound keeps its pitch. Length on the timeline changes with speed.",
+  "selectPhotoForDuration": "Select a photo or title to change its length.",
+  "lengthOnScreen": "Length on screen",
+  "halfSecondShorter": "Half a second shorter",
+  "halfSecondLonger": "Half a second longer",
+  "colorWhite": "White",
+  "colorSand": "Sand",
+  "colorCoral": "Coral",
+  "colorYellow": "Yellow",
+  "colorAqua": "Aqua",
+  "colorBlack": "Black",
+  "titleStyleBoldBox": "Bold box",
+  "selectTitleToEdit": "Select a title to edit it.",
+  "alignLeft": "Left",
+  "alignCenter": "Center",
+  "alignRight": "Right",
+  "titleSize": "Size",
+  "percentOfHeight": "{percent} % of height",
+  "@percentOfHeight": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "swatchText": "{color} text",
+  "@swatchText": {
+    "placeholders": {
+      "color": {
+        "type": "String"
+      }
+    }
+  },
+  "transitionCut": "Cut",
+  "transitionCrossfade": "Crossfade",
+  "transitionDipBlack": "Dip to black",
+  "transitionDipWhite": "Dip to white",
+  "clipsRange": "Clips {first}–{second}",
+  "@clipsRange": {
+    "placeholders": {
+      "first": {
+        "type": "int"
+      },
+      "second": {
+        "type": "int"
+      }
+    }
+  },
+  "tapBetweenClips": "Tap the button between two clips.",
+  "transitionLength": "Length of every transition",
+  "applyTransitionToAll": "Apply {transition} to All",
+  "@applyTransitionToAll": {
+    "placeholders": {
+      "transition": {
+        "type": "String"
+      }
+    }
+  },
+  "noSoundNote": "Photos and titles have no sound.",
+  "volumeLevel": "Level",
+  "muted": "Muted",
+  "mute": "Mute",
+  "gradeStrength": "Strength",
+  "gradeRecovery": "Recovery",
+  "gradeRed": "Red",
+  "gradeBalance": "Balance",
+  "gradeTemp": "Temp",
+  "gradeHaze": "Haze",
+  "gradeApplyToAll": "Apply to All",
+  "selectToGrade": "Select a clip or overlay to grade it.",
+  "saveToPhotos": "Save to Photos",
+  "shareTheMovie": "Share the movie",
+  "openExports": "Open exports",
+  "movieExportSummary": "{width} × {height} · {duration} · H.264 MP4",
+  "@movieExportSummary": {
+    "placeholders": {
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "cancelWithProgress": "Cancel · {percent}%",
+  "@cancelWithProgress": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "exportFrame": "Frame",
+  "exportQuality": "Quality",
+  "exportFades": "Fades",
+  "allTools": "All tools",
+  "addText": "Add text",
+  "addOverlayHint": "Add a photo or video overlay",
+  "addMusicOrSound": "Add music or sound",
+  "timelineLabel": "Timeline",
+  "zoomIn": "Zoom in",
+  "zoomOut": "Zoom out",
+  "trimStart": "Trim start",
+  "trimEnd": "Trim end",
+  "dragSideways": "Drag sideways",
+  "overlayLayerN": "Overlay layer {index}",
+  "@overlayLayerN": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "audioLaneN": "Audio lane {index}",
+  "@audioLaneN": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "unmuteClipAudio": "Unmute clip audio",
+  "muteClipAudio": "Mute clip audio",
+  "mainTrack": "Main track",
+  "overlayFallback": "Overlay",
+  "timelineItemDescription": "{kind} {name}, starts at {start}, {seconds} seconds",
+  "@timelineItemDescription": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "transitionNamed": "{name} transition",
+  "@transitionNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addTransition": "Add a transition",
+  "transitionBeforeClip": "Transition before clip {index}",
+  "@transitionBeforeClip": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "clipSpeedSemantics": "{speed}x speed",
+  "@clipSpeedSemantics": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "clipEffectsSemantics": "{count, plural, =1{1 effect} other{{count} effects}}",
+  "@clipEffectsSemantics": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "touchAndHoldToMove": "Touch and hold to move",
+  "defaultMovieName": "Dive, {date}",
+  "@defaultMovieName": {
+    "description": "A new movie's name; date is the month and day, such as Oct 11.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteNamedQuestion": "Delete “{name}”?",
+  "@deleteNamedQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteMovieBody": "Only the movie project is removed. Your photos, clips, and exported movies stay.",
+  "madeOnThisDevice": "Made on this device",
+  "movieCount": "{count, plural, =1{1 movie} other{{count} movies}}",
+  "@movieCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "newMovie": "New movie",
+  "turnDiveIntoMovie": "Turn a dive into a movie",
+  "turnDiveIntoMovieBody": "Line up photos and clips, give each the color it needs, and export a movie without leaving this device.",
+  "recent": "Recent",
+  "swipeToDeleteMovie": "Swipe left or touch and hold a movie to delete it.",
+  "open": "Open",
+  "titleQuoted": "Title “{text}”",
+  "@titleQuoted": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "selectedOnCanvas": "Selected {name} on the canvas",
+  "@selectedOnCanvas": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "movieCanvas": "Movie canvas",
+  "canvasSelectedHint": "Drag to move, pinch to resize, turn two fingers to rotate",
+  "canvasHint": "Tap to select the clip or overlay you see",
+  "moveLeft": "Move left",
+  "moveRight": "Move right",
+  "moveUp": "Move up",
+  "moveDown": "Move down",
+  "makeLarger": "Make larger",
+  "makeSmaller": "Make smaller",
+  "rotateClockwise": "Rotate clockwise"
+}

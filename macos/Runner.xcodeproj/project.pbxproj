@@ -34,6 +34,7 @@
 		792AFCB69F87E6D98D27AD6F /* MacMediaProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D482F9A23A73C53E07004AD /* MacMediaProcessor.swift */; };
 		6F42FEDAA7597E5440DFB491 /* AquaTimelineRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C8C4952501C388E96D13E1 /* AquaTimelineRenderer.swift */; };
 		3A7E2AF0069AB1349E70F213 /* MacPhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5936042F51E8ABE8DD68CADE /* MacPhotoPicker.swift */; };
+		5DF53F0F4112DC59D05E7BAD /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 52CA339B73EB1A18B93CEB60 /* InfoPlist.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -92,6 +93,8 @@
 		1D482F9A23A73C53E07004AD /* MacMediaProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacMediaProcessor.swift; sourceTree = "<group>"; };
 		60C8C4952501C388E96D13E1 /* AquaTimelineRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AquaTimelineRenderer.swift; sourceTree = "<group>"; };
 		5936042F51E8ABE8DD68CADE /* MacPhotoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacPhotoPicker.swift; sourceTree = "<group>"; };
+		E4E95DB74523A0A70F37B07E /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		866395FDF2EB9B944AA84244 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -157,6 +160,7 @@
 				33CC10F22044A3C60003C045 /* Assets.xcassets */,
 				33CC10F42044A3C60003C045 /* MainMenu.xib */,
 				33CC10F72044A3C60003C045 /* Info.plist */,
+				52CA339B73EB1A18B93CEB60 /* InfoPlist.strings */,
 				A0C0A0C0A0C0A0C0A0C0A001 /* PrivacyInfo.xcprivacy */,
 			);
 			name = Resources;
@@ -276,6 +280,7 @@
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				de,
 				en,
 				Base,
 			);
@@ -307,6 +312,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */,
+				5DF53F0F4112DC59D05E7BAD /* InfoPlist.strings in Resources */,
 				33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */,
 				A0C0A0C0A0C0A0C0A0C0A002 /* PrivacyInfo.xcprivacy in Resources */,
 			);
@@ -401,6 +407,16 @@
 				33CC10F52044A3C60003C045 /* Base */,
 			);
 			name = MainMenu.xib;
+			path = Runner;
+			sourceTree = "<group>";
+		};
+		52CA339B73EB1A18B93CEB60 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				E4E95DB74523A0A70F37B07E /* en */,
+				866395FDF2EB9B944AA84244 /* de */,
+			);
+			name = InfoPlist.strings;
 			path = Runner;
 			sourceTree = "<group>";
 		};

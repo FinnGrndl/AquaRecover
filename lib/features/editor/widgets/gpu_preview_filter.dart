@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 
 import '../../../core/models/restoration_settings.dart';
+import '../../../l10n/l10n.dart';
 
 class GpuPreviewFilter extends StatelessWidget {
   const GpuPreviewFilter({
@@ -24,7 +25,7 @@ class GpuPreviewFilter extends StatelessWidget {
         File(path),
         fit: fit,
         errorBuilder: (_, _, _) =>
-            const Center(child: Text('Preview unavailable for this format.')),
+            Center(child: Text(context.l10n.previewUnavailableFormat)),
       ),
     );
   }

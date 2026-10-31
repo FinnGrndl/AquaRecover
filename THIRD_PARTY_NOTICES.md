@@ -17,6 +17,7 @@ Direct dependencies in version 1.6.0:
 | image_picker | 1.2.3 | BSD-3-Clause; bundled Android code also includes Apache-2.0 material |
 | image_picker_android | 0.8.13+19 | BSD-3-Clause; includes Apache-2.0 material |
 | image_picker_platform_interface | 2.11.1 | BSD-3-Clause |
+| intl | 0.20.2 | BSD-3-Clause |
 | latlong2 | 0.10.1 | Apache-2.0 |
 | path | 1.9.1 | BSD-3-Clause |
 | path_provider | 2.1.6 | BSD-3-Clause |

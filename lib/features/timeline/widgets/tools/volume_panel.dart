@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 
 import '../../timeline_controller.dart';
 import 'tool_controls.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Level and mute of the selected clip, video overlay, or sound.
 class VolumePanel extends StatelessWidget {
@@ -21,12 +22,13 @@ class VolumePanel extends StatelessWidget {
         : audio != null
         ? (volume: audio.volume, muted: audio.volume <= 0)
         : null;
+    final l10n = context.l10n;
     return ToolPanelBody(
       header: ToolHeader(
-        title: 'Volume',
-        subtitle: selectionName(controller),
+        title: l10n.toolVolume,
+        subtitle: selectionName(context.l10n, controller),
         trailing: ToolTextButton(
-          label: 'Reset',
+          label: l10n.reset,
           onPressed: state == null || (state.volume == 1 && !state.muted)
               ? null
               : () {
@@ -39,20 +41,20 @@ class VolumePanel extends StatelessWidget {
       ),
       children: [
         if (state == null)
-          const ToolEmptyNote('Photos and titles have no sound.')
+          ToolEmptyNote(l10n.noSoundNote)
         else ...[
           ToolSlider(
             key: const Key('timeline_volume_slider'),
             controller: controller,
-            label: 'Level',
+            label: l10n.volumeLevel,
             value: state.muted ? 0 : state.volume,
             min: 0,
             max: 1,
-            valueLabel: state.muted ? 'Muted' : percentLabel(state.volume),
+            valueLabel: state.muted ? l10n.muted : percentLabel(state.volume),
             onChanged: controller.setVolume,
           ),
           ToolRow(
-            label: 'Mute',
+            label: l10n.mute,
             child: CupertinoSwitch(
               key: const Key('timeline_mute_switch'),
               value: state.muted || state.volume <= 0,

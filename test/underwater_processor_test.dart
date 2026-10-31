@@ -42,6 +42,7 @@ import 'package:aqua_recover/features/editor/widgets/restored_image_preview.dart
 import 'package:aqua_recover/features/editor/widgets/video_frame_preview_tile.dart';
 import 'package:aqua_recover/features/editor/widgets/video_preview_tile.dart';
 import 'package:aqua_recover/features/library/export_library_page.dart';
+import 'package:aqua_recover/l10n/app_localizations_en.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -749,7 +750,8 @@ void main() {
   );
 
   test('editor tool groups expose expected controls and media visibility', () {
-    expect(EditorToolGroup.effects.label, 'LUT');
+    final english = AppLocalizationsEn();
+    expect(EditorToolGroup.effects.labelIn(english), 'LUT');
     expect(
       activeEditorToolGroupsFor(MediaKind.photo),
       isNot(contains(EditorToolGroup.video)),
@@ -800,12 +802,12 @@ void main() {
     final waterCorrection = allImageAdjustmentControls.firstWhere(
       (control) => control.id == 'recovery',
     );
-    expect(waterCorrection.label, 'Water correction');
+    expect(waterCorrection.label(english), 'Water correction');
     expect(waterCorrection.max, 1.5);
-    expect(waterCorrection.help, contains('does not scale exposure'));
+    expect(waterCorrection.help!(english), contains('does not scale exposure'));
     expect(
       allImageAdjustmentControls.every(
-        (control) => control.help?.isNotEmpty ?? false,
+        (control) => control.help?.call(english).isNotEmpty ?? false,
       ),
       isTrue,
     );
@@ -1464,7 +1466,9 @@ void main() {
                   open: open,
                   height: 180,
                   onClose: () => setState(() => open = false),
-                  child: Text('${selected.label} panel'),
+                  child: Text(
+                    '${selected.labelIn(AppLocalizationsEn())} panel',
+                  ),
                 ),
               ],
             );

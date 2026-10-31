@@ -2,11 +2,11 @@ import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 
-import '../../core/logbook/dive_export.dart';
 import '../../core/logbook/dive_log.dart';
 import '../../core/logbook/media_matching.dart';
 import '../timeline/timeline_media_picker.dart';
 import '../timeline/timeline_projects_page.dart';
+import '../../l10n/l10n.dart';
 import '../timeline/timeline_theme.dart';
 import 'dive_edit_page.dart';
 import 'logbook_controller.dart';
@@ -62,12 +62,12 @@ class _DivePageState extends State<DivePage> {
               automaticallyImplyLeading: !widget.embedded,
               // Beside the list the logbook's own bar is the route's hero.
               transitionBetweenRoutes: !widget.embedded,
-              previousPageTitle: widget.embedded ? null : 'Logbook',
-              middle: Text(diveTitle(dive, site)),
+              previousPageTitle: widget.embedded ? null : context.l10n.logbook,
+              middle: Text(diveTitleIn(context.l10n, dive, site)),
               trailing: LogbookIconButton(
                 key: const Key('dive_edit'),
                 icon: CupertinoIcons.pencil,
-                label: 'Edit dive',
+                label: context.l10n.editDive,
                 onPressed: () => _edit(dive, site),
               ),
             ),
@@ -100,38 +100,41 @@ class _DivePageState extends State<DivePage> {
             (a.capturedAt ?? dive.start).compareTo(b.capturedAt ?? dive.start),
       );
     final depths = dive.samples.where((s) => s.depth != null).length;
+    final l10n = context.l10n;
     return [
       _section([
-        _field('Date', formatDiveDate(dive.start)),
-        _field('Site', site?.name ?? 'Not set'),
+        _field(l10n.date, formatDiveDate(l10n, dive.start)),
+        _field(l10n.site, site?.name ?? l10n.notSet),
         if (site?.hasPosition ?? false)
           _field(
-            'Position',
-            '${site!.latitude!.toStringAsFixed(5)}, '
-                '${site.longitude!.toStringAsFixed(5)}',
+            l10n.position,
+            l10n.coordinatePair(
+              l10n.decimal(site!.latitude!, digits: 5),
+              l10n.decimal(site.longitude!, digits: 5),
+            ),
           ),
         _field(
-          'Max depth',
-          dive.maxDepth == null
+          l10n.maxDepth,
+          dive.maxDepth == null ? '–' : l10n.depthValue(dive.maxDepth!),
+        ),
+        _field(
+          l10n.duration,
+          dive.duration == null
               ? '–'
-              : '${dive.maxDepth!.toStringAsFixed(1)} m',
+              : l10n.minutesValue(dive.duration!.inMinutes),
         ),
         _field(
-          'Duration',
-          dive.duration == null ? '–' : '${dive.duration!.inMinutes} min',
-        ),
-        _field(
-          'Water temperature',
+          l10n.waterTemperature,
           dive.waterTemperature == null
               ? '–'
-              : '${dive.waterTemperature!.toStringAsFixed(1)} °C',
+              : l10n.temperatureValue(dive.waterTemperature!, digits: 1),
         ),
-        _field('Buddy', dive.buddy.isEmpty ? '–' : dive.buddy),
-        if (depths > 0) _field('Profile', '$depths depth readings'),
+        _field(l10n.buddy, dive.buddy.isEmpty ? '–' : dive.buddy),
+        if (depths > 0) _field(l10n.profile, l10n.depthReadings(depths)),
       ]),
       if (dive.notes.isNotEmpty) ...[
         const SizedBox(height: 16),
-        _heading('Notes'),
+        _heading(l10n.notes),
         _section([
           Padding(
             padding: const EdgeInsets.all(14),
@@ -143,14 +146,16 @@ class _DivePageState extends State<DivePage> {
         ]),
       ],
       const SizedBox(height: 20),
-      _heading('Photos and videos'),
+      _heading(l10n.photosAndVideos),
       if (sorted.isEmpty)
-        const Padding(
-          padding: EdgeInsets.only(bottom: 12),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
           child: Text(
-            'Nothing linked yet. Linked media stays where it is; the logbook '
-            'never copies it.',
-            style: TextStyle(color: TimelineColors.secondaryText, fontSize: 13),
+            l10n.nothingLinked,
+            style: const TextStyle(
+              color: TimelineColors.secondaryText,
+              fontSize: 13,
+            ),
           ),
         )
       else
@@ -175,7 +180,7 @@ class _DivePageState extends State<DivePage> {
           LogbookActionButton(
             key: const Key('dive_make_movie'),
             icon: CupertinoIcons.film,
-            label: 'Make a movie from this dive',
+            label: l10n.makeMovieFromDive,
             primary: true,
             onPressed: sorted.isEmpty || _busy
                 ? null
@@ -184,14 +189,14 @@ class _DivePageState extends State<DivePage> {
           LogbookActionButton(
             key: const Key('dive_add_media'),
             icon: CupertinoIcons.plus_rectangle_on_rectangle,
-            label: 'Add photos and videos',
+            label: l10n.addPhotosAndVideos,
             onPressed: _busy ? null : () => _addFiles(dive),
           ),
           if (dive.duration != null)
             LogbookActionButton(
               key: const Key('dive_find_photos'),
               icon: CupertinoIcons.photo_on_rectangle,
-              label: 'Find in Photos',
+              label: l10n.findInPhotos,
               onPressed: _busy ? null : () => _findInLibrary(dive),
             ),
         ],
@@ -256,13 +261,14 @@ class _DivePageState extends State<DivePage> {
       media.key,
       () => widget.media.thumbnail(media),
     );
-    final kind = media.isVideo ? 'Video' : 'Photo';
+    final l10n = context.l10n;
+    final kind = media.isVideo ? l10n.mediaKindVideo : l10n.mediaKindPhoto;
     final time = media.capturedAt == null
         ? ''
-        : ', ${formatDiveDate(media.capturedAt!).split(' · ').last}';
+        : ', ${l10n.time24(media.capturedAt!)}';
     final depth = media.depth == null
         ? ''
-        : ', ${media.depth!.toStringAsFixed(1)} m deep';
+        : l10n.mediaDepthSuffix(l10n.depthValue(media.depth!));
     return Semantics(
       label: '$kind$time$depth',
       button: true,
@@ -319,7 +325,7 @@ class _DivePageState extends State<DivePage> {
                             const Spacer(),
                             if (media.depth != null)
                               Text(
-                                '${media.depth!.toStringAsFixed(1)} m',
+                                l10n.depthValue(media.depth!),
                                 style: const TextStyle(
                                   color: CupertinoColors.white,
                                   fontSize: 11,
@@ -356,12 +362,12 @@ class _DivePageState extends State<DivePage> {
                 ),
               );
             },
-            child: const Text('Remove from dive'),
+            child: Text(context.l10n.removeFromDive),
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.of(popup).pop(),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.cancel),
         ),
       ),
     );
@@ -384,11 +390,12 @@ class _DivePageState extends State<DivePage> {
   }
 
   Future<void> _busyWhile(Future<void> Function() action) async {
+    final l10n = context.l10n;
     setState(() => _busy = true);
     try {
       await action();
     } on Object catch (e) {
-      await _alert('Something went wrong', '$e');
+      await _alert(l10n.somethingWentWrong, '$e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -416,24 +423,19 @@ class _DivePageState extends State<DivePage> {
   });
 
   Future<void> _findInLibrary(Dive dive) => _busyWhile(() async {
+    final l10n = context.l10n;
     const margin = Duration(minutes: 2);
     final candidates = await widget.media.libraryCandidates(
       dive.start.subtract(margin),
       dive.end.add(margin),
     );
     final linked = await widget.controller.linkByTime(candidates);
-    await _alert(
-      'Photos',
-      linked == 0
-          ? 'No new photos or videos from this dive were found.'
-          : linked == 1
-          ? '1 photo or video was linked.'
-          : '$linked photos and videos were linked.',
-    );
+    await _alert(l10n.photosTitle, l10n.diveMediaLinkedBody(linked));
   });
 
   Future<void> _makeMovie(Dive dive, DiveSite? site, List<DiveMedia> media) =>
       _busyWhile(() async {
+        final l10n = context.l10n;
         final items = <({String path, bool isVideo, double? seconds})>[];
         for (final m in media) {
           final path = await widget.media.filePath(m);
@@ -445,18 +447,14 @@ class _DivePageState extends State<DivePage> {
           ));
         }
         if (items.isEmpty) {
-          await _alert(
-            'Media not found',
-            'None of the linked photos or videos can be opened. They may '
-                'have been moved or deleted.',
-          );
+          await _alert(l10n.mediaNotFound, l10n.mediaNotFoundBody);
           return;
         }
         if (!mounted) return;
         final project = movieFromDive(
           items,
           id: TimelineProjectsPage.newProjectId(),
-          name: diveTitle(dive, site),
+          name: diveTitleIn(l10n, dive, site),
         );
         await TimelineProjectsPage.open(context, project);
       });
@@ -472,7 +470,7 @@ class _DivePageState extends State<DivePage> {
           CupertinoDialogAction(
             isDefaultAction: true,
             onPressed: () => Navigator.of(dialog).pop(),
-            child: const Text('OK'),
+            child: Text(context.l10n.ok),
           ),
         ],
       ),

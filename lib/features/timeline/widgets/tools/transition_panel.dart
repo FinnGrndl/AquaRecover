@@ -4,6 +4,7 @@ import '../../../../core/timeline/timeline_project.dart';
 import '../../timeline_controller.dart';
 import '../../timeline_theme.dart';
 import 'tool_controls.dart';
+import '../../../../l10n/l10n.dart';
 
 /// How clip [clipIndex] enters from the clip before it: a cut, a crossfade,
 /// or a dip through black or white, plus the project's transition length
@@ -18,11 +19,11 @@ class TransitionPanel extends StatelessWidget {
   final TimelineController controller;
   final int clipIndex;
 
-  static String labelOf(ClipTransition t) => switch (t) {
-    ClipTransition.cut => 'Cut',
-    ClipTransition.crossfade => 'Crossfade',
-    ClipTransition.dipBlack => 'Dip to black',
-    ClipTransition.dipWhite => 'Dip to white',
+  static String labelOf(AppLocalizations l10n, ClipTransition t) => switch (t) {
+    ClipTransition.cut => l10n.transitionCut,
+    ClipTransition.crossfade => l10n.transitionCrossfade,
+    ClipTransition.dipBlack => l10n.transitionDipBlack,
+    ClipTransition.dipWhite => l10n.transitionDipWhite,
   };
 
   static IconData iconOf(ClipTransition t) => switch (t) {
@@ -34,18 +35,19 @@ class TransitionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final clips = controller.project.clips;
     final valid = clipIndex > 0 && clipIndex < clips.length;
     final current = valid ? clips[clipIndex].transition : null;
     final seconds = controller.project.transitionSeconds;
     return ToolPanelBody(
       header: ToolHeader(
-        title: 'Transition',
-        subtitle: valid ? 'Clips $clipIndex–${clipIndex + 1}' : null,
+        title: l10n.toolTransition,
+        subtitle: valid ? l10n.clipsRange(clipIndex, clipIndex + 1) : null,
       ),
       children: [
         if (!valid)
-          const ToolEmptyNote('Tap the button between two clips.')
+          ToolEmptyNote(l10n.tapBetweenClips)
         else ...[
           LayoutBuilder(
             builder: (context, constraints) {
@@ -57,7 +59,7 @@ class TransitionPanel extends StatelessWidget {
                     ChoiceTile(
                       key: Key('timeline_transition_${t.name}'),
                       width: width,
-                      label: labelOf(t),
+                      label: labelOf(l10n, t),
                       icon: iconOf(t),
                       selected: t == current,
                       onPressed: () => controller.setTransitionAt(clipIndex, t),
@@ -70,13 +72,13 @@ class TransitionPanel extends StatelessWidget {
           ToolSlider(
             key: const Key('timeline_transition_seconds'),
             controller: controller,
-            label: 'Length of every transition',
+            label: l10n.transitionLength,
             value: seconds,
             min: 0.1,
             max: 2,
             divisions: 19,
             enabled: current != ClipTransition.cut,
-            valueLabel: secondsLabel(seconds),
+            valueLabel: secondsLabel(l10n, seconds),
             onChanged: controller.setTransitionSeconds,
           ),
           const SizedBox(height: 4),
@@ -89,7 +91,7 @@ class TransitionPanel extends StatelessWidget {
                 ? () => controller.applyTransitionToAll(current!)
                 : null,
             child: Text(
-              'Apply ${labelOf(current!)} to All',
+              l10n.applyTransitionToAll(labelOf(l10n, current!)),
               style: const TextStyle(
                 color: TimelineColors.text,
                 fontSize: 15,

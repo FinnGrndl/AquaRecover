@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../l10n/l10n.dart';
 import '../../timeline_controller.dart';
 import '../../timeline_theme.dart';
 
@@ -506,8 +507,8 @@ class ToolEmptyNote extends StatelessWidget {
 void snapHaptic() => HapticFeedback.selectionClick();
 
 /// "1.5 s"-style seconds.
-String secondsLabel(double seconds) =>
-    '${seconds.toStringAsFixed(seconds < 10 ? 1 : 0)} s';
+String secondsLabel(AppLocalizations l10n, double seconds) =>
+    l10n.secondsValue(l10n.decimal(seconds, digits: seconds < 10 ? 1 : 0));
 
 /// "75 %"-style percentages.
 String percentLabel(double value) => '${(value * 100).round()} %';
@@ -542,20 +543,24 @@ class ToolPanelBody extends StatelessWidget {
 }
 
 /// The selected clip, overlay, or sound as a short name for panel headers.
-String selectionName(TimelineController controller) {
+String selectionName(AppLocalizations l10n, TimelineController controller) {
   final selection = controller.selection;
   switch (selection) {
     case ClipSelection(:final id):
       final index = controller.project.clips.indexWhere((c) => c.id == id);
       final clip = controller.clipById(id);
-      return '${clip?.isVideo ?? false ? 'Clip' : 'Photo'} ${index + 1}';
+      return clip?.isVideo ?? false
+          ? l10n.selectionClip(index + 1)
+          : l10n.selectionPhoto(index + 1);
     case OverlaySelection(:final id):
       final overlay = controller.overlayById(id);
-      if (overlay?.title != null) return 'Title';
-      return overlay?.isVideo ?? false ? 'Video overlay' : 'Photo overlay';
+      if (overlay?.title != null) return l10n.selectionTitle;
+      return overlay?.isVideo ?? false ? l10n.videoOverlay : l10n.photoOverlay;
     case AudioSelection(:final id):
       final audio = controller.audioById(id);
-      return audio == null || audio.name.isEmpty ? 'Sound' : audio.name;
+      return audio == null || audio.name.isEmpty
+          ? l10n.soundFallback
+          : audio.name;
     case NoSelection():
       return '';
   }

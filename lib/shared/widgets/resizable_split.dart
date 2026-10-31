@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/l10n.dart';
 import '../reduce_motion.dart';
 import 'app_tooltip.dart';
 
@@ -343,21 +344,21 @@ class _ResizableSplitState extends State<ResizableSplit>
     );
     return Semantics(
       container: true,
-      label: 'Preview size',
+      label: context.l10n.previewSize,
       value: '$percent%',
       increasedValue: '${math.min(100, percent + stepPercent)}%',
       decreasedValue: '${math.max(0, percent - stepPercent)}%',
-      hint: 'Drag to resize preview',
+      hint: context.l10n.dragToResizePreview,
       onIncrease: () => _adjust(_step),
       onDecrease: () => _adjust(-_step),
       customSemanticsActions: {
-        const CustomSemanticsAction(label: 'Reset preview size'): _reset,
+        CustomSemanticsAction(label: context.l10n.resetPreviewSize): _reset,
       },
       child: Focus(
         onKeyEvent: _onKey,
         onFocusChange: (focused) => setState(() => _focused = focused),
         child: AppTooltip(
-          message: 'Drag to resize preview',
+          message: context.l10n.dragToResizePreview,
           trigger: AppTooltipTrigger.hoverOnly,
           child: MouseRegion(
             cursor: _horizontal

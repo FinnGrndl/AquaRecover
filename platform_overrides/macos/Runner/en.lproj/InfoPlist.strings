@@ -1,0 +1,3 @@
+/* Permission prompts shown by macOS. Keep these in step with Info.plist. */
+"NSPhotoLibraryUsageDescription" = "AquaRecover imports selected dive photos and videos for on-device restoration.";
+"NSPhotoLibraryAddUsageDescription" = "AquaRecover can save restored exports back to your photo library.";

@@ -1205,14 +1205,17 @@ class TimelineController extends ChangeNotifier {
 
   /// Moves a video clip's sound to its own audio item, aligned with the
   /// clip, and sets the clip's volume to 0. Returns the new item's id.
-  String? extractAudio() {
+  /// [nameOf] names the new item after the clip's file name.
+  String? extractAudio({String Function(String clipName)? nameOf}) {
     final entry = extractAudioSource;
     if (entry == null) return null;
     final clip = entry.clip;
     final draft = TimelineAudioClip(
       id: _newId(),
       path: clip.path,
-      name: '${p.basenameWithoutExtension(clip.path)} audio',
+      name: (nameOf ?? (name) => '$name audio')(
+        p.basenameWithoutExtension(clip.path),
+      ),
       role: AudioRole.extracted,
       start: entry.start,
       sourceStart: clip.sourceStart,

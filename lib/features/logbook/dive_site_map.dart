@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../core/legal/app_licenses.dart';
 import '../../core/logbook/dive_log.dart';
+import '../../l10n/l10n.dart';
 import '../../shared/reduce_motion.dart';
 import '../timeline/timeline_theme.dart';
 import '../../shared/widgets/app_tooltip.dart';
@@ -73,7 +74,7 @@ class DiveSiteMap extends StatelessWidget {
                       message: site.name,
                       child: Semantics(
                         button: true,
-                        label: 'Dive site ${site.name}',
+                        label: context.l10n.diveSiteNamed(site.name),
                         excludeSemantics: true,
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
@@ -97,7 +98,7 @@ class DiveSiteMap extends StatelessWidget {
           child: SafeArea(
             child: Semantics(
               button: true,
-              label: 'Map data © OpenStreetMap contributors. Show license.',
+              label: context.l10n.osmAttributionSemantics,
               excludeSemantics: true,
               child: GestureDetector(
                 // The margin counts too, for a touch target near 44 pt.
@@ -113,9 +114,9 @@ class DiveSiteMap extends StatelessWidget {
                     color: CupertinoColors.black.withValues(alpha: .7),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text(
-                    '© OpenStreetMap contributors',
-                    style: TextStyle(
+                  child: Text(
+                    context.l10n.osmAttribution,
+                    style: const TextStyle(
                       color: CupertinoColors.white,
                       fontSize: 11,
                     ),
@@ -140,7 +141,7 @@ class DiveSiteMap extends StatelessWidget {
           CupertinoDialogAction(
             isDefaultAction: true,
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Done'),
+            child: Text(context.l10n.done),
           ),
         ],
       ),

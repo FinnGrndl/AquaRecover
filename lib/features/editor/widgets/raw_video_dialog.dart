@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/models/raw_video_descriptor.dart';
+import '../../../l10n/l10n.dart';
 import '../../../shared/widgets/app_dialog.dart';
 
 class RawVideoDialog extends StatefulWidget {
@@ -43,15 +44,16 @@ class _RawVideoDialogState extends State<RawVideoDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return CupertinoAlertDialog(
-      title: const Text('RAW video settings'),
+      title: Text(l10n.rawVideoSettings),
       content: Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Column(
           children: [
-            _field('Width', _width),
-            _field('Height', _height),
-            _field('Frame rate', _fps, decimal: true),
+            _field(l10n.width, _width),
+            _field(l10n.height, _height),
+            _field(l10n.frameRate, _fps, decimal: true),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -106,12 +108,12 @@ class _RawVideoDialogState extends State<RawVideoDialog> {
       actions: [
         CupertinoDialogAction(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
         CupertinoDialogAction(
           isDefaultAction: true,
           onPressed: _submit,
-          child: const Text('Continue'),
+          child: Text(l10n.continueAction),
         ),
       ],
     );
@@ -144,11 +146,45 @@ class _RawVideoDialogState extends State<RawVideoDialog> {
   }
 
   void _submit() {
+    final l10n = context.l10n;
+    final width = int.tryParse(_width.text.trim());
+    final height = int.tryParse(_height.text.trim());
+    final frameRate = double.tryParse(_fps.text.trim());
+    if (width == null || height == null || frameRate == null) {
+      setState(() => _error = l10n.rawVideoNumbersRequired);
+      return;
+    }
+    // The same limits as validateForProcessing, in the app language.
+    final message = switch ((width, height, frameRate)) {
+      _
+          when width < RawVideoDescriptor.minDimension ||
+              height < RawVideoDescriptor.minDimension =>
+        l10n.rawVideoTooSmall,
+      _
+          when width > RawVideoDescriptor.maxDimension ||
+              height > RawVideoDescriptor.maxDimension =>
+        l10n.rawVideoTooLarge(RawVideoDescriptor.maxDimension),
+      _ when width * height > RawVideoDescriptor.maxPixels =>
+        l10n.rawVideoTooManyPixels(RawVideoDescriptor.maxPixels),
+      _
+          when !frameRate.isFinite ||
+              frameRate < RawVideoDescriptor.minFrameRate ||
+              frameRate > RawVideoDescriptor.maxFrameRate =>
+        l10n.rawVideoFrameRateRange(
+          l10n.decimal(RawVideoDescriptor.minFrameRate, digits: 0),
+          l10n.decimal(RawVideoDescriptor.maxFrameRate, digits: 0),
+        ),
+      _ => null,
+    };
+    if (message != null) {
+      setState(() => _error = message);
+      return;
+    }
     try {
       final descriptor = RawVideoDescriptor(
-        width: int.parse(_width.text.trim()),
-        height: int.parse(_height.text.trim()),
-        frameRate: double.parse(_fps.text.trim()),
+        width: width,
+        height: height,
+        frameRate: frameRate,
         pixelFormat: _pixelFormat,
       );
       descriptor.validateForProcessing();
